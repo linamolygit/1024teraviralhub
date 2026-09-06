@@ -1,0 +1,44 @@
+name = "1024teraviralhub"
+main = "src/worker.ts"
+compatibility_date = "2025-08-30"
+compatibility_flags = ["nodejs_compat"]
+
+# Assets (React SPA)
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+
+# D1 Database
+[[d1_databases]]
+binding = "DB"
+database_name = "tvh-prod-db"
+database_id = "9b7e9b3e-b8ae-4803-b5e2-159ba79a07ee"
+migrations_dir = "migrations"
+
+# R2 Object Storage
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "tvh-digital-assets"
+
+# KV (optional caching)
+# [[kv_namespaces]]
+# binding = "KV"
+# id = "YOUR_KV_ID"
+
+[vars]
+ENVIRONMENT = "development"
+SITE_URL = "https://1024teraviralhub.com"
+CASHFREE_API_URL = "https://sandbox.cashfree.com/pg"
+
+# Secrets (set via: wrangler secret put SECRET_NAME)
+# CASHFREE_APP_ID
+# CASHFREE_SECRET_KEY
+# CASHFREE_WEBHOOK_SECRET
+# FIREBASE_PROJECT_ID
+# FIREBASE_CLIENT_EMAIL
+# FIREBASE_PRIVATE_KEY
+# ADMIN_SECRET_KEY
+
+[dev]
+port = 8787
+local_protocol = "http"
