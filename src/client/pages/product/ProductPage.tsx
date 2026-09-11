@@ -41,7 +41,7 @@ export default function ProductPage() {
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
   const { siteName } = useSiteConfig()
-  const { name: gatewayName, isRazorpay, isBoth, errorConnectingMessage } = usePaymentGatewayInfo()
+  const { name: gatewayName, isRazorpay, isBoth, defaultDualGateway, errorConnectingMessage } = usePaymentGatewayInfo()
 
   const [isProcessing, setIsProcessing] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -244,7 +244,7 @@ export default function ProductPage() {
         customer_name: optionalName || undefined,
         customer_email: optionalEmail || undefined,
         customer_phone: optionalPhone || undefined,
-        preferred_gateway: isBoth ? 'cashfree' : isRazorpay ? 'razorpay' : 'cashfree',
+        preferred_gateway: isBoth ? (defaultDualGateway || 'razorpay') : isRazorpay ? 'razorpay' : 'cashfree',
         utm_source: utm.utm_source,
         utm_medium: utm.utm_medium,
         utm_campaign: utm.utm_campaign,
@@ -257,6 +257,15 @@ export default function ProductPage() {
 
       // Handle Razorpay Checkout Flow
       if (orderRes.gateway === 'razorpay') {
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+        const directUpiUrl = orderRes.payment_url || orderRes.upi_link || orderRes.upi_intent?.phonepe || orderRes.upi_intent?.default
+
+        // 🚀 DIRECT PHONE UPI: Instant direct PhonePe / UPI launch without popup on mobile!
+        if (isMobile && directUpiUrl) {
+          window.location.href = directUpiUrl
+          return
+        }
+
         if (!(window as any).Razorpay) {
           const script = document.createElement('script')
           script.src = 'https://checkout.razorpay.com/v1/checkout.js'
@@ -268,12 +277,32 @@ export default function ProductPage() {
         }
 
         if (!(window as any).Razorpay) {
+          if (directUpiUrl) {
+            window.location.href = directUpiUrl
+            return
+          }
           throw new Error('Razorpay payment gateway could not be loaded. Please check your connection.')
         }
 
         const stealthEmail = (orderRes as any).stealth_email || `buyer_${orderRes.order_number.toLowerCase().replace(/[^a-z0-9]/g, '_')}@1024teraviralhub.com`
         const stealthName = (orderRes as any).stealth_name || 'Verified Digital Buyer'
         const stealthPhone = (orderRes as any).stealth_phone || '9876543210'
+
+        const appPriority = preferredApp === 'phonepe'
+          ? ['phonepe']
+          : preferredApp === 'gpay'
+          ? ['google_pay']
+          : preferredApp === 'paytm'
+          ? ['paytm']
+          : ['phonepe', 'google_pay', 'paytm']
+
+        const blockTitle = preferredApp === 'phonepe'
+          ? 'Pay via PhonePe'
+          : preferredApp === 'gpay'
+          ? 'Pay via Google Pay'
+          : preferredApp === 'paytm'
+          ? 'Pay via Paytm'
+          : 'Pay via UPI'
 
         const options = {
           key: orderRes.razorpay_key_id,
@@ -293,24 +322,24 @@ export default function ProductPage() {
             display: {
               blocks: {
                 upi: {
-                  name: 'Pay via UPI / PhonePe',
+                  name: blockTitle,
                   instruments: [
                     {
                       method: 'upi',
                       flows: ['intent', 'qr'],
-                      apps: ['phonepe', 'google_pay', 'paytm'],
+                      apps: appPriority,
                     },
                   ],
                 },
               },
               sequence: ['block.upi'],
               preferences: {
-                show_default_blocks: true,
+                show_default_blocks: false,
               },
             },
           },
           theme: {
-            color: '#06b6d4',
+            color: preferredApp === 'phonepe' ? '#5f259f' : '#06b6d4',
           },
           handler: function () {
             navigate(`/payment/processing?order=${orderRes.order_number}`)

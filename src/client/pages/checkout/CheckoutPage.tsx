@@ -241,13 +241,13 @@ export default function CheckoutPage() {
         const stealthName = (result as any).stealth_name || 'Verified Digital Buyer'
         const stealthPhone = (result as any).stealth_phone || '9876543210'
 
-        // Priority app mapping based on user selection in UPI grid
+        // Strict app mapping based on user selection in UPI grid
         const appPriority = selectedApp === 'phonepe'
-          ? ['phonepe', 'google_pay', 'paytm']
+          ? ['phonepe']
           : selectedApp === 'gpay'
-          ? ['google_pay', 'phonepe', 'paytm']
+          ? ['google_pay']
           : selectedApp === 'paytm'
-          ? ['paytm', 'phonepe', 'google_pay']
+          ? ['paytm']
           : ['phonepe', 'google_pay', 'paytm']
 
         const brandColor = selectedApp === 'phonepe' ? '#5f259f' : selectedApp === 'gpay' ? '#1A73E8' : selectedApp === 'paytm' ? '#002E6E' : '#0C83FD'
@@ -283,7 +283,7 @@ export default function CheckoutPage() {
               },
               sequence: ['block.upi'],
               preferences: {
-                show_default_blocks: true,
+                show_default_blocks: false,
               },
             },
           },
