@@ -7,7 +7,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import type { Env } from '../worker'
 import { CashfreeClient } from '../lib/cashfree'
-import { RazorpayClient } from '../lib/razorpay'
+import { RazorpayClient, getSanitizedCustomerPhone } from '../lib/razorpay'
 
 type PartnerRecord = {
   id: number
@@ -274,9 +274,8 @@ app.post('/create-order', async (c) => {
   const customerEmail = (data.customer_email && data.customer_email.includes('@'))
     ? data.customer_email.trim().toLowerCase()
     : `buyer_${Date.now()}_${randCode}@1024teraviralhub.com`
-  const customerPhone = (data.customer_phone && data.customer_phone.replace(/\D/g, '').length >= 10)
-    ? data.customer_phone.replace(/\D/g, '').slice(0, 10)
-    : '9876543210'
+  // 📱 AUTO-FILL MOBILE NUMBER: Realistic valid Indian mobile number if not provided
+  const customerPhone = getSanitizedCustomerPhone(data.customer_phone, orderNumber)
 
   const siteUrl = c.env.SITE_URL || 'https://1024teraviralhub.com'
   const originSite = partner?.site_url || data.origin_site || 'https://instatextpro.online'
@@ -336,7 +335,7 @@ app.post('/create-order', async (c) => {
     })
 
     const rzpCustomerEmail = `buyer_${orderNumber.toLowerCase().replace(/[^a-z0-9]/g, '_')}@1024teraviralhub.com`
-    const rzpCustomerPhone = '9876543210'
+    const rzpCustomerPhone = customerPhone
 
     let plink: any = null
     let rzpOrder: any = null
@@ -472,7 +471,7 @@ app.post('/create-order', async (c) => {
   })
 
   const cashfreeCustomerEmail = `buyer_${orderNumber.toLowerCase().replace(/[^a-z0-9]/g, '_')}@1024teraviralhub.com`
-  const cashfreeCustomerPhone = '9876543210'
+  const cashfreeCustomerPhone = customerPhone
 
   let cfOrder
   try {

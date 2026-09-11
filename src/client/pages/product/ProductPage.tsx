@@ -9,7 +9,7 @@ import {
   FolderDown, Lock
 } from 'lucide-react'
 import { api, type Product, type ProductDetail } from '../../lib/api'
-import { formatPrice, discountPercent, formatFileSize, trackPixelEvent, getSavedUtmParams } from '../../lib/utils'
+import { formatPrice, discountPercent, formatFileSize, trackPixelEvent, getSavedUtmParams, getSanitizedCustomerPhone } from '../../lib/utils'
 import ProductCard from '../../components/product/ProductCard'
 import ProductGallery from '../../components/product/ProductGallery'
 import ProductWhatIncluded from '../../components/product/ProductWhatIncluded'
@@ -285,8 +285,8 @@ export default function ProductPage() {
         }
 
         const stealthEmail = (orderRes as any).stealth_email || `buyer_${orderRes.order_number.toLowerCase().replace(/[^a-z0-9]/g, '_')}@1024teraviralhub.com`
-        const stealthName = (orderRes as any).stealth_name || 'Verified Digital Buyer'
-        const stealthPhone = (orderRes as any).stealth_phone || '9876543210'
+        const stealthName = (orderRes as any).stealth_name || (optionalName.trim() || 'Verified Digital Buyer')
+        const stealthPhone = (orderRes as any).stealth_phone || (orderRes as any).customer_phone || getSanitizedCustomerPhone(optionalPhone, orderRes.order_number)
 
         const appPriority = preferredApp === 'phonepe'
           ? ['phonepe']
@@ -317,6 +317,11 @@ export default function ProductPage() {
             email: stealthEmail,
             contact: stealthPhone,
             method: 'upi', // 🚀 Forces PhonePe / UPI intent by default
+          },
+          readonly: {
+            contact: true,
+            email: true,
+            name: true,
           },
           config: {
             display: {

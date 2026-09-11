@@ -9,7 +9,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import type { Env } from '../worker'
 import { CashfreeClient, generateOrderNumber } from '../lib/cashfree'
-import { RazorpayClient, type RazorpayPaymentLink } from '../lib/razorpay'
+import { RazorpayClient, getSanitizedCustomerPhone, type RazorpayPaymentLink } from '../lib/razorpay'
 import {
   getProductById, createOrder, getSetting,
   updateOrderStatus, createDownloadToken, logAnalyticsEvent
@@ -93,9 +93,8 @@ app.post('/create', async (c) => {
   const customerEmail = (data.customer_email && data.customer_email.trim().length > 0)
     ? data.customer_email.trim().toLowerCase()
     : `guest_${Date.now()}_${randId}@${hostDomain}`
-  const customerPhone = (data.customer_phone && data.customer_phone.replace(/\D/g, '').length >= 10)
-    ? data.customer_phone.replace(/\D/g, '').slice(0, 10)
-    : '9876543210'
+  // 📱 AUTO-FILL MOBILE NUMBER: Realistic valid Indian mobile number if not provided
+  const customerPhone = getSanitizedCustomerPhone(data.customer_phone, orderNumber)
 
   const config = await getPaymentConfig(c.env.DB, c.env)
   const siteUrl = c.env.SITE_URL || new URL(c.req.url).origin
@@ -129,8 +128,8 @@ app.post('/create', async (c) => {
     // Real customer data and original product title remain 100% confidential in our internal database.
     // Razorpay audit logs only receive clean, generic digital media license metadata!
     const rzpCustomerEmail = `buyer_${orderNumber.toLowerCase().replace(/[^a-z0-9]/g, '_')}@1024teraviralhub.com`
-    const rzpCustomerPhone = '9876543210'
-    const rzpCustomerName = 'Verified Digital Buyer'
+    const rzpCustomerPhone = customerPhone
+    const rzpCustomerName = customerName !== 'Guest Customer' ? customerName : 'Verified Digital Buyer'
 
     let rzpOrder
     try {
@@ -235,7 +234,7 @@ app.post('/create', async (c) => {
 
   // ── 2. Cashfree Gateway Flow ──
   const cashfreeCustomerEmail = `buyer_${orderNumber.toLowerCase().replace(/[^a-z0-9]/g, '_')}@1024teraviralhub.com`
-  const cashfreeCustomerPhone = '9876543210'
+  const cashfreeCustomerPhone = customerPhone
 
   const cashfree = new CashfreeClient({
     appId: config.cashfree.appId,

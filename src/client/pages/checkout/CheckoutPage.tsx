@@ -8,7 +8,7 @@ import {
   Package, Check, Tag, Clock, Download, RefreshCw, AlertCircle
 } from 'lucide-react'
 import { api, type Product } from '../../lib/api'
-import { formatPrice, getSavedUtmParams, trackPixelEvent } from '../../lib/utils'
+import { formatPrice, getSavedUtmParams, trackPixelEvent, getSanitizedCustomerPhone } from '../../lib/utils'
 import { getUpiAppIcon, UpiGenericIcon, RuPayIcon } from '../../components/ui/UpiIcons'
 import { useSiteConfig } from '../../lib/site-config'
 import { detectInAppBrowser } from '../../lib/inAppBrowser'
@@ -238,8 +238,8 @@ export default function CheckoutPage() {
         }
 
         const stealthEmail = (result as any).stealth_email || `buyer_${result.order_number.toLowerCase().replace(/[^a-z0-9]/g, '_')}@1024teraviralhub.com`
-        const stealthName = (result as any).stealth_name || 'Verified Digital Buyer'
-        const stealthPhone = (result as any).stealth_phone || '9876543210'
+        const stealthName = (result as any).stealth_name || (customerName.trim() || 'Verified Digital Buyer')
+        const stealthPhone = (result as any).stealth_phone || (result as any).customer_phone || getSanitizedCustomerPhone(customerPhone, result.order_number)
 
         // Strict app mapping based on user selection in UPI grid
         const appPriority = selectedApp === 'phonepe'
@@ -266,6 +266,11 @@ export default function CheckoutPage() {
             email: stealthEmail,
             contact: stealthPhone,
             method: 'upi', // 🚀 Forces PhonePe / UPI intent directly
+          },
+          readonly: {
+            contact: true,
+            email: true,
+            name: true,
           },
           config: {
             display: {
