@@ -416,6 +416,49 @@ async function injectGoogleSuite(html: string, db: D1Database): Promise<string> 
   return html
 }
 
+// Handle POST callbacks from payment gateways (Razorpay, PhonePe, Cashfree)
+app.post('/payment/processing', async (c) => {
+  const url = new URL(c.req.url)
+  const params = new URLSearchParams(url.search)
+
+  try {
+    const formData = await c.req.formData()
+    formData.forEach((value, key) => {
+      if (typeof value === 'string') {
+        params.set(key, value)
+      }
+    })
+  } catch {
+    try {
+      const json = await c.req.json()
+      if (json && typeof json === 'object') {
+        Object.entries(json).forEach(([k, v]) => {
+          params.set(k, String(v))
+        })
+      }
+    } catch { }
+  }
+
+  const orderNumber = params.get('order') || params.get('razorpay_payment_link_reference_id') || params.get('reference_id')
+  if (orderNumber && !params.has('order')) {
+    params.set('order', orderNumber)
+  }
+
+  return c.redirect(`/payment/processing?${params.toString()}`, 303)
+})
+
+app.post('/payment/success', async (c) => {
+  const url = new URL(c.req.url)
+  const params = new URLSearchParams(url.search)
+  try {
+    const formData = await c.req.formData()
+    formData.forEach((value, key) => {
+      if (typeof value === 'string') params.set(key, value)
+    })
+  } catch { }
+  return c.redirect(`/payment/success?${params.toString()}`, 303)
+})
+
 // ─── SPA Fallback — serve React app with Dynamic Open Graph / SEO ──
 app.get('*', async (c) => {
   const url = new URL(c.req.url)

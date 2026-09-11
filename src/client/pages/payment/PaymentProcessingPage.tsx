@@ -8,7 +8,17 @@ import { saveOrderSession } from '../../lib/orderSession'
 export default function PaymentProcessingPage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const orderNumber = searchParams.get('order')
+  
+  // Extract order number from URL params or local active session
+  const orderNumber =
+    searchParams.get('order') ||
+    searchParams.get('razorpay_payment_link_reference_id') ||
+    searchParams.get('reference_id') ||
+    searchParams.get('order_id') ||
+    (typeof window !== 'undefined'
+      ? sessionStorage.getItem('tvh_active_order_number') || localStorage.getItem('tvh_active_order_number')
+      : null)
+
   const [attempts, setAttempts] = useState(0)
   const [message, setMessage] = useState('Verifying your payment...')
 
@@ -29,34 +39,41 @@ export default function PaymentProcessingPage() {
         const result = await api.checkout.verify(orderNumber)
 
         if (result.status === 'PAID' && result.download_token) {
+          try {
+            localStorage.removeItem('tvh_active_order')
+            sessionStorage.removeItem('tvh_active_order')
+            localStorage.removeItem('tvh_active_order_number')
+            sessionStorage.removeItem('tvh_active_order_number')
+          } catch { }
+
           saveOrderSession({ orderNumber, token: result.download_token, createdAt: Date.now() })
-          navigate(`/payment/success?order=${orderNumber}&token=${result.download_token}`)
+          navigate(`/payment/success?order=${encodeURIComponent(orderNumber)}&token=${encodeURIComponent(result.download_token)}`, { replace: true })
           return
         }
 
         if (result.status === 'FAILED') {
-          navigate(`/payment/failed?order=${orderNumber}`)
+          navigate(`/payment/failed?order=${encodeURIComponent(orderNumber)}`, { replace: true })
           return
         }
 
-        // Still pending — retry
-        if (count < 10) {
-          setMessage(count > 3 ? 'Still verifying... please wait.' : 'Verifying your payment...')
+        // Still pending — retry up to 15 times (30 seconds total)
+        if (count < 15) {
+          setMessage(count > 3 ? 'Confirming payment with bank... please wait.' : 'Verifying your payment...')
           timer = setTimeout(verify, 2000)
         } else {
-          navigate(`/payment/processing/timeout?order=${orderNumber}`)
+          navigate(`/payment/processing/timeout?order=${encodeURIComponent(orderNumber)}`, { replace: true })
         }
       } catch {
-        if (count < 10) {
-          timer = setTimeout(verify, 3000)
+        if (count < 15) {
+          timer = setTimeout(verify, 2500)
         } else {
-          navigate(`/payment/failed?order=${orderNumber}`)
+          navigate(`/payment/failed?order=${encodeURIComponent(orderNumber)}`, { replace: true })
         }
       }
     }
 
-    // Initial delay to let Cashfree process
-    timer = setTimeout(verify, 1500)
+    // Initial delay to let Razorpay/bank process
+    timer = setTimeout(verify, 1000)
     return () => clearTimeout(timer)
   }, [orderNumber, navigate])
 

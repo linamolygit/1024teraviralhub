@@ -14,6 +14,7 @@ import { useSiteConfig } from '../../lib/site-config'
 import { detectInAppBrowser } from '../../lib/inAppBrowser'
 import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
 import GatewayBadge from '../../components/ui/GatewayBadge'
+import { saveOrderSession } from '../../lib/orderSession'
 
 declare global {
   interface Window {
@@ -86,6 +87,69 @@ export default function CheckoutPage() {
       document.head.appendChild(script)
     }
   }, [])
+
+  // 🔄 ACTIVE ORDER RESUME & AUTOMATIC PAYMENT DETECTION:
+  // When user returns from PhonePe / UPI app (or if page is restored / focused),
+  // automatically verify pending order and immediately redirect to payment success / download!
+  useEffect(() => {
+    let poller: ReturnType<typeof setInterval> | null = null
+
+    const checkActiveOrder = async () => {
+      try {
+        const raw = localStorage.getItem('tvh_active_order') || sessionStorage.getItem('tvh_active_order')
+        if (!raw) return
+
+        const active = JSON.parse(raw)
+        if (!active?.order_number || Date.now() - (active.timestamp || 0) > 3600000) {
+          return
+        }
+
+        const res = await api.checkout.verify(active.order_number)
+        if (res?.success && res.status === 'PAID' && res.download_token) {
+          try {
+            localStorage.removeItem('tvh_active_order')
+            sessionStorage.removeItem('tvh_active_order')
+            localStorage.removeItem('tvh_active_order_number')
+            sessionStorage.removeItem('tvh_active_order_number')
+          } catch { }
+
+          saveOrderSession({
+            orderNumber: active.order_number,
+            token: res.download_token,
+            productTitle: active.title,
+            amount: active.amount,
+            createdAt: Date.now(),
+          })
+
+          navigate(`/payment/success?order=${encodeURIComponent(active.order_number)}&token=${encodeURIComponent(res.download_token)}`, { replace: true })
+        }
+      } catch { }
+    }
+
+    checkActiveOrder()
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        checkActiveOrder()
+      }
+    }
+
+    window.addEventListener('visibilitychange', handleVisibility)
+    window.addEventListener('focus', checkActiveOrder)
+
+    poller = setInterval(() => {
+      const raw = localStorage.getItem('tvh_active_order') || sessionStorage.getItem('tvh_active_order')
+      if (raw || loading) {
+        checkActiveOrder()
+      }
+    }, 2500)
+
+    return () => {
+      window.removeEventListener('visibilitychange', handleVisibility)
+      window.removeEventListener('focus', checkActiveOrder)
+      if (poller) clearInterval(poller)
+    }
+  }, [navigate, loading])
 
   // 1. Fetch Public Settings (preferred UPI app, direct launch)
   const { data: publicSettings } = useQuery({
@@ -207,17 +271,26 @@ export default function CheckoutPage() {
         content_name: activeProduct.title,
       })
 
+      // 💾 SNAPSHOT ACTIVE ORDER: Saved in localStorage & sessionStorage before initiating payment!
+      const pendingOrderData = {
+        order_number: result.order_number,
+        product_id: activeProduct.id,
+        product_slug: activeProduct.slug,
+        title: activeProduct.title,
+        amount: effectiveTotal,
+        timestamp: Date.now(),
+      }
+      try {
+        localStorage.setItem('tvh_active_order', JSON.stringify(pendingOrderData))
+        sessionStorage.setItem('tvh_active_order', JSON.stringify(pendingOrderData))
+        localStorage.setItem('tvh_active_order_number', result.order_number)
+        sessionStorage.setItem('tvh_active_order_number', result.order_number)
+      } catch { }
+
       // Handle Razorpay Checkout Flow
       if (result.gateway === 'razorpay') {
         const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
         const directUpiUrl = result.payment_url || result.upi_link || result.upi_intent?.default
-
-        // 🚀 DIRECT PHONE UPI: Directly launch PhonePe / UPI intent on phone!
-        // No Razorpay JS modal or popup dialog!
-        if (isMobile && directUpiUrl) {
-          window.location.href = directUpiUrl
-          return
-        }
 
         if (!(window as any).Razorpay) {
           const script = document.createElement('script')
@@ -295,19 +368,42 @@ export default function CheckoutPage() {
           theme: {
             color: brandColor,
           },
+          callback_url: `${window.location.origin}/payment/processing?order=${encodeURIComponent(result.order_number)}`,
+          redirect: false,
           handler: function () {
-            navigate(`/payment/processing?order=${result.order_number}`)
+            navigate(`/payment/processing?order=${encodeURIComponent(result.order_number)}`)
           },
           modal: {
             ondismiss: function () {
-              setLoading(false)
+              setTimeout(async () => {
+                try {
+                  const check = await api.checkout.verify(result.order_number)
+                  if (check?.success && check.status === 'PAID' && check.download_token) {
+                    try {
+                      localStorage.removeItem('tvh_active_order')
+                      sessionStorage.removeItem('tvh_active_order')
+                    } catch { }
+
+                    saveOrderSession({
+                      orderNumber: result.order_number,
+                      token: check.download_token,
+                      productTitle: activeProduct.title,
+                      amount: effectiveTotal,
+                      createdAt: Date.now(),
+                    })
+                    navigate(`/payment/success?order=${encodeURIComponent(result.order_number)}&token=${encodeURIComponent(check.download_token)}`, { replace: true })
+                    return
+                  }
+                } catch { }
+                setLoading(false)
+              }, 800)
             },
           },
         }
 
         const rzp = new (window as any).Razorpay(options)
         rzp.on('payment.failed', function (resp: any) {
-          navigate(`/payment/failed?order=${result.order_number}&reason=${encodeURIComponent(resp.error?.description || 'Payment Failed')}`)
+          navigate(`/payment/failed?order=${encodeURIComponent(result.order_number)}&reason=${encodeURIComponent(resp.error?.description || 'Payment Failed')}`)
         })
         rzp.open()
         return

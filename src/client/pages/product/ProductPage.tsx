@@ -24,6 +24,7 @@ import AdPlacement from '../../components/ads/AdPlacement'
 import { detectInAppBrowser } from '../../lib/inAppBrowser'
 import { trackPageView, trackUserClick, sendAnalyticsEvent } from '../../lib/analytics-tracker'
 import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
+import { saveOrderSession, getSavedOrders, type SavedOrderSession } from '../../lib/orderSession'
 
 declare global {
   interface Window {
@@ -46,6 +47,8 @@ export default function ProductPage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [reviewModal, setReviewModal] = useState<'gate' | 'success' | null>(null)
+  const [verifyingOrderNumber, setVerifyingOrderNumber] = useState<string | null>(null)
+  const [existingPaidOrder, setExistingPaidOrder] = useState<SavedOrderSession | null>(null)
 
   // Optional Contact Form (User can optionally type email for backup)
   const [optionalEmail, setOptionalEmail] = useState('')
@@ -76,6 +79,89 @@ export default function ProductPage() {
     queryFn: () => api.products.get(slug!),
     enabled: Boolean(slug),
   })
+
+  // 1. Check if user already owns this product from past session / orders
+  useEffect(() => {
+    if (!product) return
+    const saved = getSavedOrders().find(
+      (o) => o.token && (
+        o.productTitle?.toLowerCase() === product.title?.toLowerCase() ||
+        (o as any).productId === product.id
+      )
+    )
+    if (saved) {
+      setExistingPaidOrder(saved)
+    }
+  }, [product])
+
+  // 2. 🔄 ACTIVE ORDER RESUME & AUTOMATIC PAYMENT DETECTION:
+  // When user returns from PhonePe / UPI app (or if page is restored / focused),
+  // automatically verify pending order and immediately redirect to payment success / download!
+  useEffect(() => {
+    let poller: ReturnType<typeof setInterval> | null = null
+
+    const checkActiveOrder = async () => {
+      try {
+        const raw = localStorage.getItem('tvh_active_order') || sessionStorage.getItem('tvh_active_order')
+        if (!raw) return
+
+        const active = JSON.parse(raw)
+        // Must have order_number and must be within the last 1 hour
+        if (!active?.order_number || Date.now() - (active.timestamp || 0) > 3600000) {
+          return
+        }
+
+        setVerifyingOrderNumber(active.order_number)
+
+        const res = await api.checkout.verify(active.order_number)
+        if (res?.success && res.status === 'PAID' && res.download_token) {
+          try {
+            localStorage.removeItem('tvh_active_order')
+            sessionStorage.removeItem('tvh_active_order')
+            localStorage.removeItem('tvh_active_order_number')
+            sessionStorage.removeItem('tvh_active_order_number')
+          } catch { }
+
+          saveOrderSession({
+            orderNumber: active.order_number,
+            token: res.download_token,
+            productTitle: product?.title || active.title,
+            amount: active.amount,
+            createdAt: Date.now(),
+          })
+
+          navigate(`/payment/success?order=${encodeURIComponent(active.order_number)}&token=${encodeURIComponent(res.download_token)}`, { replace: true })
+        }
+      } catch { }
+    }
+
+    // Check immediately on mount/reload
+    checkActiveOrder()
+
+    // Check when user returns to browser tab from PhonePe / UPI app
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        checkActiveOrder()
+      }
+    }
+
+    window.addEventListener('visibilitychange', handleVisibility)
+    window.addEventListener('focus', checkActiveOrder)
+
+    // Periodic poll every 2.5s if an order is active or processing
+    poller = setInterval(() => {
+      const raw = localStorage.getItem('tvh_active_order') || sessionStorage.getItem('tvh_active_order')
+      if (raw || isProcessing) {
+        checkActiveOrder()
+      }
+    }, 2500)
+
+    return () => {
+      window.removeEventListener('visibilitychange', handleVisibility)
+      window.removeEventListener('focus', checkActiveOrder)
+      if (poller) clearInterval(poller)
+    }
+  }, [navigate, product, isProcessing])
 
   // Fetch Public Settings for preferred UPI app
   const { data: publicSettings } = useQuery({
@@ -205,6 +291,13 @@ export default function ProductPage() {
   // Handle Direct 1-Click Buy Now
   const handleInstantBuy = async () => {
     if (!product || isProcessing) return
+
+    // 🚀 FAST-PATH: If customer has already purchased this product, take them directly to download!
+    if (existingPaidOrder?.token && existingPaidOrder?.orderNumber) {
+      navigate(`/payment/success?order=${encodeURIComponent(existingPaidOrder.orderNumber)}&token=${encodeURIComponent(existingPaidOrder.token)}`)
+      return
+    }
+
     setIsProcessing(true)
     setErrorMessage('')
     try {
@@ -255,16 +348,26 @@ export default function ProductPage() {
         throw new Error('Could not initiate payment session.')
       }
 
+      // 💾 SNAPSHOT ACTIVE ORDER: Saved in localStorage & sessionStorage before initiating payment!
+      const pendingOrderData = {
+        order_number: orderRes.order_number,
+        product_id: product.id,
+        product_slug: product.slug,
+        title: product.title,
+        amount: effectivePrice,
+        timestamp: Date.now(),
+      }
+      try {
+        localStorage.setItem('tvh_active_order', JSON.stringify(pendingOrderData))
+        sessionStorage.setItem('tvh_active_order', JSON.stringify(pendingOrderData))
+        localStorage.setItem('tvh_active_order_number', orderRes.order_number)
+        sessionStorage.setItem('tvh_active_order_number', orderRes.order_number)
+      } catch { }
+
       // Handle Razorpay Checkout Flow
       if (orderRes.gateway === 'razorpay') {
         const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
         const directUpiUrl = orderRes.payment_url || orderRes.upi_link || orderRes.upi_intent?.phonepe || orderRes.upi_intent?.default
-
-        // 🚀 DIRECT PHONE UPI: Instant direct PhonePe / UPI launch without popup on mobile!
-        if (isMobile && directUpiUrl) {
-          window.location.href = directUpiUrl
-          return
-        }
 
         if (!(window as any).Razorpay) {
           const script = document.createElement('script')
@@ -346,19 +449,44 @@ export default function ProductPage() {
           theme: {
             color: preferredApp === 'phonepe' ? '#5f259f' : '#06b6d4',
           },
+          callback_url: `${window.location.origin}/payment/processing?order=${encodeURIComponent(orderRes.order_number)}`,
+          redirect: false,
           handler: function () {
-            navigate(`/payment/processing?order=${orderRes.order_number}`)
+            navigate(`/payment/processing?order=${encodeURIComponent(orderRes.order_number)}`)
           },
           modal: {
             ondismiss: function () {
-              setIsProcessing(false)
+              // User dismissed or returned from UPI app without modal handler firing:
+              // Immediately check if payment succeeded in PhonePe!
+              setTimeout(async () => {
+                try {
+                  const check = await api.checkout.verify(orderRes.order_number)
+                  if (check?.success && check.status === 'PAID' && check.download_token) {
+                    try {
+                      localStorage.removeItem('tvh_active_order')
+                      sessionStorage.removeItem('tvh_active_order')
+                    } catch { }
+
+                    saveOrderSession({
+                      orderNumber: orderRes.order_number,
+                      token: check.download_token,
+                      productTitle: product.title,
+                      amount: effectivePrice,
+                      createdAt: Date.now(),
+                    })
+                    navigate(`/payment/success?order=${encodeURIComponent(orderRes.order_number)}&token=${encodeURIComponent(check.download_token)}`, { replace: true })
+                    return
+                  }
+                } catch { }
+                setIsProcessing(false)
+              }, 800)
             },
           },
         }
 
         const rzp = new (window as any).Razorpay(options)
         rzp.on('payment.failed', function (resp: any) {
-          navigate(`/payment/failed?order=${orderRes.order_number}&reason=${encodeURIComponent(resp.error?.description || 'Payment Failed')}`)
+          navigate(`/payment/failed?order=${encodeURIComponent(orderRes.order_number)}&reason=${encodeURIComponent(resp.error?.description || 'Payment Failed')}`)
         })
         rzp.open()
         return
@@ -644,6 +772,59 @@ export default function ProductPage() {
           {errorMessage && (
             <div className="alert alert-error" style={{ marginBottom: '16px', fontSize: '0.85rem' }}>
               ⚠️ {errorMessage}
+            </div>
+          )}
+
+          {/* Existing Purchase Fast Download Banner */}
+          {existingPaidOrder?.token && (
+            <div
+              style={{
+                marginBottom: '16px',
+                padding: '14px 18px',
+                borderRadius: '12px',
+                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.22) 100%)',
+                border: '1.5px solid rgba(16, 185, 129, 0.4)',
+                boxShadow: '0 4px 14px rgba(16, 185, 129, 0.15)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '12px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Check size={16} color="#FFFFFF" strokeWidth={3} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#065F46' }}>
+                    Payment Verified! You own this item.
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: '#047857', fontWeight: 600 }}>
+                    Order #{existingPaidOrder.orderNumber}
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate(`/payment/success?order=${encodeURIComponent(existingPaidOrder.orderNumber)}&token=${encodeURIComponent(existingPaidOrder.token || '')}`)}
+                style={{
+                  padding: '8px 18px',
+                  borderRadius: '8px',
+                  background: '#10B981',
+                  color: '#FFFFFF',
+                  fontWeight: 800,
+                  fontSize: '0.85rem',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 2px 8px rgba(16, 185, 129, 0.4)',
+                }}
+              >
+                <Download size={15} /> Download Content
+              </button>
             </div>
           )}
 
@@ -1023,6 +1204,45 @@ export default function ProductPage() {
           </button>
         </div>
       </div>
+
+      {/* Floating Payment Verification Toast */}
+      {verifyingOrderNumber && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '80px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 9999,
+            background: 'rgba(17, 24, 39, 0.95)',
+            backdropFilter: 'blur(16px)',
+            border: '1px solid rgba(16, 185, 129, 0.4)',
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(16, 185, 129, 0.25)',
+            borderRadius: '16px',
+            padding: '12px 22px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            color: '#FFFFFF',
+            fontWeight: 700,
+            fontSize: '0.88rem',
+            maxWidth: '92%',
+          }}
+        >
+          <div
+            style={{
+              width: '18px',
+              height: '18px',
+              borderRadius: '50%',
+              border: '2.5px solid rgba(255,255,255,0.2)',
+              borderTopColor: '#10B981',
+              animation: 'spin 0.8s linear infinite',
+              flexShrink: 0,
+            }}
+          />
+          <span>Confirming payment... Redirecting to download...</span>
+        </div>
+      )}
 
     </div>
   )
