@@ -510,6 +510,8 @@ export default function ProductPage() {
         <div style={{ marginBottom: '36px' }}>
           {/* Visual Media Gallery with Floating Wishlist, Share, Rating, and Black Slider Bar */}
           <ProductGallery
+            productId={product.id}
+            productSlug={product.slug}
             images={product.images || []}
             videoUrl={product.video_url}
             title={product.title}

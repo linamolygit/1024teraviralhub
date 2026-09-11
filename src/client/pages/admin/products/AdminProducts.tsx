@@ -9,7 +9,7 @@ import {
   LayoutGrid, List, TrendingUp, CheckCircle2, Copy,
   Check, Sparkles, Flame, X, DollarSign, Layers, Tag, Star
 } from 'lucide-react'
-import { adminApi, type Product } from '../../../lib/api'
+import { adminApi, api, type Product } from '../../../lib/api'
 import { useAuthStore } from '../../../lib/auth-store'
 import { formatPrice, formatDate } from '../../../lib/utils'
 import { adminToast } from '../../../lib/admin-toast'
@@ -92,9 +92,22 @@ export default function AdminProducts() {
     },
   })
 
-  const handleCopyLink = (p: Product) => {
+  const handleCopyLink = async (p: Product) => {
+    try {
+      const res = await api.share.create({ product_id: p.id, slug: p.slug, created_by: 'admin' })
+      if (res?.success && res.share_url) {
+        await navigator.clipboard.writeText(res.share_url)
+        setCopiedId(p.id)
+        adminToast.success('Unique Share Link Copied! 🚀', `Anti-spam & Autoplay: ${res.share_url}`)
+        setTimeout(() => setCopiedId(null), 2200)
+        return
+      }
+    } catch (err) {
+      console.warn('[Admin Share Link Generation Error]', err)
+    }
+
     const url = `${window.location.origin}/product/${p.slug}`
-    navigator.clipboard.writeText(url)
+    await navigator.clipboard.writeText(url)
     setCopiedId(p.id)
     adminToast.info('Direct Link Copied', `/product/${p.slug}`)
     setTimeout(() => setCopiedId(null), 2000)
@@ -913,7 +926,7 @@ export default function AdminProducts() {
                           boxSizing: 'border-box',
                           transition: 'all 0.15s ease',
                         }}
-                        title="Copy direct product link"
+                        title="Generate & copy unique share link (Anti-Spam & Video Autoplay)"
                       >
                         {copiedId === p.id ? <Check size={15} /> : <Copy size={15} />}
                       </button>
@@ -1164,7 +1177,7 @@ export default function AdminProducts() {
                               justifyContent: 'center',
                               boxSizing: 'border-box',
                             }}
-                            title="Copy link"
+                            title="Generate & copy unique share link (Anti-Spam & Video Autoplay)"
                           >
                             {copiedId === p.id ? <Check size={14} /> : <Copy size={14} />}
                           </button>

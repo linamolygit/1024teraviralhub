@@ -27,6 +27,7 @@ import reviewsRoute from './routes/reviews'
 import affiliatesRoute from './routes/affiliates'
 import adsRoute from './routes/ads'
 import externalCheckoutRoutes from './routes/external-checkout'
+import shareRoute from './routes/share'
 
 // Admin Routes (Firebase protected)
 import adminAuthRoutes from './routes/admin/auth'
@@ -177,6 +178,7 @@ app.route('/api/affiliates', affiliatesRoute)
 app.route('/api/ads', adsRoute)
 app.route('/api/external', externalCheckoutRoutes)
 app.route('/api/external-checkout', externalCheckoutRoutes)
+app.route('/api/share', shareRoute)
 
 // ─── Admin API Routes ────────────────────────
 app.route('/api/admin/auth', adminAuthRoutes)
@@ -529,6 +531,75 @@ app.get('*', async (c) => {
       }
     } catch (e) {
       console.error('[OG Product Injection Error]', e)
+    }
+  }
+
+  // 3.5 Dynamic Share Link Preview & Anti-Spam SEO: /share/:uid
+  const shareMatch = path.match(/^\/share\/([^/?#]+)/)
+  if (shareMatch) {
+    const uid = decodeURIComponent(shareMatch[1])
+    try {
+      const shareRecord = await c.env.DB.prepare(`
+        SELECT s.uid, s.product_id, s.product_slug,
+          p.id, p.title, p.slug, p.short_description, p.description, 
+          p.price, p.sale_price, p.currency, p.og_image_key, p.meta_title, p.meta_description,
+          (
+            SELECT r2_key 
+            FROM product_images 
+            WHERE product_id = p.id 
+            ORDER BY is_thumbnail DESC, sort_order ASC, id ASC 
+            LIMIT 1
+          ) as thumbnail_key
+        FROM share_links s
+        JOIN products p ON s.product_id = p.id
+        WHERE s.uid = ? AND p.is_published = 1
+      `).bind(uid).first<any>()
+
+      if (shareRecord) {
+        const imageKey = shareRecord.og_image_key || shareRecord.thumbnail_key
+        let ogImageUrl = `${siteOrigin}/assets/collection-section-image.png`
+        let mimeType = 'image/jpeg'
+
+        if (imageKey) {
+          if (imageKey.startsWith('http://') || imageKey.startsWith('https://')) {
+            ogImageUrl = imageKey
+          } else {
+            ogImageUrl = `${siteOrigin}/api/images/${encodeURIComponent(imageKey)}`
+          }
+          if (/\.png$/i.test(imageKey)) mimeType = 'image/png'
+          else if (/\.webp$/i.test(imageKey)) mimeType = 'image/webp'
+          else if (/\.gif$/i.test(imageKey)) mimeType = 'image/gif'
+          else mimeType = 'image/jpeg'
+        }
+
+        const title = shareRecord.meta_title || `${shareRecord.title} — 1024TeraViralHub`
+        const rawDesc = shareRecord.meta_description || shareRecord.short_description || shareRecord.description || 'Instant digital download for premium wallpapers, templates, and digital assets.'
+        const plainDesc = rawDesc.replace(/<[^>]*>/g, '').replace(/[\r\n\t]+/g, ' ').trim().slice(0, 240)
+        const canonicalUrl = `${siteOrigin}/share/${shareRecord.uid}`
+        const effectivePrice = shareRecord.sale_price ?? shareRecord.price
+        const currency = shareRecord.currency || 'INR'
+
+        html = injectSeoTags(html, {
+          title,
+          description: plainDesc,
+          url: canonicalUrl,
+          imageUrl: ogImageUrl,
+          imageType: mimeType,
+          type: 'product',
+          price: effectivePrice,
+          currency,
+          siteName: '1024TeraViralHub',
+        })
+
+        return new Response(html, {
+          headers: {
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'public, max-age=60, s-maxage=300',
+          },
+        })
+      }
+    } catch (e) {
+      console.error('[OG Share Injection Error]', e)
     }
   }
 

@@ -128,6 +128,37 @@ export const api = {
       }>(`/checkout/order/${orderNumber}`),
   },
 
+  share: {
+    create: (params: { product_id?: number; slug?: string; created_by?: string }) =>
+      req<{
+        success: boolean
+        uid: string
+        share_url: string
+        product_slug: string
+        title: string
+      }>('/share/create', {
+        method: 'POST',
+        body: JSON.stringify(params),
+      }),
+    getByUid: (uid: string) =>
+      req<{
+        success: boolean
+        uid: string
+        product: {
+          id: number
+          title: string
+          slug: string
+          price: number
+          sale_price?: number | null
+          currency: string
+          thumbnail_key?: string | null
+          video_url?: string | null
+          short_description?: string | null
+        }
+        destination_url: string
+      }>(`/share/${encodeURIComponent(uid)}`),
+  },
+
   settings: {
     getPublic: () => req<{
       upi_direct_launch: boolean

@@ -461,3 +461,57 @@ export interface BlogPost {
   published_at: string | null
   created_at: string
 }
+
+export interface ShareLink {
+  id: number
+  uid: string
+  product_id: number
+  product_slug: string
+  created_by: string
+  clicks: number
+  last_clicked_at: string | null
+  created_at: string
+}
+
+export async function ensureShareLinksTable(db: D1Database): Promise<void> {
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS share_links (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      uid TEXT UNIQUE NOT NULL,
+      product_id INTEGER NOT NULL,
+      product_slug TEXT NOT NULL,
+      created_by TEXT DEFAULT 'user',
+      clicks INTEGER DEFAULT 0,
+      last_clicked_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_share_links_uid ON share_links(uid);
+    CREATE INDEX IF NOT EXISTS idx_share_links_product ON share_links(product_id);
+  `).catch(() => {})
+}
+
+export async function createShareLinkRecord(db: D1Database, data: {
+  uid: string
+  productId: number
+  productSlug: string
+  createdBy?: string
+}): Promise<void> {
+  await db.prepare(`
+    INSERT INTO share_links (uid, product_id, product_slug, created_by)
+    VALUES (?, ?, ?, ?)
+  `).bind(data.uid, data.productId, data.productSlug, data.createdBy || 'user').run()
+}
+
+export async function getShareLinkByUid(db: D1Database, uid: string): Promise<ShareLink | null> {
+  return db.prepare(`
+    SELECT * FROM share_links WHERE uid = ? LIMIT 1
+  `).bind(uid).first<ShareLink>()
+}
+
+export async function recordShareLinkClick(db: D1Database, uid: string): Promise<void> {
+  await db.prepare(`
+    UPDATE share_links
+    SET clicks = clicks + 1, last_clicked_at = CURRENT_TIMESTAMP
+    WHERE uid = ?
+  `).bind(uid).run().catch(() => {})
+}

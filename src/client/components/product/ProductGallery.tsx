@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, ChevronRight, X, Package, Star, Check, Volume2, VolumeX, Play } from 'lucide-react'
-import type { ProductImage } from '../../lib/api'
+import { api, type ProductImage } from '../../lib/api'
 import OptimizedImage from '../ui/OptimizedImage'
 
 export type GalleryMediaItem =
@@ -10,6 +10,8 @@ export type GalleryMediaItem =
   | { type: 'video'; id: string; url: string; isYouTube: boolean; youTubeEmbedUrl: string | null }
 
 interface Props {
+  productId?: number
+  productSlug?: string
   images: ProductImage[]
   videoUrl?: string | null
   title: string
@@ -69,6 +71,8 @@ function getYouTubeEmbedUrl(url: string): string | null {
 }
 
 export default function ProductGallery({
+  productId,
+  productSlug,
   images,
   videoUrl,
   title,
@@ -154,8 +158,23 @@ export default function ProductGallery({
   const activeItem = mediaItems[activeIdx] || mediaItems[0]
 
   // Auto-slide from 1st image (Slot 0) to 2nd slot (Video) after 2.5 seconds
+  // Or immediately switch to video unmuted if arriving from share bridge!
   useEffect(() => {
     if (!hasVideo || userInteracted || mediaItems.length <= 1) return
+
+    const shouldStartAtVideo = typeof window !== 'undefined' && (
+      sessionStorage.getItem('tvh_unmute_video') === 'true' ||
+      new URLSearchParams(window.location.search).get('play') === '1'
+    )
+
+    if (shouldStartAtVideo && videoIdx !== -1) {
+      setActiveIdx(videoIdx)
+      setDirection(1)
+      try {
+        sessionStorage.removeItem('tvh_unmute_video')
+      } catch { }
+      return
+    }
 
     const timer = setTimeout(() => {
       if (!userInteracted && activeIdx === 0) {
@@ -163,7 +182,6 @@ export default function ProductGallery({
         setActiveIdx(videoIdx)
       }
     }, 2500)
-
 
     return () => clearTimeout(timer)
   }, [hasVideo, userInteracted, activeIdx, videoIdx, mediaItems.length])
@@ -284,20 +302,33 @@ export default function ProductGallery({
     setTouchStartX(null)
   }
 
-  // Handle Share Click
+  // Handle Share Click — Generates a unique share link every single time!
   const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation()
+    let shareUrl = window.location.href
+
+    try {
+      if (productId) {
+        const res = await api.share.create({ product_id: productId, slug: productSlug })
+        if (res?.success && res.share_url) {
+          shareUrl = res.share_url
+        }
+      }
+    } catch (err) {
+      console.warn('[Share Link Creation Error, falling back to direct URL]', err)
+    }
+
     if (navigator.share) {
       try {
         await navigator.share({
           title,
-          url: window.location.href,
+          url: shareUrl,
         })
         return
       } catch { }
     }
     try {
-      await navigator.clipboard.writeText(window.location.href)
+      await navigator.clipboard.writeText(shareUrl)
       setCopiedToast(true)
       setTimeout(() => setCopiedToast(false), 2200)
     } catch { }

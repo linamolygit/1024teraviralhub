@@ -48,6 +48,7 @@ const DisclaimerPage = lazyWithRetry(() => import('./client/pages/legal/Disclaim
 const CookiePolicyPage = lazyWithRetry(() => import('./client/pages/legal/CookiePolicyPage'))
 const PricingProductsPage = lazyWithRetry(() => import('./client/pages/legal/PricingProductsPage'))
 const ShippingPolicyPage = lazyWithRetry(() => import('./client/pages/legal/ShippingPolicyPage'))
+const ShareBridgePage = lazyWithRetry(() => import('./client/pages/share/ShareBridgePage'))
 
 // Admin Pages
 const AdminLoginPage = lazyWithRetry(() => import('./client/pages/admin/AdminLoginPage'))
@@ -189,6 +190,7 @@ export default function App() {
               <Route path="/payment/success" element={<PaymentSuccessPage />} />
               <Route path="/payment/failed" element={<PaymentFailedPage />} />
               <Route path="/download/:token" element={<DownloadPage />} />
+              <Route path="/share/:uid" element={<ShareBridgePage />} />
             </Route>
 
             {/* ─── Admin Routes ─── */}
