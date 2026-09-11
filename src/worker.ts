@@ -556,6 +556,34 @@ app.get('*', async (c) => {
       `).bind(uid).first<any>()
 
       if (shareRecord) {
+        const userAgent = c.req.header('user-agent') || ''
+        const isCrawler = /facebookexternalhit|Facebot|facebookcatalog|Meta-ExternalAgent|WhatsApp|Twitterbot|TelegramBot|LinkedInBot|Discordbot|Slackbot|SkypeUriPreview|Googlebot|bingbot|YandexBot|DuckDuckBot|Baiduspider|Pinterest/i.test(userAgent)
+
+        // For human users: Direct millisecond 302 redirection directly to product page!
+        if (!isCrawler) {
+          try {
+            const clickPromise = c.env.DB.prepare(`
+              UPDATE share_links 
+              SET click_count = click_count + 1, last_clicked_at = CURRENT_TIMESTAMP 
+              WHERE uid = ?
+            `).bind(shareRecord.uid).run()
+            if (c.executionCtx && typeof c.executionCtx.waitUntil === 'function') {
+              c.executionCtx.waitUntil(clickPromise)
+            }
+          } catch { }
+
+          const targetUrl = `${siteOrigin}/product/${encodeURIComponent(shareRecord.product_slug)}?ref=share&uid=${encodeURIComponent(shareRecord.uid)}&play=1`
+          return new Response(null, {
+            status: 302,
+            headers: {
+              'Location': targetUrl,
+              'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+            },
+          })
+        }
+
+        // For crawlers (Facebook scraper, WhatsApp preview, Twitter bot, etc.):
+        // Return rich OpenGraph tags for viral anti-spam and high-CTR social cards
         const imageKey = shareRecord.og_image_key || shareRecord.thumbnail_key
         let ogImageUrl = `${siteOrigin}/assets/collection-section-image.png`
         let mimeType = 'image/jpeg'
@@ -597,6 +625,18 @@ app.get('*', async (c) => {
             'Cache-Control': 'public, max-age=60, s-maxage=300',
           },
         })
+      } else {
+        const userAgent = c.req.header('user-agent') || ''
+        const isCrawler = /facebookexternalhit|Facebot|WhatsApp|Twitterbot/i.test(userAgent)
+        if (!isCrawler) {
+          return new Response(null, {
+            status: 302,
+            headers: {
+              'Location': `${siteOrigin}/products`,
+              'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+            },
+          })
+        }
       }
     } catch (e) {
       console.error('[OG Share Injection Error]', e)
