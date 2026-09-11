@@ -285,6 +285,15 @@ export default function CheckoutPage() {
         sessionStorage.setItem('tvh_active_order', JSON.stringify(pendingOrderData))
         localStorage.setItem('tvh_active_order_number', result.order_number)
         sessionStorage.setItem('tvh_active_order_number', result.order_number)
+        localStorage.setItem('tvh_last_purchased_order', result.order_number)
+        saveOrderSession({
+          orderNumber: result.order_number,
+          productTitle: activeProduct.title,
+          amount: effectiveTotal,
+          thumbnailUrl: activeProduct.thumbnail_url || (activeProduct as any).images?.[0]?.r2_key,
+          createdAt: Date.now(),
+        })
+        document.cookie = `tvh_last_order=${encodeURIComponent(result.order_number)}; path=/; max-age=31536000; SameSite=Lax`
       } catch { }
 
       // Handle Razorpay Checkout Flow

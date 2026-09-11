@@ -17,7 +17,7 @@ import {
 
 const app = new Hono<{ Bindings: Env }>()
 
-async function getPaymentConfig(db: D1Database, env: Env) {
+export async function getPaymentConfig(db: D1Database, env: Env) {
   const [
     activeGateway,
     defaultDualGateway,
@@ -206,6 +206,8 @@ app.post('/create', async (c) => {
       metadata: { gateway: 'razorpay', order_id: providerOrderId },
     })
 
+    c.header('Set-Cookie', `tvh_last_order=${encodeURIComponent(orderNumber)}; Path=/; Max-Age=31536000; SameSite=Lax`, { append: true })
+
     return c.json({
       success: true,
       gateway: 'razorpay',
@@ -293,6 +295,8 @@ app.post('/create', async (c) => {
     metadata: { gateway: 'cashfree', order_id: cfOrder.cf_order_id },
   })
 
+  c.header('Set-Cookie', `tvh_last_order=${encodeURIComponent(orderNumber)}; Path=/; Max-Age=31536000; SameSite=Lax`, { append: true })
+
   return c.json({
     success: true,
     gateway: 'cashfree',
@@ -306,31 +310,32 @@ app.post('/create', async (c) => {
   })
 })
 
-// GET /api/checkout/verify/:orderNumber
-// Called by frontend after payment redirect — verifies server-side
-app.get('/verify/:orderNumber', async (c) => {
-  const orderNumber = c.req.param('orderNumber')
+// ── Reusable Verification & Instant Digital Delivery Helper ──
+export async function verifyAndFulfillOrder(
+  db: D1Database,
+  env: Env,
+  order: any
+): Promise<{ isPaid: boolean; status: string; download_token?: string; paidAmount?: number }> {
+  if (!order) return { isPaid: false, status: 'NOT_FOUND' }
 
-  const order = await c.env.DB.prepare(
-    `SELECT * FROM orders WHERE order_number = ?`
-  ).bind(orderNumber).first() as {
-    id: number; amount: number; status: string; cashfree_order_id: string;
-    payment_session_id?: string;
-    product_id: number; customer_email: string; customer_name: string; notes?: string
-  } | null
-
-  if (!order) return c.json({ error: 'Order not found' }, 404)
-
-  // If already PAID, return existing download token
+  // If already PAID, guarantee valid download token exists
   if (order.status === 'PAID') {
-    const token = await c.env.DB.prepare(
+    const existingToken = await db.prepare(
       `SELECT token, expires_at, download_count, max_downloads FROM download_tokens WHERE order_id = ? AND is_revoked = 0 ORDER BY created_at DESC LIMIT 1`
     ).bind(order.id).first() as { token: string; expires_at: string; download_count: number; max_downloads: number } | null
 
-    return c.json({ success: true, status: 'PAID', download_token: token?.token })
+    if (existingToken?.token) {
+      return { isPaid: true, status: 'PAID', download_token: existingToken.token, paidAmount: order.amount }
+    }
+
+    const product = await getProductById(db, order.product_id)
+    const expiryHours = product?.access_duration_hours ?? 12
+    const maxDownloads = product?.download_limit ?? 3
+    const token = await createDownloadToken(db, order.id, expiryHours, maxDownloads)
+    return { isPaid: true, status: 'PAID', download_token: token, paidAmount: order.amount }
   }
 
-  const config = await getPaymentConfig(c.env.DB, c.env)
+  const config = await getPaymentConfig(db, env)
 
   // 1. Check if this is a Razorpay order
   const isRazorpay =
@@ -386,82 +391,105 @@ app.get('/verify/:orderNumber', async (c) => {
       }
 
       if (isPaid) {
-        await updateOrderStatus(c.env.DB, order.id, 'PAID')
+        await updateOrderStatus(db, order.id, 'PAID')
 
-        await c.env.DB.prepare(
+        await db.prepare(
           `UPDATE products SET total_sales = total_sales + 1, total_revenue = total_revenue + ? WHERE id = ?`
-        ).bind(paidAmount, order.product_id).run()
+        ).bind(paidAmount, order.product_id).run().catch(() => {})
 
-        const product = await getProductById(c.env.DB, order.product_id)
+        const product = await getProductById(db, order.product_id)
         const expiryHours = product?.access_duration_hours ?? 12
         const maxDownloads = product?.download_limit ?? 3
-        const token = await createDownloadToken(c.env.DB, order.id, expiryHours, maxDownloads)
+        const token = await createDownloadToken(db, order.id, expiryHours, maxDownloads)
 
-        await logAnalyticsEvent(c.env.DB, {
+        await logAnalyticsEvent(db, {
           event_type: 'purchase',
           product_id: order.product_id,
           order_id: order.id,
           metadata: { gateway: 'razorpay', order_id: rzpOrderId || rzpLinkId },
-        })
+        }).catch(() => {})
 
-        return c.json({ success: true, status: 'PAID', download_token: token })
+        return { isPaid: true, status: 'PAID', download_token: token, paidAmount }
       }
 
-      return c.json({ success: false, status: 'PENDING' })
+      return { isPaid: false, status: 'PENDING' }
     } catch (err) {
       console.error('Razorpay verification error:', err)
-      return c.json({ error: 'Verification failed' }, 500)
+      return { isPaid: false, status: 'ERROR' }
     }
   }
 
   // 2. Cashfree Verification
-  const cashfree = new CashfreeClient({
-    appId: config.cashfree.appId,
-    secretKey: config.cashfree.secretKey,
-    apiUrl: config.cashfree.apiUrl,
-  })
+  if (order.cashfree_order_id) {
+    const cashfree = new CashfreeClient({
+      appId: config.cashfree.appId,
+      secretKey: config.cashfree.secretKey,
+      apiUrl: config.cashfree.apiUrl,
+    })
 
-  try {
-    const cfStatus = await cashfree.getOrderStatus(order.cashfree_order_id)
+    try {
+      const cfStatus = await cashfree.getOrderStatus(order.cashfree_order_id)
 
-    if (cfStatus.order_status === 'PAID') {
-      await updateOrderStatus(c.env.DB, order.id, 'PAID')
+      if (cfStatus?.order_status === 'PAID') {
+        await updateOrderStatus(db, order.id, 'PAID')
 
-      // Update product stats
-      await c.env.DB.prepare(
-        `UPDATE products SET total_sales = total_sales + 1, total_revenue = total_revenue + ? WHERE id = ?`
-      ).bind(cfStatus.order_amount, order.product_id).run()
+        await db.prepare(
+          `UPDATE products SET total_sales = total_sales + 1, total_revenue = total_revenue + ? WHERE id = ?`
+        ).bind(cfStatus.order_amount, order.product_id).run().catch(() => {})
 
-      // Get product settings for download
-      const product = await getProductById(c.env.DB, order.product_id)
-      const expiryHours = product?.access_duration_hours ?? 12
-      const maxDownloads = product?.download_limit ?? 3
+        const product = await getProductById(db, order.product_id)
+        const expiryHours = product?.access_duration_hours ?? 12
+        const maxDownloads = product?.download_limit ?? 3
+        const token = await createDownloadToken(db, order.id, expiryHours, maxDownloads)
 
-      // Generate download token
-      const token = await createDownloadToken(c.env.DB, order.id, expiryHours, maxDownloads)
+        await logAnalyticsEvent(db, {
+          event_type: 'purchase',
+          product_id: order.product_id,
+          order_id: order.id,
+          metadata: { gateway: 'cashfree', order_id: order.cashfree_order_id },
+        }).catch(() => {})
 
-      // Log purchase event
-      await logAnalyticsEvent(c.env.DB, {
-        event_type: 'purchase',
-        product_id: order.product_id,
-        order_id: order.id,
-        metadata: { gateway: 'cashfree', order_id: order.cashfree_order_id },
-      })
+        return { isPaid: true, status: 'PAID', download_token: token, paidAmount: cfStatus.order_amount }
+      }
 
-      return c.json({ success: true, status: 'PAID', download_token: token })
+      if (cfStatus?.order_status === 'FAILED') {
+        await updateOrderStatus(db, order.id, 'FAILED')
+        return { isPaid: false, status: 'FAILED' }
+      }
+
+      return { isPaid: false, status: cfStatus?.order_status ?? 'PENDING' }
+    } catch (err) {
+      console.error('Payment verification error:', err)
+      return { isPaid: false, status: 'ERROR' }
     }
-
-    if (cfStatus.order_status === 'FAILED') {
-      await updateOrderStatus(c.env.DB, order.id, 'FAILED')
-      return c.json({ success: false, status: 'FAILED' })
-    }
-
-    return c.json({ success: false, status: cfStatus.order_status ?? 'PENDING' })
-  } catch (err) {
-    console.error('Payment verification error:', err)
-    return c.json({ error: 'Verification failed' }, 500)
   }
-})
+
+  return { isPaid: false, status: 'PENDING' }
+}
+
+// GET & POST /api/checkout/verify/:orderNumber
+// Called by frontend after payment redirect or resume — verifies server-side
+const handleVerify = async (c: any) => {
+  const orderNumber = c.req.param('orderNumber')
+
+  const order = await c.env.DB.prepare(
+    `SELECT * FROM orders WHERE order_number = ?`
+  ).bind(orderNumber).first() as any
+
+  if (!order) return c.json({ error: 'Order not found' }, 404)
+
+  const verification = await verifyAndFulfillOrder(c.env.DB, c.env, order)
+  if (verification.isPaid) {
+    return c.json({ success: true, status: 'PAID', download_token: verification.download_token })
+  }
+  if (verification.status === 'FAILED') {
+    return c.json({ success: false, status: 'FAILED' })
+  }
+  return c.json({ success: false, status: verification.status || 'PENDING' })
+}
+
+app.get('/verify/:orderNumber', handleVerify)
+app.post('/verify/:orderNumber', handleVerify)
 
 // GET /api/checkout/order/:orderNumber
 app.get('/order/:orderNumber', async (c) => {

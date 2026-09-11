@@ -233,26 +233,39 @@ export const api = {
     },
   },
 
-  orderLookup: (orderOrEmail: string, orderOrEmail2?: string) => {
+  orderLookup: (
+    orderOrParams: string | { order?: string; phone?: string; email?: string; q?: string },
+    orderOrEmail2?: string
+  ) => {
     let order = ''
     let email = ''
-    if (orderOrEmail2) {
-      if (orderOrEmail.includes('@')) {
-        email = orderOrEmail
-        order = orderOrEmail2
+    let phone = ''
+    let qStr = ''
+
+    if (typeof orderOrParams === 'string') {
+      if (orderOrEmail2) {
+        if (orderOrParams.includes('@')) {
+          email = orderOrParams
+          order = orderOrEmail2
+        } else {
+          order = orderOrParams
+          email = orderOrEmail2
+        }
       } else {
-        order = orderOrEmail
-        email = orderOrEmail2
+        order = orderOrParams
       }
-    } else {
-      order = orderOrEmail
+    } else if (orderOrParams && typeof orderOrParams === 'object') {
+      order = orderOrParams.order || ''
+      email = orderOrParams.email || ''
+      phone = orderOrParams.phone || ''
+      qStr = orderOrParams.q || ''
     }
 
     const params = new URLSearchParams()
-    params.set('order', order.trim())
-    if (email && email.trim()) {
-      params.set('email', email.trim())
-    }
+    if (order && order.trim()) params.set('order', order.trim())
+    if (email && email.trim()) params.set('email', email.trim())
+    if (phone && phone.trim()) params.set('phone', phone.trim())
+    if (qStr && qStr.trim()) params.set('q', qStr.trim())
     return req<OrderLookupResult>(`/order-lookup?${params.toString()}`)
   },
 

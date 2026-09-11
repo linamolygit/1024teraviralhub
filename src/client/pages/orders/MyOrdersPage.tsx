@@ -35,7 +35,15 @@ export default function MyOrdersPage() {
     document.title = `My Orders & Downloads — ${siteName}`
   }, [siteName])
 
-  // Collect all tokens and order numbers from browser session + query params
+  // Collect all tokens and order numbers from browser session, localStorage, cookies, and query params
+  const localLastPurchased = typeof window !== 'undefined' ? localStorage.getItem('tvh_last_purchased_order') : null
+  const localActiveOrderNum = typeof window !== 'undefined' ? (localStorage.getItem('tvh_active_order_number') || sessionStorage.getItem('tvh_active_order_number')) : null
+  let activeOrderFromObj: string | null = null
+  try {
+    const raw = typeof window !== 'undefined' ? (localStorage.getItem('tvh_active_order') || sessionStorage.getItem('tvh_active_order')) : null
+    if (raw) activeOrderFromObj = JSON.parse(raw)?.order_number || null
+  } catch {}
+
   const allTokens = Array.from(
     new Set([
       ...savedSessionOrders.map((o) => o.token?.trim()).filter(Boolean),
@@ -46,6 +54,9 @@ export default function MyOrdersPage() {
   const allOrderNumbers = Array.from(
     new Set([
       ...savedSessionOrders.map((o) => o.orderNumber?.trim()).filter(Boolean),
+      ...(localLastPurchased ? [localLastPurchased.trim()] : []),
+      ...(localActiveOrderNum ? [localActiveOrderNum.trim()] : []),
+      ...(activeOrderFromObj ? [activeOrderFromObj.trim()] : []),
       ...(urlOrderParam ? [urlOrderParam.trim()] : []),
       ...(searchOrder ? [searchOrder.trim()] : []),
     ])
@@ -66,8 +77,8 @@ export default function MyOrdersPage() {
         orders: allOrderNumbers.join(',') || undefined,
         email: searchEmail || undefined,
       }),
-    enabled: allTokens.length > 0 || allOrderNumbers.length > 0 || !!searchEmail,
-    staleTime: 30000,
+    enabled: true,
+    staleTime: 15000,
   })
 
   const activePurchases: PurchasedDownloadItem[] = data?.active || []
@@ -108,26 +119,65 @@ export default function MyOrdersPage() {
         orderNumber: orderNum,
         createdAt: Date.now(),
       })
+      try {
+        document.cookie = `tvh_last_order=${encodeURIComponent(orderNum)}; path=/; max-age=31536000; SameSite=Lax`
+      } catch {}
     }
 
     try {
+      // 1. Try standard purchases query
       const res = await api.download.getPurchases({
         order: orderNum || undefined,
         email: emailStr || undefined,
       })
 
-      const found = (res.active?.length || 0) + (res.expired?.length || 0)
+      let found = (res.active?.length || 0) + (res.expired?.length || 0)
+
+      // 2. If not found by token/order, try universal order lookup (supports Phone # and Order #)
+      if (found === 0 && (orderNum || emailStr)) {
+        try {
+          const directLookup = await api.orderLookup({
+            q: orderNum || undefined,
+            order: orderNum || undefined,
+            phone: orderNum || undefined,
+            email: emailStr || undefined,
+          })
+
+          if (directLookup && directLookup.order_number) {
+            saveOrderSession({
+              orderNumber: directLookup.order_number,
+              token: directLookup.download_token || undefined,
+              productTitle: directLookup.product,
+              amount: directLookup.amount,
+              createdAt: Date.now(),
+            })
+            try {
+              document.cookie = `tvh_last_order=${encodeURIComponent(directLookup.order_number)}; path=/; max-age=31536000; SameSite=Lax`
+            } catch {}
+
+            // Refetch purchases with newly linked order
+            const refreshed = await api.download.getPurchases({
+              order: directLookup.order_number,
+              tokens: directLookup.download_token || undefined,
+            })
+            found = (refreshed.active?.length || 0) + (refreshed.expired?.length || 0)
+          }
+        } catch {
+          // Direct lookup failed
+        }
+      }
+
       if (found > 0) {
         setLookupFeedback({
           type: 'success',
-          message: `Found ${found} order item(s)! Automatically saved to this browser session.`,
+          message: `Found ${found} order item(s)! Automatically linked and saved to this device.`,
         })
         setShowAddOrderBox(false)
         refetch()
       } else {
         setLookupFeedback({
           type: 'error',
-          message: 'No purchase records found with those details. Please check your order number.',
+          message: 'No purchase records found with those details. Please check your order number or mobile number.',
         })
       }
     } catch {
@@ -293,7 +343,7 @@ export default function MyOrdersPage() {
                     Link Previous Order to This Browser
                   </h3>
                   <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-                    Enter the Order Number or Email you used when purchasing. Once found, it will remain permanently saved in this browser's session.
+                    Enter your Order Number, Mobile Number, or Email used when purchasing. Once found, all downloads will be unlocked and permanently saved on this device.
                   </p>
                 </div>
 
@@ -309,7 +359,7 @@ export default function MyOrdersPage() {
                   <input
                     type="text"
                     className="input-field"
-                    placeholder="Order Number (e.g. ORD-12345678)"
+                    placeholder="Order # or Mobile # (e.g. 9801947855)"
                     value={searchOrder}
                     onChange={(e) => setSearchOrder(e.target.value.toUpperCase())}
                     style={{ fontSize: '0.85rem' }}

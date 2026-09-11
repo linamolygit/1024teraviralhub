@@ -8,6 +8,7 @@ import { Hono } from 'hono'
 import type { Env } from '../worker'
 import { verifyDownloadToken, incrementDownloadCount, logDownload } from '../lib/db'
 import { getR2Object } from '../lib/r2'
+import { verifyAndFulfillOrder } from './checkout'
 
 const app = new Hono<{ Bindings: Env }>()
 
@@ -29,7 +30,7 @@ app.get('/purchases/access', async (c) => {
     }
   }
 
-  // Auto-detect saved purchases from browser cookie if query params are minimal
+  // Auto-detect saved purchases and recent orders from browser cookie
   const cookieHeader = c.req.header('cookie') || ''
   if (cookieHeader) {
     const cookieMatch = cookieHeader.match(/tvh_customer_orders=([^;]+)/) || cookieHeader.match(/tvh_orders=([^;]+)/)
@@ -51,29 +52,61 @@ app.get('/purchases/access', async (c) => {
         // Ignore cookie parsing errors
       }
     }
+
+    const lastOrderMatch = cookieHeader.match(/tvh_last_order=([^;]+)/)
+    if (lastOrderMatch && lastOrderMatch[1]) {
+      const lastOrd = decodeURIComponent(lastOrderMatch[1]).trim()
+      if (lastOrd && !orderNumsToQuery.includes(lastOrd)) {
+        orderNumsToQuery.push(lastOrd)
+      }
+    }
   }
 
-  // Resolve tokens from order numbers
+  // Auto-verify and fulfill any referenced orders in real-time
   for (const ordNum of orderNumsToQuery) {
-    const orderTokens = await c.env.DB.prepare(
-      `SELECT dt.token FROM download_tokens dt
-       JOIN orders o ON dt.order_id = o.id
-       WHERE o.order_number = ? AND dt.is_revoked = 0`
-    ).bind(ordNum).all()
-    for (const r of (orderTokens.results as { token: string }[] || [])) {
-      if (!tokensToQuery.includes(r.token)) tokensToQuery.push(r.token)
+    const order = await c.env.DB.prepare(
+      `SELECT * FROM orders WHERE order_number = ?`
+    ).bind(ordNum).first() as any
+
+    if (order) {
+      const verification = await verifyAndFulfillOrder(c.env.DB, c.env, order)
+      if (verification.isPaid && verification.download_token) {
+        if (!tokensToQuery.includes(verification.download_token)) {
+          tokensToQuery.push(verification.download_token)
+        }
+      }
     }
   }
 
   if (emailParam) {
-    const emailTokens = await c.env.DB.prepare(
-      `SELECT dt.token FROM download_tokens dt
-       JOIN orders o ON dt.order_id = o.id
-       WHERE LOWER(o.customer_email) = ? AND dt.is_revoked = 0
-       ORDER BY dt.created_at DESC LIMIT 20`
+    const emailOrders = await c.env.DB.prepare(
+      `SELECT * FROM orders WHERE LOWER(customer_email) = ? ORDER BY created_at DESC LIMIT 20`
     ).bind(emailParam).all()
-    for (const r of (emailTokens.results as { token: string }[] || [])) {
-      if (!tokensToQuery.includes(r.token)) tokensToQuery.push(r.token)
+    for (const ord of (emailOrders.results as any[] || [])) {
+      const verification = await verifyAndFulfillOrder(c.env.DB, c.env, ord)
+      if (verification.isPaid && verification.download_token) {
+        if (!tokensToQuery.includes(verification.download_token)) {
+          tokensToQuery.push(verification.download_token)
+        }
+      }
+    }
+  }
+
+  // Fallback: If device has no stored cookies, check recent completed purchases from same IP (last 24 hours)
+  if (tokensToQuery.length === 0) {
+    const ip = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for') || ''
+    if (ip) {
+      const recentPaidOrders = await c.env.DB.prepare(
+        `SELECT * FROM orders WHERE ip_address = ? AND status = 'PAID' AND created_at >= datetime('now', '-24 hours') ORDER BY created_at DESC LIMIT 5`
+      ).bind(ip).all()
+      for (const ord of (recentPaidOrders.results as any[] || [])) {
+        const verification = await verifyAndFulfillOrder(c.env.DB, c.env, ord)
+        if (verification.isPaid && verification.download_token) {
+          if (!tokensToQuery.includes(verification.download_token)) {
+            tokensToQuery.push(verification.download_token)
+          }
+        }
+      }
     }
   }
 
