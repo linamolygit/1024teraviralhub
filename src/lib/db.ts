@@ -380,6 +380,8 @@ export interface Product {
   meta_description: string | null
   og_image_key: string | null
   button_text: string | null
+  google_drive_link?: string | null
+  video_url?: string | null
   download_limit: number
   access_duration_hours: number
   total_sales: number

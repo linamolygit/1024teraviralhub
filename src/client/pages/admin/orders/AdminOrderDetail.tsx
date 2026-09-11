@@ -161,10 +161,18 @@ export default function AdminOrderDetail() {
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
               <span style={{ color: 'var(--text-muted)' }}>Payment Gateway</span>
-              <span style={{ fontWeight: 600 }}>Cashfree Payment Gateway</span>
+              <span style={{ fontWeight: 600 }}>
+                {(o as any).notes?.includes('razorpay') || o.cashfree_order_id?.startsWith('order_') || o.cashfree_order_id?.startsWith('plink_')
+                  ? 'Razorpay Payment Gateway'
+                  : 'Cashfree Payment Gateway'}
+              </span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Cashfree Order ID</span>
+              <span style={{ color: 'var(--text-muted)' }}>
+                {(o as any).notes?.includes('razorpay') || o.cashfree_order_id?.startsWith('order_') || o.cashfree_order_id?.startsWith('plink_')
+                  ? 'Razorpay Order ID'
+                  : 'Cashfree Order ID'}
+              </span>
               <span style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{o.cashfree_order_id || 'N/A'}</span>
             </div>
             <div

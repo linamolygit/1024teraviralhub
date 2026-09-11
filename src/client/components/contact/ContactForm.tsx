@@ -1,17 +1,36 @@
 // src/client/components/contact/ContactForm.tsx — Production Contact & Support Inquiry Form
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Send, CheckCircle2, AlertCircle, RefreshCw, HelpCircle, WifiOff } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Send, CheckCircle2, AlertCircle, RefreshCw, HelpCircle, WifiOff, ShieldCheck } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { api } from '../../lib/api'
 
 export default function ContactForm() {
+  const [searchParams] = useSearchParams()
+  const initialOrder = searchParams.get('order') || ''
+  const initialType = searchParams.get('type') || (initialOrder ? 'payment' : 'general')
+
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
-  const [inquiryType, setInquiryType] = useState('general')
-  const [orderRef, setOrderRef] = useState('')
-  const [subject, setSubject] = useState('')
-  const [message, setMessage] = useState('')
+  const [inquiryType, setInquiryType] = useState(initialType)
+  const [orderRef, setOrderRef] = useState(initialOrder)
+  const [subject, setSubject] = useState(initialOrder ? `Priority Assistance for Order #${initialOrder}` : '')
+  const [message, setMessage] = useState(
+    initialOrder
+      ? `Hi Support Team, I completed payment for Order #${initialOrder}. Please assist me with my digital download access.`
+      : ''
+  )
+
+  useEffect(() => {
+    if (initialOrder) {
+      setOrderRef(initialOrder)
+      setInquiryType('payment')
+      if (!subject) setSubject(`Priority Assistance for Order #${initialOrder}`)
+      if (!message) {
+        setMessage(`Hi Support Team, I completed payment for Order #${initialOrder}. Please assist me with my digital download access.`)
+      }
+    }
+  }, [initialOrder])
 
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -170,6 +189,28 @@ export default function ContactForm() {
       <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '24px', lineHeight: 1.5 }}>
         Fill out the form below and our support team will get in touch with you shortly.
       </p>
+
+      {initialOrder && (
+        <div
+          style={{
+            marginBottom: '20px',
+            padding: '12px 16px',
+            background: 'rgba(16, 185, 129, 0.08)',
+            border: '1px solid rgba(16, 185, 129, 0.3)',
+            borderRadius: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            fontSize: '0.85rem',
+            color: 'var(--text-primary)',
+          }}
+        >
+          <ShieldCheck size={18} color="var(--success)" style={{ flexShrink: 0 }} />
+          <div>
+            <strong>Priority Order Resolution:</strong> Order #{initialOrder} is linked to this ticket. Our grievance team will assist you directly.
+          </div>
+        </div>
+      )}
 
       {error && (
         <div

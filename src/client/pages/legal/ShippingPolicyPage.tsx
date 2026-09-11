@@ -3,9 +3,11 @@ import { useSiteConfig, BUSINESS_CONFIG } from '../../lib/site-config'
 import { Zap, Clock, ShieldCheck, Download, Mail, CheckCircle2, HelpCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useEffect } from 'react'
+import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
 
 export default function ShippingPolicyPage() {
   const { siteName, supportEmail } = useSiteConfig()
+  const { fullName: gatewayFullName } = usePaymentGatewayInfo()
 
   useEffect(() => {
     document.title = `Shipping & Digital Delivery Policy — ${siteName}`
@@ -111,7 +113,7 @@ export default function ShippingPolicyPage() {
               2. Delivery Timelines & Fulfillment Process
             </h2>
             <p>
-              Upon successful payment authorization through our verified payment gateway (Cashfree Payments), your order is processed and fulfilled instantly:
+              Upon successful payment authorization through our verified payment gateway ({gatewayFullName}), your order is processed and fulfilled instantly:
             </p>
             <ul style={{ paddingLeft: 20, marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
               <li>

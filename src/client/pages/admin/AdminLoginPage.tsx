@@ -53,6 +53,7 @@ export default function AdminLoginPage() {
       minHeight: '100dvh',
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
       background: 'radial-gradient(ellipse 80% 60% at 50% -10%, rgba(124,58,237,0.15) 0%, transparent 70%), var(--bg-base)',
+      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
     }}>
       <motion.div
         initial={{ opacity: 0, y: 20 }}

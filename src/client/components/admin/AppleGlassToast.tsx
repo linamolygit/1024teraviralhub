@@ -1,4 +1,4 @@
-// src/client/components/admin/AppleGlassToast.tsx — Liquid Glass UI (Xcode 26 + iOS 26 Spec)
+// src/client/components/admin/AppleGlassToast.tsx — Ultra-Realistic Apple VisionOS Liquid Glass Pill UI
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Check, AlertCircle, AlertTriangle, Info, Loader2, X } from 'lucide-react'
@@ -11,18 +11,17 @@ export default function AppleGlassToastContainer() {
     <div
       style={{
         position: 'fixed',
-        bottom: 26,
+        bottom: 28,
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 999999,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: 12,
+        gap: 10,
         pointerEvents: 'none',
-        width: '100%',
-        maxWidth: 480,
-        padding: '0 16px',
+        width: 'auto',
+        maxWidth: '92vw',
       }}
     >
       <AnimatePresence mode="sync">
@@ -30,11 +29,11 @@ export default function AppleGlassToastContainer() {
           <motion.div
             key={toast.id}
             layout
-            initial={{ opacity: 0, y: 35, scale: 0.92 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 15, scale: 0.94 }}
-            transition={{ type: 'spring', stiffness: 420, damping: 26 }}
-            style={{ pointerEvents: 'auto', width: '100%' }}
+            initial={{ opacity: 0, y: 30, scale: 0.90, filter: 'blur(8px)' }}
+            animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+            exit={{ opacity: 0, y: 15, scale: 0.94, filter: 'blur(4px)' }}
+            transition={{ type: 'spring', stiffness: 450, damping: 28 }}
+            style={{ pointerEvents: 'auto', display: 'flex', justifyContent: 'center' }}
           >
             <LiquidGlassToastCard toast={toast} onDismiss={() => removeToast(toast.id)} />
           </motion.div>
@@ -58,59 +57,55 @@ function LiquidGlassToastCard({ toast, onDismiss }: { toast: ToastItem; onDismis
     return () => clearTimeout(timer)
   }, [toast.duration, isPaused, onDismiss])
 
-  // Color & 3D Gel Orb configuration based on reference images
+  // Gel orb status configuration
   const getConfig = (type: ToastType) => {
     switch (type) {
       case 'success':
         return {
-          icon: <Check size={18} color="#FFFFFF" strokeWidth={3} />,
-          gelGradient: 'linear-gradient(180deg, #34D399 0%, #10B981 50%, #059669 100%)',
-          gelShadow: 'rgba(16, 185, 129, 0.55)',
-          causticInner: 'rgba(16, 185, 129, 0.08)',
-          causticGlow: 'rgba(16, 185, 129, 0.3)',
-          progressBar: 'linear-gradient(90deg, #10B981, #34D399)',
+          icon: <Check size={13} color="#FFFFFF" strokeWidth={3.2} />,
+          orbGradient: 'linear-gradient(180deg, #34D399 0%, #10B981 50%, #059669 100%)',
+          orbShadow: 'rgba(16, 185, 129, 0.45)',
+          causticGlow: 'rgba(16, 185, 129, 0.25)',
+          progressColor: '#10B981',
         }
       case 'error':
         return {
-          icon: <AlertCircle size={18} color="#FFFFFF" strokeWidth={2.8} />,
-          gelGradient: 'linear-gradient(180deg, #F87171 0%, #EF4444 50%, #B91C1C 100%)',
-          gelShadow: 'rgba(239, 68, 68, 0.55)',
-          causticInner: 'rgba(239, 68, 68, 0.08)',
-          causticGlow: 'rgba(239, 68, 68, 0.35)',
-          progressBar: 'linear-gradient(90deg, #EF4444, #F87171)',
+          icon: <AlertCircle size={13} color="#FFFFFF" strokeWidth={3} />,
+          orbGradient: 'linear-gradient(180deg, #F87171 0%, #EF4444 50%, #DC2626 100%)',
+          orbShadow: 'rgba(239, 68, 68, 0.45)',
+          causticGlow: 'rgba(239, 68, 68, 0.3)',
+          progressColor: '#EF4444',
         }
       case 'warning':
         return {
-          icon: <AlertTriangle size={18} color="#FFFFFF" strokeWidth={2.8} />,
-          gelGradient: 'linear-gradient(180deg, #FBBF24 0%, #F59E0B 50%, #D97706 100%)',
-          gelShadow: 'rgba(245, 158, 11, 0.55)',
-          causticInner: 'rgba(245, 158, 11, 0.08)',
-          causticGlow: 'rgba(245, 158, 11, 0.3)',
-          progressBar: 'linear-gradient(90deg, #F59E0B, #FCD34D)',
+          icon: <AlertTriangle size={13} color="#FFFFFF" strokeWidth={3} />,
+          orbGradient: 'linear-gradient(180deg, #FBBF24 0%, #F59E0B 50%, #D97706 100%)',
+          orbShadow: 'rgba(245, 158, 11, 0.45)',
+          causticGlow: 'rgba(245, 158, 11, 0.25)',
+          progressColor: '#F59E0B',
         }
       case 'loading':
         return {
-          icon: <Loader2 size={18} color="#FFFFFF" className="animate-spin" strokeWidth={2.8} />,
-          gelGradient: 'linear-gradient(180deg, #C084FC 0%, #A855F7 50%, #7E22CE 100%)',
-          gelShadow: 'rgba(168, 85, 247, 0.55)',
-          causticInner: 'rgba(168, 85, 247, 0.08)',
-          causticGlow: 'rgba(168, 85, 247, 0.3)',
-          progressBar: 'linear-gradient(90deg, #A855F7, #C084FC)',
+          icon: <Loader2 size={13} color="#FFFFFF" className="animate-spin" strokeWidth={3} />,
+          orbGradient: 'linear-gradient(180deg, #C084FC 0%, #A855F7 50%, #7E22CE 100%)',
+          orbShadow: 'rgba(168, 85, 247, 0.45)',
+          causticGlow: 'rgba(168, 85, 247, 0.25)',
+          progressColor: '#A855F7',
         }
       case 'info':
       default:
         return {
-          icon: <Info size={18} color="#FFFFFF" strokeWidth={2.8} />,
-          gelGradient: 'linear-gradient(180deg, #38BDF8 0%, #0284C7 50%, #0369A1 100%)',
-          gelShadow: 'rgba(2, 132, 199, 0.55)',
-          causticInner: 'rgba(2, 132, 199, 0.08)',
-          causticGlow: 'rgba(2, 132, 199, 0.3)',
-          progressBar: 'linear-gradient(90deg, #0284C7, #38BDF8)',
+          icon: <Info size={13} color="#FFFFFF" strokeWidth={3} />,
+          orbGradient: 'linear-gradient(180deg, #38BDF8 0%, #0284C7 50%, #0369A1 100%)',
+          orbShadow: 'rgba(2, 132, 199, 0.45)',
+          causticGlow: 'rgba(2, 132, 199, 0.25)',
+          progressColor: '#0284C7',
         }
     }
   }
 
   const config = getConfig(toast.type)
+  const isSingleLine = !toast.description && !toast.action
 
   return (
     <div
@@ -118,62 +113,81 @@ function LiquidGlassToastCard({ toast, onDismiss }: { toast: ToastItem; onDismis
       onMouseLeave={() => setIsPaused(false)}
       style={{
         position: 'relative',
-        overflow: 'hidden',
-        display: 'flex',
+        display: 'inline-flex',
         alignItems: 'center',
-        gap: 13,
-        padding: '12px 18px',
-        borderRadius: 24,
-        /* Liquid Glass Crystal Body (Refractive Water/Gel Translucency) */
+        gap: 10,
+        padding: isSingleLine ? '8px 16px 8px 10px' : '10px 18px 10px 12px',
+        borderRadius: 9999, // True Apple VisionOS Capsule Stadium Pill
+        /* Liquid Glass Crystal Body (Refractive Water/Gel Specular Translucency) */
         background:
-          'linear-gradient(135deg, rgba(255, 255, 255, 0.82) 0%, rgba(255, 255, 255, 0.42) 45%, rgba(255, 255, 255, 0.68) 100%)',
-        backdropFilter: 'blur(30px) saturate(210%) contrast(102%)',
-        WebkitBackdropFilter: 'blur(30px) saturate(210%) contrast(102%)',
+          'linear-gradient(180deg, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0.32) 42%, rgba(255, 255, 255, 0.52) 100%)',
+        backdropFilter: 'blur(28px) saturate(200%) contrast(104%)',
+        WebkitBackdropFilter: 'blur(28px) saturate(200%) contrast(104%)',
+        /* Outer Refractive Glass Edge */
         border: '1.5px solid rgba(255, 255, 255, 0.85)',
         boxShadow: `
           /* Direct light white specular rim reflection */
-          inset 0 2px 2px 0 rgba(255, 255, 255, 0.95),
-          /* Bottom inner liquid curve highlight */
-          inset 0 -2px 3px 0 rgba(255, 255, 255, 0.5),
-          /* Lateral curved glass optical reflections */
-          inset 2.5px 0 3.5px 0 rgba(255, 255, 255, 0.6),
-          inset -2.5px 0 3.5px 0 rgba(255, 255, 255, 0.6),
-          /* Status ambient inner caustic */
-          inset 0 0 20px 0 ${config.causticInner},
-          /* Soft liquid drop shadow */
-          0 16px 36px -6px rgba(0, 0, 0, 0.16),
-          0 4px 12px 0 rgba(0, 0, 0, 0.06),
-          0 0 24px -2px ${config.causticGlow}
+          inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.98),
+          /* Bottom inner liquid reflection */
+          inset 0 -1.5px 2px 0 rgba(255, 255, 255, 0.45),
+          /* Lateral curved glass optical bounce */
+          inset 2px 0 3px 0 rgba(255, 255, 255, 0.65),
+          inset -2px 0 3px 0 rgba(255, 255, 255, 0.65),
+          /* Soft ambient liquid drop shadows matching reference photo */
+          0 20px 42px -8px rgba(0, 0, 0, 0.22),
+          0 8px 18px -4px rgba(0, 0, 0, 0.12),
+          0 2px 6px 0 rgba(0, 0, 0, 0.06),
+          0 0 20px -2px ${config.causticGlow}
         `,
+        userSelect: 'none',
+        maxWidth: 520,
+        transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
       }}
     >
-      {/* ── Convex Lens Specular Highlight (Optical Curved Glare from Reference Playbook) ── */}
+      {/* ── Signature Concentric Inner Liquid Ridge (Exact optical detail from user reference) ── */}
       <div
         style={{
           position: 'absolute',
-          top: 2,
-          left: 14,
-          right: 14,
-          height: '42%',
-          borderRadius: '18px 18px 80px 80px / 12px 12px 22px 22px',
-          background:
-            'linear-gradient(180deg, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0.2) 55%, transparent 100%)',
+          inset: 3,
+          borderRadius: 9999,
+          border: '1px solid rgba(255, 255, 255, 0.5)',
+          boxShadow: `
+            inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.85),
+            inset 0 -1px 2px 0 rgba(0, 0, 0, 0.04),
+            0 1px 2px 0 rgba(0, 0, 0, 0.03)
+          `,
           pointerEvents: 'none',
         }}
       />
 
-      {/* ── 3D Liquid Jelly Badge (Like "Design Guide" & "Component Library" in Reference) ── */}
+      {/* ── Upper Meniscus Specular Highlight (Curved surface glare) ── */}
       <div
         style={{
-          width: 36,
-          height: 36,
-          borderRadius: 12,
-          background: config.gelGradient,
-          border: '1px solid rgba(255, 255, 255, 0.75)',
+          position: 'absolute',
+          top: 1,
+          left: 18,
+          right: 18,
+          height: '46%',
+          borderRadius: '9999px 9999px 50px 50px',
+          background:
+            'linear-gradient(180deg, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0.18) 60%, transparent 100%)',
+          pointerEvents: 'none',
+          opacity: 0.95,
+        }}
+      />
+
+      {/* ── Sleek 3D Liquid Gel Orb ── */}
+      <div
+        style={{
+          width: 26,
+          height: 26,
+          borderRadius: '50%',
+          background: config.orbGradient,
+          border: '1px solid rgba(255, 255, 255, 0.85)',
           boxShadow: `
-            inset 0 2px 2px 0 rgba(255, 255, 255, 0.9),
-            inset 0 -2px 3px 0 rgba(0, 0, 0, 0.25),
-            0 6px 14px -2px ${config.gelShadow}
+            inset 0 1.5px 1.5px 0 rgba(255, 255, 255, 0.95),
+            inset 0 -1.5px 2px 0 rgba(0, 0, 0, 0.3),
+            0 3px 8px -1px ${config.orbShadow}
           `,
           display: 'flex',
           alignItems: 'center',
@@ -184,32 +198,45 @@ function LiquidGlassToastCard({ toast, onDismiss }: { toast: ToastItem; onDismis
           zIndex: 1,
         }}
       >
-        {/* Gel Glint */}
+        {/* Orb Crescent Glint */}
         <div
           style={{
             position: 'absolute',
             top: 1,
-            left: 3,
-            right: 3,
-            height: '40%',
-            borderRadius: '8px 8px 14px 14px / 4px 4px 8px 8px',
+            left: 2,
+            right: 2,
+            height: '42%',
+            borderRadius: '50%',
             background:
-              'linear-gradient(180deg, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0.1) 100%)',
+              'linear-gradient(180deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.1) 100%)',
             pointerEvents: 'none',
           }}
         />
         {config.icon}
       </div>
 
-      {/* ── Content & Typography ── */}
-      <div style={{ flex: 1, minWidth: 0, position: 'relative', zIndex: 1 }}>
+      {/* ── Typography (Crisp Apple Obsidian Font matching "Style Rules" in reference) ── */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: isSingleLine ? 'row' : 'column',
+          alignItems: isSingleLine ? 'center' : 'flex-start',
+          gap: isSingleLine ? 6 : 1,
+          position: 'relative',
+          zIndex: 1,
+          paddingRight: 4,
+        }}
+      >
         <div
           style={{
             fontSize: '0.875rem',
-            fontWeight: 800,
-            color: '#0F172A', // Crisp Apple Slate
-            letterSpacing: '-0.02em',
-            lineHeight: 1.35,
+            fontWeight: 700,
+            color: '#0F172A', // Apple deep graphite
+            fontFamily:
+              '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", -system-ui, sans-serif',
+            letterSpacing: '-0.015em',
+            lineHeight: 1.25,
+            whiteSpace: isSingleLine ? 'nowrap' : 'normal',
           }}
         >
           {toast.title}
@@ -218,37 +245,38 @@ function LiquidGlassToastCard({ toast, onDismiss }: { toast: ToastItem; onDismis
         {toast.description && (
           <div
             style={{
-              fontSize: '0.78rem',
-              color: '#334155', // Refined slate subtext
+              fontSize: '0.76rem',
+              color: '#334155', // Apple soft slate
+              fontFamily:
+                '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", -system-ui, sans-serif',
               fontWeight: 500,
-              marginTop: 2,
-              lineHeight: 1.4,
-              wordBreak: 'break-word',
+              lineHeight: 1.35,
             }}
           >
             {toast.description}
           </div>
         )}
 
-        {/* Action Button if present */}
+        {/* Action Button if provided */}
         {toast.action && (
           <button
             type="button"
             onClick={toast.action.onClick}
             style={{
-              marginTop: 6,
-              padding: '4px 12px',
-              fontSize: '0.75rem',
+              marginTop: 4,
+              padding: '2px 10px',
+              fontSize: '0.72rem',
               fontWeight: 700,
               borderRadius: 9999,
-              background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.6))',
-              border: '1px solid rgba(255, 255, 255, 0.9)',
-              boxShadow: '0 2px 6px rgba(0, 0, 0, 0.08), inset 0 1px 1px #fff',
+              background:
+                'linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.7))',
+              border: '1px solid rgba(255, 255, 255, 0.95)',
+              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.08), inset 0 1px 1px #fff',
               color: '#0F172A',
               cursor: 'pointer',
               transition: 'transform 0.15s',
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.04)')}
+            onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.05)')}
             onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
           >
             {toast.action.label}
@@ -256,42 +284,46 @@ function LiquidGlassToastCard({ toast, onDismiss }: { toast: ToastItem; onDismis
         )}
       </div>
 
-      {/* ── Circular Glass Ring Dismiss Button (Matching Glass Ring in Playbook) ── */}
+      {/* ── Circular Glass Ring Dismiss Button ── */}
       <button
         type="button"
         onClick={onDismiss}
         aria-label="Close notification"
         style={{
-          width: 26,
-          height: 26,
+          width: 20,
+          height: 20,
           borderRadius: '50%',
           background:
-            'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.45) 100%)',
-          border: '1.5px solid rgba(255, 255, 255, 0.95)',
-          boxShadow: 'inset 0 1px 2px rgba(255, 255, 255, 0.95), 0 2px 6px rgba(0, 0, 0, 0.06)',
+            'linear-gradient(135deg, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0.4) 100%)',
+          border: '1px solid rgba(255, 255, 255, 0.9)',
+          boxShadow: 'inset 0 1px 1.5px rgba(255, 255, 255, 0.9), 0 1px 3px rgba(0, 0, 0, 0.06)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           cursor: 'pointer',
-          color: '#334155',
+          color: '#475569',
           flexShrink: 0,
           position: 'relative',
           zIndex: 1,
-          transition: 'transform 0.15s, background 0.15s',
+          transition: 'all 0.15s ease',
+          padding: 0,
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'scale(1.08)'
+          e.currentTarget.style.transform = 'scale(1.1)'
           e.currentTarget.style.color = '#0F172A'
+          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.95)'
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.transform = 'scale(1)'
-          e.currentTarget.style.color = '#334155'
+          e.currentTarget.style.color = '#475569'
+          e.currentTarget.style.background =
+            'linear-gradient(135deg, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0.4) 100%)'
         }}
       >
-        <X size={13} strokeWidth={2.8} />
+        <X size={11} strokeWidth={3} />
       </button>
 
-      {/* ── Liquid Glass Progress Line ── */}
+      {/* ── Subtle Liquid Progress Ring / Bar ── */}
       {toast.duration && toast.duration > 0 && (
         <motion.div
           initial={{ scaleX: 1 }}
@@ -299,18 +331,19 @@ function LiquidGlassToastCard({ toast, onDismiss }: { toast: ToastItem; onDismis
           transition={{ duration: toast.duration / 1000, ease: 'linear' }}
           style={{
             position: 'absolute',
-            bottom: 0,
-            left: 16,
-            right: 16,
-            height: 3,
+            bottom: 2,
+            left: 20,
+            right: 20,
+            height: 2,
             borderRadius: 9999,
-            background: config.progressBar,
-            boxShadow: `0 0 8px ${config.progressBar}`,
+            background: config.progressColor,
             transformOrigin: 'left',
-            opacity: 0.85,
+            opacity: 0.7,
+            pointerEvents: 'none',
           }}
         />
       )}
     </div>
   )
 }
+

@@ -6,6 +6,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Manrope:wght@400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
+@theme {
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
 /* ─── DARK Theme Tokens (Deep Navy / Midnight Ecom) ──────────── */
 :root,
 [data-theme="dark"] {
@@ -171,10 +175,10 @@
 }
 
 html {
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
   font-size: 16px;
-  /* Fix: prevent page from opening at bottom on mobile */
   scroll-padding-top: 64px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif;
 }
 
 body {
@@ -193,6 +197,29 @@ h1, h2, h3, h4, h5, h6 {
   font-family: 'Manrope', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   letter-spacing: -0.02em;
   color: var(--text-primary);
+}
+
+/* ─── Admin Center UI: Pure Inter Variable Font Stack ─── */
+.admin-layout-root,
+.admin-layout-root *,
+.admin-layout-root h1,
+.admin-layout-root h2,
+.admin-layout-root h3,
+.admin-layout-root h4,
+.admin-layout-root h5,
+.admin-layout-root h6,
+.admin-layout-root p,
+.admin-layout-root span,
+.admin-layout-root a,
+.admin-layout-root button,
+.admin-layout-root input,
+.admin-layout-root select,
+.admin-layout-root textarea,
+.admin-layout-root table,
+.admin-layout-root th,
+.admin-layout-root td,
+.admin-sidebar {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
 }
 
 p { color: var(--text-secondary); }

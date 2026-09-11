@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { ShieldCheck, Lock, CheckCircle2, Zap } from 'lucide-react'
 import { useSiteConfig, BUSINESS_CONFIG } from '../../lib/site-config'
 import { PhonePeIcon, GPayIcon, PaytmIcon, UpiGenericIcon, RuPayIcon } from '../ui/UpiIcons'
+import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
 
 const exploreLinks = [
   { to: '/', label: 'Home' },
@@ -21,10 +22,11 @@ const productLinks = [
 ]
 
 const supportLinks = [
+  { to: '/my-orders', label: 'My Orders & Downloads' },
+  { to: '/order-lookup', label: 'Order Lookup' },
   { to: '/help', label: 'Help Center' },
   { to: '/faq', label: 'FAQ' },
   { to: '/affiliate', label: 'Affiliate Program (Earn 20%)' },
-  { to: '/order-lookup', label: 'Order Lookup' },
   { to: '/contact', label: 'Contact Us' },
   { to: '/about', label: 'About Us' },
 ]
@@ -41,6 +43,7 @@ const companyLinks = [
 
 export default function Footer() {
   const { siteName } = useSiteConfig()
+  const { securedByText, logos } = usePaymentGatewayInfo()
 
   return (
     <footer
@@ -116,6 +119,9 @@ export default function Footer() {
                 <strong style={{ color: '#FFD200', fontFamily: 'monospace', letterSpacing: '0.02em' }}>
                   {BUSINESS_CONFIG.udyamRegistration}
                 </strong>
+              </div>
+              <div style={{ fontSize: '0.72rem', color: '#9CA3AF', marginTop: '6px', lineHeight: 1.45 }}>
+                <span style={{ color: '#D1D5DB' }}>Office:</span> {BUSINESS_CONFIG.registeredOffice}
               </div>
               <div style={{ fontSize: '0.7rem', color: '#9CA3AF', marginTop: '4px' }}>
                 Ministry of Micro, Small & Medium Enterprises, Govt. of India
@@ -334,9 +340,32 @@ export default function Footer() {
               <ShieldCheck size={14} color="#10B981" />
               <span>PCI-DSS Compliant</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <CheckCircle2 size={14} color="#FFD200" />
-              <span>Secured by Cashfree Payments</span>
+              <span>{securedByText}</span>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginLeft: 2 }}>
+                {logos.map((logo) => (
+                  <div
+                    key={logo.name}
+                    style={{
+                      height: 20,
+                      padding: '1px 6px',
+                      borderRadius: 4,
+                      background: '#FFFFFF',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    title={logo.name}
+                  >
+                    <img
+                      src={logo.src}
+                      alt={logo.alt}
+                      style={{ height: 13, maxWidth: 52, objectFit: 'contain' }}
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>

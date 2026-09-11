@@ -6,7 +6,7 @@ import { adminAuthMiddleware, type AdminVars } from './middleware'
 const app = new Hono<{ Bindings: Env; Variables: AdminVars }>()
 app.use('*', adminAuthMiddleware)
 
-const DEFAULT_GEMINI_KEY = 'AQ.Ab8RN6KxN6h49tNcQy64pk_VQxf4mkDsoDKJXMU89LJYI6lAEw'
+const DEFAULT_GEMINI_KEY = ''
 
 interface GenerateRequest {
   prompt?: string
@@ -91,8 +91,14 @@ app.post('/generate-product', async (c) => {
     let apiKey = body.apiKey?.trim()
     if (!apiKey) {
       try {
-        const row = await c.env.DB.prepare(`SELECT value FROM site_settings WHERE key = 'gemini_api_key'`).first<{ value: string }>()
-        if (row?.value) apiKey = row.value
+        const row = await c.env.DB.prepare(`SELECT value FROM website_settings WHERE key = 'gemini_api_key'`).first<{ value: string }>()
+        if (row?.value) {
+          try {
+            apiKey = JSON.parse(row.value)
+          } catch {
+            apiKey = row.value
+          }
+        }
       } catch {}
     }
     if (!apiKey) {

@@ -2,9 +2,11 @@
 import { useSiteConfig, BUSINESS_CONFIG } from '../../lib/site-config'
 import { Link } from 'react-router-dom'
 import { useEffect } from 'react'
+import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
 
 export default function TermsPage() {
   const { siteName, supportEmail } = useSiteConfig()
+  const { name: gatewayName, legalEntity: gatewayLegalEntity } = usePaymentGatewayInfo()
 
   useEffect(() => {
     document.title = `Terms and Conditions — ${siteName}`
@@ -59,7 +61,7 @@ export default function TermsPage() {
               All products listed for sale on the Platform are strictly intangible digital files, such as high-resolution digital wallpapers, photo packs, graphic elements, and digital resource archives.
             </p>
             <p>
-              Upon successful payment confirmation via our authorized payment aggregator (Cashfree Payments India Pvt. Ltd.), you are provided instant electronic access via a secure download token on-screen and via automated email. <strong>No physical shipment or courier delivery takes place.</strong>
+              Upon successful payment confirmation via our authorized payment aggregator ({gatewayLegalEntity}), you are provided instant electronic access via a secure download token on-screen and via automated email. <strong>No physical shipment or courier delivery takes place.</strong>
             </p>
           </section>
 
@@ -77,7 +79,7 @@ export default function TermsPage() {
               4. Pricing, Payments & Invoicing
             </h2>
             <p>
-              All product prices are quoted in Indian National Rupees (INR / ₹) inclusive of applicable taxes. Payments are fulfilled through secure UPI (PhonePe, Google Pay, Paytm, BHIM), debit/credit cards, and NetBanking gateways powered by Cashfree. {BUSINESS_CONFIG.legalName} reserves the right to adjust product pricing or promotional discount coupons at its sole discretion without prior notice.
+              All product prices are quoted in Indian National Rupees (INR / ₹) inclusive of applicable taxes. Payments are fulfilled through secure UPI (PhonePe, Google Pay, Paytm, BHIM), debit/credit cards, and NetBanking gateways powered by {gatewayName}. {BUSINESS_CONFIG.legalName} reserves the right to adjust product pricing or promotional discount coupons at its sole discretion without prior notice.
             </p>
           </section>
 
@@ -117,6 +119,7 @@ export default function TermsPage() {
             </p>
             <div style={{ background: 'var(--bg-elevated)', padding: '16px 20px', borderRadius: 10, fontSize: '0.85rem' }}>
               <div><strong>Operating Entity:</strong> {BUSINESS_CONFIG.legalName}</div>
+              <div><strong>Physical Office:</strong> {BUSINESS_CONFIG.registeredOffice}</div>
               <div><strong>Udyam Registration:</strong> {BUSINESS_CONFIG.udyamRegistration}</div>
               <div><strong>Support Desk:</strong> <a href={`mailto:${supportEmail}`} style={{ color: 'inherit' }}>{supportEmail}</a></div>
               <div><strong>Business Hours:</strong> {BUSINESS_CONFIG.supportHours}</div>

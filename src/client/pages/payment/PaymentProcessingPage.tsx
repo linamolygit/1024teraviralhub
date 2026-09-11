@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { api } from '../../lib/api'
+import { saveOrderSession } from '../../lib/orderSession'
 
 export default function PaymentProcessingPage() {
   const [searchParams] = useSearchParams()
@@ -28,6 +29,7 @@ export default function PaymentProcessingPage() {
         const result = await api.checkout.verify(orderNumber)
 
         if (result.status === 'PAID' && result.download_token) {
+          saveOrderSession({ orderNumber, token: result.download_token, createdAt: Date.now() })
           navigate(`/payment/success?order=${orderNumber}&token=${result.download_token}`)
           return
         }
@@ -60,28 +62,35 @@ export default function PaymentProcessingPage() {
 
   return (
     <div style={{
-      minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'var(--bg-base)', flexDirection: 'column', gap: 24, padding: 20,
+      minHeight: '100dvh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: '#F4F5F9',
+      flexDirection: 'column',
+      padding: 24,
+      fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
     }}>
       <motion.div
         animate={{ rotate: 360 }}
-        transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+        transition={{ repeat: Infinity, duration: 0.85, ease: 'linear' }}
         style={{
-          width: 64, height: 64, borderRadius: '50%',
-          border: '4px solid rgba(124,58,237,0.2)',
-          borderTop: '4px solid var(--brand-purple)',
+          width: 34,
+          height: 34,
+          borderRadius: '50%',
+          border: '3.5px solid #E2E8F0',
+          borderTop: '3.5px solid #1E50D8',
+          marginBottom: 20,
         }}
       />
       <div style={{ textAlign: 'center' }}>
-        <h2 style={{ fontWeight: 800, fontSize: '1.25rem', marginBottom: 8 }}>Processing Payment</h2>
-        <p style={{ color: 'var(--text-muted)' }}>{message}</p>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: 8 }}>
-          Do not close this window · Attempt {attempts}/10
+        <h2 style={{ fontWeight: 600, fontSize: '1.25rem', color: '#2D3748', marginBottom: 8, letterSpacing: '-0.01em' }}>
+          Redirecting..
+        </h2>
+        <p style={{ color: '#A0AEC0', fontSize: '0.875rem', margin: 0 }}>
+          Please do not press back or home button
         </p>
       </div>
-      {orderNumber && (
-        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Order: {orderNumber}</div>
-      )}
     </div>
   )
 }

@@ -20,9 +20,12 @@ export interface SiteConfig {
 export const BUSINESS_CONFIG = {
   legalName: 'RISHAV MEDIA',
   brandName: '1024TeraViralHub',
+  registeredOffice: 'Flat No. 25, Rishav Media Office, Block Road, Ghorasahan, Motihari, Purbi Champaran, Bihar - 845303, India',
   udyamRegistration: 'UDYAM-BR-11-0107325',
   registrationType: 'Govt. of India MSME / Udyam Registered Micro Enterprise',
   operatingState: 'Bihar, India',
+  city: 'Motihari, Purbi Champaran',
+  pincode: '845303',
   supportEmail: 'support@1024teraviralhub.com',
   supportHours: 'Monday – Saturday: 10:00 AM – 6:00 PM IST',
   grievanceOfficer: 'Nodal Grievance Redressal Officer, RISHAV MEDIA',

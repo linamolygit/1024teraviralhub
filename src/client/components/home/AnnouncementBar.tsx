@@ -1,7 +1,10 @@
 // src/client/components/home/AnnouncementBar.tsx
 import { Zap, ShieldCheck, Clock } from 'lucide-react'
+import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
 
 export default function AnnouncementBar() {
+  const { announcementText } = usePaymentGatewayInfo()
+
   return (
     <div
       style={{
@@ -29,7 +32,7 @@ export default function AnnouncementBar() {
         </span>
         <span style={{ opacity: 0.3 }} className="hide-mobile">•</span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-          <ShieldCheck size={13} color="var(--success)" /> Verified Cashfree & UPI Payments
+          <ShieldCheck size={13} color="var(--success)" /> {announcementText}
         </span>
         <span style={{ opacity: 0.3 }} className="hide-mobile">•</span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }} className="hide-mobile">

@@ -3,9 +3,11 @@ import { useSiteConfig, BUSINESS_CONFIG } from '../../lib/site-config'
 import { Link } from 'react-router-dom'
 import { useEffect } from 'react'
 import { RefreshCw, CheckCircle2, AlertCircle, Clock, ShieldCheck } from 'lucide-react'
+import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
 
 export default function RefundPage() {
   const { siteName, supportEmail } = useSiteConfig()
+  const { name: gatewayName, fullName: gatewayFullName } = usePaymentGatewayInfo()
 
   useEffect(() => {
     document.title = `Refund & Cancellation Policy — ${siteName}`
@@ -119,7 +121,7 @@ export default function RefundPage() {
                 <strong>Corrupt or Unusable Files:</strong> If the downloaded archive or file cannot be extracted or opened, and our technical support team is unable to provide a functional replacement within <strong>48 hours</strong> of notification.
               </li>
               <li>
-                <strong>Technical Delivery Failure:</strong> If payment succeeded via Cashfree but no download link was generated on screen or received via email within 2 hours, and our team cannot resolve the delivery issue.
+                <strong>Technical Delivery Failure:</strong> If payment succeeded via {gatewayName} but no download link was generated on screen or received via email within 2 hours, and our team cannot resolve the delivery issue.
               </li>
               <li>
                 <strong>Material Discrepancy:</strong> If the delivered asset is demonstrably different in content or format from the product description and live preview shown on the store.
@@ -151,7 +153,7 @@ export default function RefundPage() {
                 <strong>Processing SLA:</strong> Refunds are initiated within <strong>24 to 48 hours</strong> of verification.
               </li>
               <li>
-                <strong>Settlement Timeline:</strong> The refunded amount will reflect in your original payment account (UPI ID, debit/credit card, or NetBanking bank account via Cashfree Payments) within <strong>5 to 7 business days</strong>, depending on your bank's clearance cycles.
+                <strong>Settlement Timeline:</strong> The refunded amount will reflect in your original payment account (UPI ID, debit/credit card, or NetBanking bank account via {gatewayFullName}) within <strong>5 to 7 business days</strong>, depending on your bank's clearance cycles.
               </li>
               <li>
                 <strong>Refund Mode:</strong> All refunds are issued strictly to the original payment source. No third-party account transfers or cash refunds are permitted under RBI regulations.
@@ -168,7 +170,7 @@ export default function RefundPage() {
             </p>
             <ol style={{ paddingLeft: 20, marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
               <li>Your Order Reference Number (e.g. <code>ORD-...</code>)</li>
-              <li>Cashfree Payment Transaction ID / UTR Number</li>
+              <li>{gatewayName} Payment Transaction ID / UTR Number</li>
               <li>Purchased Product Title</li>
               <li>A clear description and screenshot/screen-recording of the defect or duplicate debit</li>
             </ol>

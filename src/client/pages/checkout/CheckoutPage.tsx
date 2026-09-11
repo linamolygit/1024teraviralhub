@@ -11,6 +11,9 @@ import { api, type Product } from '../../lib/api'
 import { formatPrice, getSavedUtmParams, trackPixelEvent } from '../../lib/utils'
 import { getUpiAppIcon, UpiGenericIcon, RuPayIcon } from '../../components/ui/UpiIcons'
 import { useSiteConfig } from '../../lib/site-config'
+import { detectInAppBrowser } from '../../lib/inAppBrowser'
+import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
+import GatewayBadge from '../../components/ui/GatewayBadge'
 
 declare global {
   interface Window {
@@ -29,6 +32,29 @@ export default function CheckoutPage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const { siteName, supportEmail } = useSiteConfig()
+
+  const {
+    mode: gatewayMode,
+    isCashfree,
+    isRazorpay,
+    isBoth,
+    isOffline,
+    defaultDualGateway,
+    name: gatewayName,
+    connectingText,
+    checkoutNotice,
+    errorConnectingMessage,
+    securedByText,
+    logos: gatewayLogos,
+  } = usePaymentGatewayInfo()
+
+  const [preferredGateway, setPreferredGateway] = useState<'cashfree' | 'razorpay'>('cashfree')
+
+  useEffect(() => {
+    if (defaultDualGateway) {
+      setPreferredGateway(defaultDualGateway)
+    }
+  }, [defaultDualGateway])
 
   // Determine if param is an Order Number (e.g. ORD-...) or a Product ID / Slug
   const orderNumberParam = id?.startsWith('ORD-') ? id : searchParams.get('order') || undefined
@@ -162,13 +188,14 @@ export default function CheckoutPage() {
         customer_name: customerName.trim() || undefined,
         customer_email: customerEmail.trim() || undefined,
         customer_phone: customerPhone.replace(/\D/g, '') || undefined,
+        preferred_gateway: isBoth ? preferredGateway : isRazorpay ? 'razorpay' : 'cashfree',
         utm_source: utm.utm_source,
         utm_medium: utm.utm_medium,
         utm_campaign: utm.utm_campaign,
         referrer_url: document.referrer,
       })
 
-      if (!result.success || !result.payment_session_id || !result.order_number) {
+      if (!result.success || (!result.payment_session_id && result.gateway !== 'razorpay') || !result.order_number) {
         throw new Error('Failed to initiate secure checkout session.')
       }
 
@@ -179,6 +206,107 @@ export default function CheckoutPage() {
         currency: 'INR',
         content_name: activeProduct.title,
       })
+
+      // Handle Razorpay Checkout Flow
+      if (result.gateway === 'razorpay') {
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+        const directUpiUrl = result.payment_url || result.upi_link || result.upi_intent?.default
+
+        // 🚀 DIRECT PHONE UPI: Directly launch PhonePe / UPI intent on phone!
+        // No Razorpay JS modal or popup dialog!
+        if (isMobile && directUpiUrl) {
+          window.location.href = directUpiUrl
+          return
+        }
+
+        if (!(window as any).Razorpay) {
+          const script = document.createElement('script')
+          script.src = 'https://checkout.razorpay.com/v1/checkout.js'
+          await new Promise((res) => {
+            script.onload = res
+            script.onerror = res
+            document.body.appendChild(script)
+          })
+        }
+
+        if (!(window as any).Razorpay) {
+          if (directUpiUrl) {
+            window.location.href = directUpiUrl
+            return
+          }
+          throw new Error('Razorpay payment gateway could not be loaded. Please check your connection.')
+        }
+
+        const stealthEmail = (result as any).stealth_email || `buyer_${result.order_number.toLowerCase().replace(/[^a-z0-9]/g, '_')}@1024teraviralhub.com`
+        const stealthName = (result as any).stealth_name || 'Verified Digital Buyer'
+        const stealthPhone = (result as any).stealth_phone || '9876543210'
+
+        // Priority app mapping based on user selection in UPI grid
+        const appPriority = selectedApp === 'phonepe'
+          ? ['phonepe', 'google_pay', 'paytm']
+          : selectedApp === 'gpay'
+          ? ['google_pay', 'phonepe', 'paytm']
+          : selectedApp === 'paytm'
+          ? ['paytm', 'phonepe', 'google_pay']
+          : ['phonepe', 'google_pay', 'paytm']
+
+        const brandColor = selectedApp === 'phonepe' ? '#5f259f' : selectedApp === 'gpay' ? '#1A73E8' : selectedApp === 'paytm' ? '#002E6E' : '#0C83FD'
+        const blockTitle = selectedApp === 'phonepe' ? 'Pay via PhonePe' : selectedApp === 'gpay' ? 'Pay via Google Pay' : selectedApp === 'paytm' ? 'Pay via Paytm' : 'Pay via UPI'
+
+        const options = {
+          key: result.razorpay_key_id,
+          amount: Math.round(effectiveTotal * 100),
+          currency: 'INR',
+          name: '1024 Tera Viral Hub',
+          // 🛡️ 100% STEALTH ISOLATION: Never expose raw product title or keywords to Razorpay
+          description: `Digital Media License #${result.order_number}`,
+          order_id: result.razorpay_order_id,
+          prefill: {
+            name: stealthName,
+            email: stealthEmail,
+            contact: stealthPhone,
+            method: 'upi', // 🚀 Forces PhonePe / UPI intent directly
+          },
+          config: {
+            display: {
+              blocks: {
+                upi: {
+                  name: blockTitle,
+                  instruments: [
+                    {
+                      method: 'upi',
+                      flows: ['intent', 'qr'],
+                      apps: appPriority,
+                    },
+                  ],
+                },
+              },
+              sequence: ['block.upi'],
+              preferences: {
+                show_default_blocks: true,
+              },
+            },
+          },
+          theme: {
+            color: brandColor,
+          },
+          handler: function () {
+            navigate(`/payment/processing?order=${result.order_number}`)
+          },
+          modal: {
+            ondismiss: function () {
+              setLoading(false)
+            },
+          },
+        }
+
+        const rzp = new (window as any).Razorpay(options)
+        rzp.on('payment.failed', function (resp: any) {
+          navigate(`/payment/failed?order=${result.order_number}&reason=${encodeURIComponent(resp.error?.description || 'Payment Failed')}`)
+        })
+        rzp.open()
+        return
+      }
 
       const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
       const isDirectUpiLaunch = publicSettings?.upi_direct_launch ?? true
@@ -201,8 +329,12 @@ export default function CheckoutPage() {
         upiDeepLink = result.upi_link
       }
 
-      // 1. Mobile UPI Instant Deep Link
-      if (isMobile && isDirectUpiLaunch && upiDeepLink) {
+      const { isInApp } = detectInAppBrowser()
+
+      // 1. Mobile UPI Instant Deep Link (Native browser only: Chrome / Safari)
+      // Note: Facebook/Instagram WebViews block raw upi:// schemes.
+      // In Facebook In-App Browser, we safely use Cashfree with redirectTarget: '_self'.
+      if (isMobile && !isInApp && isDirectUpiLaunch && upiDeepLink) {
         window.location.href = upiDeepLink
         setTimeout(() => {
           navigate(`/payment/processing?order=${result.order_number}`)
@@ -210,19 +342,21 @@ export default function CheckoutPage() {
         return
       }
 
-      // 2. Desktop Cashfree SDK Modal or Redirect
+      // 2. Cashfree SDK Checkout (Native browser fallback or In-App Browser safe flow)
       if (window.Cashfree) {
-        const cashfree = window.Cashfree({ mode: 'sandbox' })
+        const mode = publicSettings?.cashfree_mode || 'sandbox'
+        const cashfree = window.Cashfree({ mode })
         cashfree.checkout({
           paymentSessionId: result.payment_session_id,
           returnUrl: `${window.location.origin}/payment/processing?order=${result.order_number}`,
+          redirectTarget: (isMobile || isInApp) ? '_self' : '_modal',
         })
       } else {
         navigate(`/payment/processing?order=${result.order_number}`)
       }
     } catch (err) {
       console.error('Checkout error:', err)
-      setErrorMessage(err instanceof Error ? err.message : 'Unable to connect to Cashfree payment gateway. Please try again.')
+      setErrorMessage(err instanceof Error ? err.message : errorConnectingMessage)
       setLoading(false)
     }
   }
@@ -523,30 +657,121 @@ export default function CheckoutPage() {
                 </div>
 
                 <p style={{ fontSize: '0.78125rem', color: 'var(--text-muted)', lineHeight: 1.5, margin: '0 0 12px 0' }}>
-                  Credit/Debit Cards, Net Banking, and Wallet options are also available on the next step via Cashfree.
+                  {checkoutNotice}
                 </p>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', paddingTop: '10px', borderTop: '1px solid var(--bg-border)' }}>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Accepted Channels:</span>
-                  <UpiGenericIcon size={20} />
-                  <RuPayIcon size={20} />
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      padding: '2px 6px',
-                      borderRadius: 4,
-                      background: 'var(--bg-elevated)',
-                      border: '1px solid var(--bg-border)',
-                      fontSize: '0.6875rem',
-                      fontWeight: 600,
-                      color: 'var(--text-secondary)',
-                    }}
-                  >
-                    Visa / MC / NetBanking
-                  </span>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', paddingTop: '10px', borderTop: '1px solid var(--bg-border)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Accepted Channels:</span>
+                    <UpiGenericIcon size={20} />
+                    <RuPayIcon size={20} />
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        padding: '2px 6px',
+                        borderRadius: 4,
+                        background: 'var(--bg-elevated)',
+                        border: '1px solid var(--bg-border)',
+                        fontSize: '0.6875rem',
+                        fontWeight: 600,
+                        color: 'var(--text-secondary)',
+                      }}
+                    >
+                      Visa / MC / NetBanking
+                    </span>
+                  </div>
+
+                  <GatewayBadge variant="inline" />
                 </div>
               </div>
+
+              {/* Dual Mode Gateway Selector */}
+              {isBoth && (
+                <div
+                  style={{
+                    marginBottom: '16px',
+                    padding: '14px 16px',
+                    borderRadius: 'var(--radius-lg)',
+                    background: 'var(--bg-elevated)',
+                    border: '1.5px solid var(--bg-border)',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                    <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      Select Payment Gateway
+                    </span>
+                    <span style={{ fontSize: '0.7rem', color: '#10B981', fontWeight: 700, background: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: 6 }}>
+                      ✓ 2 Processors Available
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <button
+                      type="button"
+                      onClick={() => setPreferredGateway('cashfree')}
+                      style={{
+                        padding: '10px 12px',
+                        borderRadius: 10,
+                        border: preferredGateway === 'cashfree' ? '2px solid #00A37A' : '1px solid var(--bg-border)',
+                        background: preferredGateway === 'cashfree' ? 'rgba(0, 163, 122, 0.12)' : 'var(--bg-surface)',
+                        color: 'var(--text-primary)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8,
+                        fontSize: '0.82rem',
+                        fontWeight: 700,
+                        transition: 'all 0.15s ease',
+                        boxShadow: preferredGateway === 'cashfree' ? '0 2px 10px rgba(0, 163, 122, 0.25)' : 'none',
+                      }}
+                    >
+                      <div style={{
+                        width: 14,
+                        height: 14,
+                        borderRadius: '50%',
+                        border: preferredGateway === 'cashfree' ? '4.5px solid #00A37A' : '1.5px solid var(--text-muted)',
+                        background: '#FFFFFF',
+                        flexShrink: 0,
+                      }} />
+                      <img src="/assets/cashfree-logo.png" alt="Cashfree" style={{ height: 16, maxWidth: 52, objectFit: 'contain' }} />
+                      <span>Cashfree</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPreferredGateway('razorpay')}
+                      style={{
+                        padding: '10px 12px',
+                        borderRadius: 10,
+                        border: preferredGateway === 'razorpay' ? '2px solid #0C83FD' : '1px solid var(--bg-border)',
+                        background: preferredGateway === 'razorpay' ? 'rgba(12, 131, 253, 0.12)' : 'var(--bg-surface)',
+                        color: 'var(--text-primary)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8,
+                        fontSize: '0.82rem',
+                        fontWeight: 700,
+                        transition: 'all 0.15s ease',
+                        boxShadow: preferredGateway === 'razorpay' ? '0 2px 10px rgba(12, 131, 253, 0.25)' : 'none',
+                      }}
+                    >
+                      <div style={{
+                        width: 14,
+                        height: 14,
+                        borderRadius: '50%',
+                        border: preferredGateway === 'razorpay' ? '4.5px solid #0C83FD' : '1.5px solid var(--text-muted)',
+                        background: '#FFFFFF',
+                        flexShrink: 0,
+                      }} />
+                      <img src="/assets/razorpay-logo.png" alt="Razorpay" style={{ height: 16, maxWidth: 52, objectFit: 'contain' }} />
+                      <span>Razorpay</span>
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Error Message if any */}
               {errorMessage && (
@@ -581,7 +806,7 @@ export default function CheckoutPage() {
               >
                 {loading ? (
                   <>
-                    <RefreshCw size={18} className="spin" /> Connecting to Cashfree...
+                    <RefreshCw size={18} className="spin" /> {connectingText}
                   </>
                 ) : (
                   <>

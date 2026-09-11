@@ -7,7 +7,8 @@ import {
   LayoutDashboard, Package, ShoppingCart, BarChart3,
   FileText, Settings, Download, Shield, LogOut,
   Menu, X, Package2, Tag, Star, Users, Share2, Layers,
-  ExternalLink, Plus, Sparkles, ChevronRight, CheckCircle2
+  ExternalLink, Plus, Sparkles, ChevronRight, CheckCircle2, Zap, Image as ImageIcon,
+  CreditCard
 } from 'lucide-react'
 import { useAuthStore } from '../../lib/auth-store'
 import { useSiteConfig } from '../../lib/site-config'
@@ -41,11 +42,13 @@ const navGroups: NavGroup[] = [
       { to: '/admin/reviews', label: 'Customer Reviews', icon: <Star size={18} /> },
       { to: '/admin/affiliates', label: 'Affiliate Program', icon: <Share2 size={18} /> },
       { to: '/admin/adsmanager', label: 'Ads Manager', icon: <Layers size={18} /> },
+      { to: '/admin/gateways', label: 'External Gateways', icon: <Zap size={18} />, badge: 'UPI' },
     ],
   },
   {
     title: 'CONTENT & ASSETS',
     items: [
+      { to: '/admin/media', label: 'Media Library', icon: <ImageIcon size={18} />, badge: '0 KB' },
       { to: '/admin/blog', label: 'Blog & Articles', icon: <FileText size={18} /> },
       { to: '/admin/downloads', label: 'Download Deliveries', icon: <Download size={18} /> },
       { to: '/admin/analytics', label: 'Business Analytics', icon: <BarChart3 size={18} /> },
@@ -54,6 +57,7 @@ const navGroups: NavGroup[] = [
   {
     title: 'CONFIGURATION',
     items: [
+      { to: '/admin/payment-gateways', label: 'Payment Gateways', icon: <CreditCard size={18} />, badge: 'CF/RZ' },
       { to: '/admin/settings', label: 'Settings & AI', icon: <Settings size={18} />, badge: 'AI' },
       { to: '/admin/users', label: 'Staff & Roles', icon: <Shield size={18} /> },
       { to: '/admin/audit-logs', label: 'Security Audit Logs', icon: <Shield size={18} /> },
@@ -272,7 +276,15 @@ export default function AdminLayout() {
   )
 
   return (
-    <div className="admin-layout-root" style={{ display: 'flex', minHeight: '100dvh', background: 'var(--bg-primary)' }}>
+    <div
+      className="admin-layout-root"
+      style={{
+        display: 'flex',
+        minHeight: '100dvh',
+        background: 'var(--bg-primary)',
+        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+      }}
+    >
       {sidebar}
 
       {/* Mobile overlay */}

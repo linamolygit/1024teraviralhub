@@ -1,6 +1,7 @@
 // src/client/components/product/ProductDeliveryPolicy.tsx — Digital Delivery & Access Policy Guarantee
 import { ShieldCheck, Clock, Download, RefreshCw } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
 
 interface Props {
   accessHours?: number
@@ -8,6 +9,8 @@ interface Props {
 }
 
 export default function ProductDeliveryPolicy({ accessHours = 12, downloadLimit = 3 }: Props) {
+  const { deliveryPolicyText } = usePaymentGatewayInfo()
+
   return (
     <div
       style={{
@@ -27,7 +30,7 @@ export default function ProductDeliveryPolicy({ accessHours = 12, downloadLimit 
       </div>
 
       <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.65, marginBottom: '14px' }}>
-        This is a pure digital product — no physical shipment will be mailed. After your payment is verified by Cashfree, you will be redirected to an instant download screen.
+        {deliveryPolicyText}
       </p>
 
       <div style={{ display: 'flex', gap: '18px', flexWrap: 'wrap', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>

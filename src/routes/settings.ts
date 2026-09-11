@@ -9,7 +9,13 @@ app.get('/public', async (c) => {
   const [
     upiDirect, preferredApp, checkoutMode, announcement,
     siteName, siteUrl, supportEmail, siteTagline, currencySymbol, siteTheme,
-    showSeedReviews
+    showSeedReviews,
+    activeGateway, defaultDualGateway, cfMode, rzpMode, rzpKeyId,
+    // Google Services & Monetization
+    gscEnabled, gscVerificationTag,
+    ga4Enabled, ga4MeasurementId, ga4EcommerceTracking,
+    adsenseEnabled, adsensePublisherId, adsenseAutoAds, adsenseHeadCode,
+    adxEnabled, adxNetworkCode, adxHeadCode
   ] = await Promise.all([
     getSetting<boolean>(c.env.DB, 'upi_direct_launch', true),
     getSetting<string>(c.env.DB, 'preferred_upi_app', 'phonepe'),
@@ -22,6 +28,27 @@ app.get('/public', async (c) => {
     getSetting<string>(c.env.DB, 'currency_symbol', '₹'),
     getSetting<string>(c.env.DB, 'site_theme', 'dark'),
     getSetting<boolean>(c.env.DB, 'show_seed_reviews', true),
+    getSetting<string>(c.env.DB, 'active_payment_gateway', 'cashfree'),
+    getSetting<string>(c.env.DB, 'default_dual_gateway', 'cashfree'),
+    getSetting<string>(c.env.DB, 'cashfree_mode', c.env.CASHFREE_API_URL?.includes('sandbox') ? 'sandbox' : 'production'),
+    getSetting<string>(c.env.DB, 'razorpay_mode', 'test'),
+    getSetting<string>(c.env.DB, 'razorpay_key_id', ''),
+    // Google Search Console
+    getSetting<boolean>(c.env.DB, 'gsc_enabled', true),
+    getSetting<string>(c.env.DB, 'gsc_verification_tag', ''),
+    // Google Analytics (GA4)
+    getSetting<boolean>(c.env.DB, 'ga4_enabled', true),
+    getSetting<string>(c.env.DB, 'ga4_measurement_id', ''),
+    getSetting<boolean>(c.env.DB, 'ga4_ecommerce_tracking', true),
+    // Google AdSense
+    getSetting<boolean>(c.env.DB, 'adsense_enabled', false),
+    getSetting<string>(c.env.DB, 'adsense_publisher_id', ''),
+    getSetting<boolean>(c.env.DB, 'adsense_auto_ads', true),
+    getSetting<string>(c.env.DB, 'adsense_head_code', ''),
+    // Google AdX (Google Ad Manager)
+    getSetting<boolean>(c.env.DB, 'adx_enabled', false),
+    getSetting<string>(c.env.DB, 'adx_network_code', ''),
+    getSetting<string>(c.env.DB, 'adx_head_code', ''),
   ])
 
   return c.json({
@@ -36,6 +63,24 @@ app.get('/public', async (c) => {
     currency_symbol: currencySymbol,
     site_theme: siteTheme ?? 'dark',
     show_seed_reviews: showSeedReviews ?? true,
+    active_payment_gateway: activeGateway ?? 'cashfree',
+    default_dual_gateway: defaultDualGateway ?? 'cashfree',
+    cashfree_mode: cfMode ?? 'sandbox',
+    razorpay_mode: rzpMode ?? 'test',
+    razorpay_key_id: rzpKeyId ?? '',
+    // Google Services
+    gsc_enabled: gscEnabled ?? true,
+    gsc_verification_tag: gscVerificationTag ?? '',
+    ga4_enabled: ga4Enabled ?? true,
+    ga4_measurement_id: ga4MeasurementId ?? '',
+    ga4_ecommerce_tracking: ga4EcommerceTracking ?? true,
+    adsense_enabled: adsenseEnabled ?? false,
+    adsense_publisher_id: adsensePublisherId ?? '',
+    adsense_auto_ads: adsenseAutoAds ?? true,
+    adsense_head_code: adsenseHeadCode ?? '',
+    adx_enabled: adxEnabled ?? false,
+    adx_network_code: adxNetworkCode ?? '',
+    adx_head_code: adxHeadCode ?? '',
   })
 })
 

@@ -3,31 +3,34 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronDown, ChevronRight, HelpCircle } from 'lucide-react'
 
-const faqs = [
-  {
-    q: 'How do I download my digital files after payment?',
-    a: 'Immediately after your payment is confirmed by Cashfree, you will be redirected to a secure download page where your file download begins with 1 click. You will also receive an email with your download token link.',
-  },
-  {
-    q: 'Do I need an account or login to make a purchase?',
-    a: 'No! We use a frictionless 1-click guest checkout system. You never have to create an account or remember a password to purchase and download our digital products.',
-  },
-  {
-    q: 'Which UPI apps and payment methods are supported?',
-    a: 'We support all major UPI apps including PhonePe, Google Pay, Paytm, BHIM, and Cred UPI, as well as all Indian debit cards, credit cards, and Net Banking via Cashfree Payments.',
-  },
-  {
-    q: 'How long do I have to download my purchased product?',
-    a: 'Your download access token remains active for 12 hours after purchase, with up to 3 retry attempts. We recommend downloading and saving the file to your device immediately upon purchase.',
-  },
-  {
-    q: 'What if I lose my download link or my phone disconnects?',
-    a: 'You can visit our Order Lookup page anytime with your order ID or email address to retrieve your order and active download link. Our support team is also available 24/7.',
-  },
-]
+import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
 
 export default function FaqPreviewSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(0)
+  const { name, fullName } = usePaymentGatewayInfo()
+
+  const faqs = [
+    {
+      q: 'How do I download my digital files after payment?',
+      a: `Immediately after your payment is confirmed by ${name}, you will be redirected to a secure download page where your file download begins with 1 click. You will also receive an email with your download token link.`,
+    },
+    {
+      q: 'Do I need an account or login to make a purchase?',
+      a: 'No! We use a frictionless 1-click guest checkout system. You never have to create an account or remember a password to purchase and download our digital products.',
+    },
+    {
+      q: 'Which UPI apps and payment methods are supported?',
+      a: `We support all major UPI apps including PhonePe, Google Pay, Paytm, BHIM, and Cred UPI, as well as all Indian debit cards, credit cards, and Net Banking via ${fullName}.`,
+    },
+    {
+      q: 'How long do I have to download my purchased product?',
+      a: 'Your download access token remains active for 12 hours after purchase, with up to 3 retry attempts. We recommend downloading and saving the file to your device immediately upon purchase.',
+    },
+    {
+      q: 'What if I lose my download link or my phone disconnects?',
+      a: 'You can visit our Order Lookup page anytime with your order ID or email address to retrieve your order and active download link. Our support team is also available 24/7.',
+    },
+  ]
 
   const toggle = (idx: number) => {
     setOpenIndex(openIndex === idx ? null : idx)

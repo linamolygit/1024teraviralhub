@@ -1,9 +1,9 @@
 // src/client/components/ui/LoadingSpinner.tsx
 import React from 'react'
 
-interface Props { fullPage?: boolean; size?: 'sm' | 'md' | 'lg' }
+interface Props { fullPage?: boolean; size?: 'sm' | 'md' | 'lg'; inline?: boolean }
 
-export default function LoadingSpinner({ fullPage, size = 'md' }: Props) {
+export default function LoadingSpinner({ fullPage, size = 'md', inline }: Props) {
   const sizes = { sm: 20, md: 32, lg: 48 }
   const px = sizes[size]
 
@@ -23,6 +23,10 @@ export default function LoadingSpinner({ fullPage, size = 'md' }: Props) {
         {spinner}
       </div>
     )
+  }
+
+  if (inline) {
+    return <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{spinner}</span>
   }
 
   return <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>{spinner}</div>

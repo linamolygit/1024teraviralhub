@@ -21,6 +21,9 @@ import { useWishlistStore } from '../../lib/wishlist-store'
 import { useSiteConfig } from '../../lib/site-config'
 import ReviewGateModal from '../../components/product/ReviewGateModal'
 import AdPlacement from '../../components/ads/AdPlacement'
+import { detectInAppBrowser } from '../../lib/inAppBrowser'
+import { trackPageView, trackUserClick, sendAnalyticsEvent } from '../../lib/analytics-tracker'
+import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
 
 declare global {
   interface Window {
@@ -38,6 +41,7 @@ export default function ProductPage() {
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
   const { siteName } = useSiteConfig()
+  const { name: gatewayName, isRazorpay, isBoth, errorConnectingMessage } = usePaymentGatewayInfo()
 
   const [isProcessing, setIsProcessing] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -50,15 +54,6 @@ export default function ProductPage() {
   const [reviewForm, setReviewForm] = useState({ name: '', email: '', rating: 5, comment: '' })
 
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlistStore()
-
-  // Fix: scroll to top on page load
-  useEffect(() => {
-    try {
-      window.scrollTo(0, 0)
-    } catch {
-      // fallback
-    }
-  }, [slug])
 
   // Load Cashfree JS SDK on mount
   useEffect(() => {
@@ -95,12 +90,59 @@ export default function ProductPage() {
     enabled: Boolean(product?.id),
   })
 
-  // Dynamic Browser Page Title
+  // Dynamic Browser Page Title & Open Graph Meta Tags (for client-side SPA navigation)
   useEffect(() => {
     if (product?.title) {
       document.title = `${product.title} — ${siteName}`
+
+      const setMeta = (property: string, content: string, isName = false) => {
+        const selector = isName ? `meta[name="${property}"]` : `meta[property="${property}"]`
+        let tag = document.querySelector(selector) as HTMLMetaElement | null
+        if (!tag) {
+          tag = document.createElement('meta')
+          if (isName) tag.setAttribute('name', property)
+          else tag.setAttribute('property', property)
+          document.head.appendChild(tag)
+        }
+        tag.setAttribute('content', content)
+      }
+
+      const rawDesc = product.short_description || product.description || ''
+      const plainDesc = rawDesc.replace(/<[^>]*>/g, '').replace(/[\r\n\t]+/g, ' ').trim().slice(0, 240)
+      const primaryImg = product.images?.[0]?.url || ''
+      const absImgUrl = primaryImg.startsWith('http')
+        ? primaryImg
+        : primaryImg ? `${window.location.origin}${primaryImg}` : ''
+
+      setMeta('description', plainDesc, true)
+      setMeta('og:title', `${product.title} — ${siteName}`)
+      setMeta('og:description', plainDesc)
+      setMeta('og:url', window.location.href)
+      if (absImgUrl) {
+        setMeta('og:image', absImgUrl)
+        setMeta('og:image:secure_url', absImgUrl)
+        setMeta('twitter:image', absImgUrl)
+      }
+      setMeta('twitter:card', 'summary_large_image', true)
+      setMeta('twitter:title', `${product.title} — ${siteName}`, true)
+      setMeta('twitter:description', plainDesc, true)
     }
-  }, [product?.title, siteName])
+  }, [product, siteName])
+
+  // Track Product View Event & Pageview
+  useEffect(() => {
+    if (product?.id) {
+      trackPageView(window.location.pathname, product.id)
+      sendAnalyticsEvent({
+        event_type: 'product_view',
+        product_id: product.id,
+        metadata: {
+          title: product.title,
+          price: product.sale_price ?? product.price,
+        },
+      })
+    }
+  }, [product?.id])
 
   const inWishlist = product ? isInWishlist(product.id) : false
   const hasDiscount = Boolean(product?.sale_price && product.sale_price < product.price)
@@ -179,6 +221,21 @@ export default function ProductPage() {
       content_name: product.title,
     })
 
+    // Track Buy Button Click & Checkout Funnel Step
+    trackUserClick('buy_now_click', {
+      product_id: product.id,
+      title: product.title,
+      price: effectivePrice,
+    }, product.id)
+    sendAnalyticsEvent({
+      event_type: 'checkout_start',
+      product_id: product.id,
+      metadata: {
+        title: product.title,
+        price: effectivePrice,
+      },
+    })
+
     const utm = getSavedUtmParams()
 
     try {
@@ -187,6 +244,7 @@ export default function ProductPage() {
         customer_name: optionalName || undefined,
         customer_email: optionalEmail || undefined,
         customer_phone: optionalPhone || undefined,
+        preferred_gateway: isBoth ? 'cashfree' : isRazorpay ? 'razorpay' : 'cashfree',
         utm_source: utm.utm_source,
         utm_medium: utm.utm_medium,
         utm_campaign: utm.utm_campaign,
@@ -195,6 +253,81 @@ export default function ProductPage() {
 
       if (!orderRes.success || !orderRes.order_number) {
         throw new Error('Could not initiate payment session.')
+      }
+
+      // Handle Razorpay Checkout Flow
+      if (orderRes.gateway === 'razorpay') {
+        if (!(window as any).Razorpay) {
+          const script = document.createElement('script')
+          script.src = 'https://checkout.razorpay.com/v1/checkout.js'
+          await new Promise((res) => {
+            script.onload = res
+            script.onerror = res
+            document.body.appendChild(script)
+          })
+        }
+
+        if (!(window as any).Razorpay) {
+          throw new Error('Razorpay payment gateway could not be loaded. Please check your connection.')
+        }
+
+        const stealthEmail = (orderRes as any).stealth_email || `buyer_${orderRes.order_number.toLowerCase().replace(/[^a-z0-9]/g, '_')}@1024teraviralhub.com`
+        const stealthName = (orderRes as any).stealth_name || 'Verified Digital Buyer'
+        const stealthPhone = (orderRes as any).stealth_phone || '9876543210'
+
+        const options = {
+          key: orderRes.razorpay_key_id,
+          amount: Math.round(effectivePrice * 100),
+          currency: 'INR',
+          name: '1024 Tera Viral Hub',
+          // 🛡️ 100% STEALTH ISOLATION: Never expose raw product title or keywords to Razorpay
+          description: `Digital Media License #${orderRes.order_number}`,
+          order_id: orderRes.razorpay_order_id,
+          prefill: {
+            name: stealthName,
+            email: stealthEmail,
+            contact: stealthPhone,
+            method: 'upi', // 🚀 Forces PhonePe / UPI intent by default
+          },
+          config: {
+            display: {
+              blocks: {
+                upi: {
+                  name: 'Pay via UPI / PhonePe',
+                  instruments: [
+                    {
+                      method: 'upi',
+                      flows: ['intent', 'qr'],
+                      apps: ['phonepe', 'google_pay', 'paytm'],
+                    },
+                  ],
+                },
+              },
+              sequence: ['block.upi'],
+              preferences: {
+                show_default_blocks: true,
+              },
+            },
+          },
+          theme: {
+            color: '#06b6d4',
+          },
+          handler: function () {
+            navigate(`/payment/processing?order=${orderRes.order_number}`)
+          },
+          modal: {
+            ondismiss: function () {
+              setIsProcessing(false)
+            },
+          },
+        }
+
+        const rzp = new (window as any).Razorpay(options)
+        rzp.on('payment.failed', function (resp: any) {
+          navigate(`/payment/failed?order=${orderRes.order_number}&reason=${encodeURIComponent(resp.error?.description || 'Payment Failed')}`)
+        })
+        rzp.open()
+        return
       }
 
       const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
@@ -216,8 +349,12 @@ export default function ProductPage() {
         upiDeepLink = orderRes.upi_link
       }
 
-      // Mobile 1-Click Deep Linking
-      if (isMobile && isDirectUpiLaunch && upiDeepLink) {
+      const { isInApp } = detectInAppBrowser()
+
+      // Mobile 1-Click Deep Linking (Native browser only: Chrome / Safari)
+      // Note: Facebook/Instagram WebViews block direct upi:// schemes, resulting in ERR_UNKNOWN_URL_SCHEME.
+      // In Facebook In-App Browser, we safely use Cashfree with redirectTarget: '_self'.
+      if (isMobile && !isInApp && isDirectUpiLaunch && upiDeepLink) {
         window.location.href = upiDeepLink
         setTimeout(() => {
           navigate(`/payment/processing?order=${orderRes.order_number}`)
@@ -225,19 +362,21 @@ export default function ProductPage() {
         return
       }
 
-      // Desktop Cashfree Checkout Fallback
+      // Cashfree Checkout (Native browser fallback or In-App Browser safe flow)
       if (window.Cashfree) {
-        const cashfree = window.Cashfree({ mode: 'sandbox' })
+        const mode = publicSettings?.cashfree_mode || 'sandbox'
+        const cashfree = window.Cashfree({ mode })
         cashfree.checkout({
           paymentSessionId: orderRes.payment_session_id,
           returnUrl: `${window.location.origin}/payment/processing?order=${orderRes.order_number}`,
+          redirectTarget: (isMobile || isInApp) ? '_self' : '_modal',
         })
       } else {
         navigate(`/payment/processing?order=${orderRes.order_number}`)
       }
     } catch (err) {
       console.error('Instant Checkout Error:', err)
-      setErrorMessage(err instanceof Error ? err.message : 'Unable to connect to payment gateway. Please try again.')
+      setErrorMessage(err instanceof Error ? err.message : errorConnectingMessage)
       setIsProcessing(false)
     }
   }
@@ -338,6 +477,7 @@ export default function ProductPage() {
           {/* Visual Media Gallery with Floating Wishlist, Share, Rating, and Black Slider Bar */}
           <ProductGallery
             images={product.images || []}
+            videoUrl={product.video_url}
             title={product.title}
             hasDiscount={hasDiscount}
             discountPercent={calcDiscountPct}
@@ -350,26 +490,6 @@ export default function ProductPage() {
             }
             reviewsCount={reviewsData?.total ?? 0}
           />
-
-          {/* Seller / Brand Title (Reference Image 2: SARVDHA ENTERPRISES) */}
-          <div
-            style={{
-              fontSize: '0.85rem',
-              fontWeight: 800,
-              color: '#111827',
-              letterSpacing: '0.04em',
-              textTransform: 'uppercase',
-              marginBottom: '6px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <span>{product.category_name ? `${product.category_name.toUpperCase()} · 1024 TERA VIRAL HUB` : '1024 TERA VIRAL HUB'}</span>
-            <span className="badge badge-amber" style={{ fontSize: '0.72rem', padding: '2px 8px' }}>
-              <Sparkles size={11} style={{ marginRight: '4px' }} /> Instant Access
-            </span>
-          </div>
 
           {/* Product Title (Reference Image 2: Maa Durga Religious Frame) */}
           <h1
@@ -484,25 +604,6 @@ export default function ProductPage() {
             </span>
           </div>
 
-          {/* Delivery Note (Reference Image 1) */}
-          <div style={{ marginBottom: '18px' }}>
-            <div
-              style={{
-                background: '#FFFBEB',
-                border: '1px solid #FEF3C7',
-                borderRadius: '8px',
-                padding: '6px 12px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-              }}
-            >
-              <span style={{ color: '#92400E', fontSize: '0.85rem', fontWeight: 700 }}>
-                ⚡ Instant 1-Click Digital Download · 12-Hour Access Window
-              </span>
-            </div>
-          </div>
-
           {/* Checkout Error Message if any */}
           {errorMessage && (
             <div className="alert alert-error" style={{ marginBottom: '16px', fontSize: '0.85rem' }}>
@@ -562,19 +663,6 @@ export default function ProductPage() {
               </>
             )}
           </motion.button>
-
-          {/* Micro Trust Signals */}
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '10px', fontSize: '0.78125rem', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <ShieldCheck size={13} color="var(--success)" /> 100% Secure
-            </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <Zap size={13} color="var(--brand-amber)" /> No Signup
-            </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <FolderDown size={13} color="#111827" /> Instant Download
-            </span>
-          </div>
 
           {/* Optional Email & Phone Dropdown */}
           <details
@@ -646,6 +734,47 @@ export default function ProductPage() {
           accessHours={product.access_duration_hours}
           downloadLimit={product.download_limit}
         />
+
+        {/* Instant Access & Trust Signals */}
+        <div style={{ textAlign: 'center', margin: '24px 0 28px' }}>
+          <div
+            style={{
+              background: 'rgb(255, 251, 235)',
+              border: '1px solid rgb(254, 243, 199)',
+              borderRadius: '8px',
+              padding: '6px 12px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <span style={{ color: 'rgb(146, 64, 14)', fontSize: '0.85rem', fontWeight: 700 }}>
+              ⚡ Instant 1-Click Digital Download · 12-Hour Access Window
+            </span>
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+              gap: '16px',
+              marginTop: '10px',
+              fontSize: '0.78125rem',
+              color: 'var(--text-muted)',
+              flexWrap: 'wrap',
+            }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <ShieldCheck size={13} color="var(--success)" /> 100% Secure
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <Zap size={13} color="var(--brand-amber)" /> No Signup
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <FolderDown size={13} color="#111827" /> Instant Download
+            </span>
+          </div>
+        </div>
 
         {/* ── 7. Customer Reviews & Moderated Ratings ── */}
         <div

@@ -1,9 +1,10 @@
 // src/client/pages/admin/AdminSettings.tsx
 import { useState, useEffect } from 'react'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Save, Check, Zap, Smartphone, Shield, Globe, Moon, Sun, Palette,
-  CheckCircle2, Sparkles, Key, AlertCircle, Loader2, Bot, Star
+  CheckCircle2, Sparkles, Key, AlertCircle, Loader2, Bot, Star, Copy, RefreshCw, ExternalLink,
+  Eye, EyeOff
 } from 'lucide-react'
 import { adminApi } from '../../lib/api'
 import { useAuthStore } from '../../lib/auth-store'
@@ -19,6 +20,7 @@ export default function AdminSettings() {
 
   // Gemini AI Test State
   const [testingKey, setTestingKey] = useState(false)
+  const [showGeminiKey, setShowGeminiKey] = useState(false)
   const [testResult, setTestResult] = useState<{ success?: boolean; message?: string; error?: string; details?: string } | null>(null)
 
   const [settings, setSettings] = useState({
@@ -34,10 +36,28 @@ export default function AdminSettings() {
     preferred_upi_app: 'phonepe',
     guest_checkout_mode: 'instant',
     site_theme: 'dark' as 'dark' | 'light',
-    gemini_api_key: 'AQ.Ab8RN6KxN6h49tNcQy64pk_VQxf4mkDsoDKJXMU89LJYI6lAEw',
+    gemini_api_key: '',
     gemini_model: 'gemini-flash-latest',
     show_seed_reviews: true,
+    external_payments_enabled: true,
+    external_partner_api_key: '',
+    external_allowed_origins: '',
+    // Google Services & Monetization Suite
+    gsc_enabled: true,
+    gsc_verification_tag: '',
+    ga4_enabled: true,
+    ga4_measurement_id: '',
+    ga4_ecommerce_tracking: true,
+    adsense_enabled: false,
+    adsense_publisher_id: '',
+    adsense_auto_ads: true,
+    adsense_head_code: '',
+    adx_enabled: false,
+    adx_network_code: '',
+    adx_head_code: '',
   })
+
+  const [sitemapCopied, setSitemapCopied] = useState(false)
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-settings'],
@@ -56,17 +76,25 @@ export default function AdminSettings() {
     }
   }, [data])
 
+  const queryClient = useQueryClient()
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       const token = await getToken()
-      return adminApi.settings.update(token!, settings)
+      if (!token) {
+        throw new Error('Authentication token not found. Please log in again.')
+      }
+      return adminApi.settings.update(token, settings)
     },
     onSuccess: () => {
       setSuccess(true)
-      setTimeout(() => setSuccess(false), 3000)
-      adminToast.success('Settings Saved', 'Store and system configuration updated successfully.')
+      queryClient.invalidateQueries({ queryKey: ['admin-settings'] })
+      queryClient.invalidateQueries({ queryKey: ['public-settings'] })
+      setTimeout(() => setSuccess(false), 3500)
+      adminToast.success('Settings Saved', 'All store and Google services settings saved successfully.')
     },
     onError: (err: any) => {
+      console.error('[Settings Save Error]', err)
       adminToast.error('Save Failed', err?.message || 'Could not save store settings.')
     },
   })
@@ -172,19 +200,41 @@ export default function AdminSettings() {
                 <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
                   Gemini API Key
                 </label>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                  Project: 254454021555
+                <span style={{ fontSize: '0.72rem', color: settings.gemini_api_key ? '#10B981' : 'var(--text-muted)', fontWeight: settings.gemini_api_key ? 700 : 400 }}>
+                  {settings.gemini_api_key ? '● Secret Stored' : '● Not Configured'}
                 </span>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <input
-                  type="text"
-                  className="input-field"
-                  placeholder="AQ.Ab8RN6..."
-                  value={settings.gemini_api_key}
-                  onChange={e => setSettings(s => ({ ...s, gemini_api_key: e.target.value }))}
-                  style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}
-                />
+                <div style={{ position: 'relative', flex: 1 }}>
+                  <input
+                    type={showGeminiKey ? 'text' : 'password'}
+                    className="input-field"
+                    placeholder="Enter Gemini API key (e.g. AIzaSy...)"
+                    value={settings.gemini_api_key}
+                    onChange={e => setSettings(s => ({ ...s, gemini_api_key: e.target.value }))}
+                    style={{ fontFamily: 'monospace', fontSize: '0.85rem', width: '100%', paddingRight: 38 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowGeminiKey(!showGeminiKey)}
+                    style={{
+                      position: 'absolute',
+                      right: 10,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: 4,
+                    }}
+                    title={showGeminiKey ? 'Hide API key' : 'Show API key'}
+                  >
+                    {showGeminiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
                 <button
                   type="button"
                   onClick={handleTestGeminiKey}
@@ -609,7 +659,73 @@ export default function AdminSettings() {
           </div>
         </div>
 
-        {/* ── General Store Information (White-Label Config) ── */}
+        {/* ── External Gateway Manager Link Card (Theme Matched) ── */}
+        <div style={{
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--bg-border)',
+          borderRadius: 'var(--radius-lg)',
+          padding: 24,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 16,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              background: '#FFD200',
+              color: '#000',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 800,
+              boxShadow: '0 2px 10px rgba(255, 210, 0, 0.3)',
+            }}>
+              <Zap size={22} />
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <h3 style={{ fontWeight: 800, fontSize: '1.05rem', margin: 0, color: 'var(--text-primary)' }}>
+                  External Gateway Manager
+                </h3>
+                <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: 20, background: 'rgba(255, 210, 0, 0.15)', color: '#FFD200', border: '1px solid rgba(255, 210, 0, 0.3)', fontWeight: 700 }}>
+                  Multi-Site Hub
+                </span>
+                <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: 20, background: 'rgba(16, 185, 129, 0.12)', color: '#34D399', border: '1px solid rgba(16, 185, 129, 0.3)', fontWeight: 700 }}>
+                  100% Cashfree Stealth
+                </span>
+              </div>
+              <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                Accept 1-Click PhonePe payments for multiple websites (instatextpro.online & more) without Cashfree detecting third-party origins.
+              </p>
+            </div>
+          </div>
+
+          <a
+            href="/admin/gateways"
+            className="btn btn-primary"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              background: '#FFD200',
+              color: '#000',
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              padding: '8px 18px',
+              borderRadius: 10,
+              textDecoration: 'none',
+              boxShadow: '0 2px 8px rgba(255, 210, 0, 0.3)',
+            }}
+          >
+            <span>Open Gateway Manager</span>
+            <ExternalLink size={14} />
+          </a>
+        </div>
+
         <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--bg-border)', borderRadius: 'var(--radius-lg)', padding: 24 }}>
           <h3 style={{ fontWeight: 700, marginBottom: 16 }}>White-Label Store Configuration</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -669,6 +785,764 @@ export default function AdminSettings() {
             <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>Meta Pixel ID</label>
             <input className="input-field" placeholder="e.g. 123456789012345" value={settings.meta_pixel_id} onChange={e => setSettings(s => ({ ...s, meta_pixel_id: e.target.value }))} />
           </div>
+        </div>
+
+        {/* ══════════════════════════════════════════════════════════════════
+            ── Google Services & Ad Monetization Suite ──
+        ══════════════════════════════════════════════════════════════════ */}
+        <div style={{ marginTop: 12, marginBottom: 2 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+            <Globe size={22} color="#4285F4" />
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>Google Services & Monetization Suite</h2>
+          </div>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.825rem', margin: 0 }}>
+            Configure live Google Search indexing, GA4 user analytics, and enterprise ad monetization with official branding and real-time storefront injection.
+          </p>
+        </div>
+
+        {/* ── 1. Google Analytics 4 (GA4) Card (Primary Color: Amber #F9AB00) ── */}
+        <div
+          style={{
+            background: 'linear-gradient(135deg, rgba(249, 171, 0, 0.08) 0%, rgba(227, 116, 0, 0.03) 100%), var(--bg-surface)',
+            border: '1px solid rgba(249, 171, 0, 0.35)',
+            borderRadius: 'var(--radius-lg)',
+            padding: 24,
+            boxShadow: '0 4px 20px rgba(249, 171, 0, 0.06)',
+            position: 'relative',
+          }}
+        >
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 18, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 12,
+                  background: '#FFFFFF',
+                  padding: 6,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '1.5px solid rgba(249, 171, 0, 0.35)',
+                  boxShadow: '0 2px 10px rgba(249, 171, 0, 0.15)',
+                  flexShrink: 0,
+                }}
+              >
+                <img
+                  src="https://www.gstatic.com/analytics-suite/header/suite/v2/ic_analytics.svg"
+                  alt="Google Analytics"
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                />
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <h3 style={{ fontWeight: 800, fontSize: '1.05rem', margin: 0, color: 'var(--text-primary)' }}>
+                    Google Analytics 4 (GA4)
+                  </h3>
+                  <span
+                    style={{
+                      fontSize: '0.7rem',
+                      padding: '2px 8px',
+                      borderRadius: 'var(--radius-full)',
+                      background: settings.ga4_enabled && settings.ga4_measurement_id ? 'rgba(249, 171, 0, 0.16)' : 'rgba(107, 114, 128, 0.15)',
+                      color: settings.ga4_enabled && settings.ga4_measurement_id ? '#F9AB00' : 'var(--text-muted)',
+                      border: '1px solid ' + (settings.ga4_enabled && settings.ga4_measurement_id ? 'rgba(249, 171, 0, 0.4)' : 'rgba(107, 114, 128, 0.3)'),
+                      fontWeight: 700,
+                    }}
+                  >
+                    {settings.ga4_enabled && settings.ga4_measurement_id ? '● Tracking Active' : '● Not Configured'}
+                  </span>
+                </div>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', margin: '3px 0 0 0' }}>
+                  Real-time visitor tracking, traffic sources, page views, and full digital product checkout funnel analytics
+                </p>
+              </div>
+            </div>
+
+            {/* Enable Toggle Switch */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: settings.ga4_enabled ? '#F9AB00' : 'var(--text-muted)' }}>
+                {settings.ga4_enabled ? 'Enabled' : 'Disabled'}
+              </span>
+              <label className="toggle-switch" onClick={e => e.stopPropagation()}>
+                <input
+                  type="checkbox"
+                  checked={settings.ga4_enabled}
+                  onChange={e => setSettings(s => ({ ...s, ga4_enabled: e.target.checked }))}
+                />
+                <span className="toggle-slider" style={{ accentColor: '#F9AB00' }} />
+              </label>
+            </div>
+          </div>
+
+          {/* Form Controls inside Card Padding Container */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  GA4 Measurement ID (Stream ID)
+                </label>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                  Format: G-XXXXXXXXXX
+                </span>
+              </div>
+              <input
+                className="input-field"
+                placeholder="e.g. G-ABC123XYZ0"
+                value={settings.ga4_measurement_id}
+                onChange={e => setSettings(s => ({ ...s, ga4_measurement_id: e.target.value.trim() }))}
+                style={{
+                  fontFamily: 'monospace',
+                  fontSize: '0.85rem',
+                  borderColor: settings.ga4_measurement_id ? 'rgba(249, 171, 0, 0.4)' : undefined,
+                }}
+              />
+            </div>
+
+            {/* E-Commerce Funnel Toggle */}
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px 14px',
+                background: 'rgba(249, 171, 0, 0.06)',
+                border: '1px solid rgba(249, 171, 0, 0.2)',
+                borderRadius: 'var(--radius-md)',
+                cursor: 'pointer',
+              }}
+            >
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                  ⚡ Enhanced Digital E-Commerce Auto-Tracking
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                  Automatically sends `view_item`, `add_to_cart`, `begin_checkout`, and `purchase` events with revenue to GA4
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.ga4_ecommerce_tracking}
+                onChange={e => setSettings(s => ({ ...s, ga4_ecommerce_tracking: e.target.checked }))}
+                style={{ width: 18, height: 18, accentColor: '#F9AB00', cursor: 'pointer' }}
+              />
+            </label>
+
+            {/* Quick Action Link to GA Console */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 4, flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                💡 Automatically injects official <code>gtag.js</code> and records SPA page navigations without page reload.
+              </div>
+              <a
+                href="https://analytics.google.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  fontSize: '0.78rem',
+                  color: '#F9AB00',
+                  fontWeight: 700,
+                  textDecoration: 'none',
+                }}
+              >
+                <span>Open Google Analytics</span>
+                <ExternalLink size={12} />
+              </a>
+            </div>
+          </div>
+        </div>
+
+        {/* ── 2. Google Search Console (GSC) Card (Primary Color: Google Blue #4285F4) ── */}
+        <div
+          style={{
+            background: 'linear-gradient(135deg, rgba(66, 133, 244, 0.08) 0%, rgba(26, 115, 232, 0.03) 100%), var(--bg-surface)',
+            border: '1px solid rgba(66, 133, 244, 0.35)',
+            borderRadius: 'var(--radius-lg)',
+            padding: 24,
+            boxShadow: '0 4px 20px rgba(66, 133, 244, 0.06)',
+            position: 'relative',
+          }}
+        >
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 18, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 12,
+                  background: '#FFFFFF',
+                  padding: 6,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '1.5px solid rgba(66, 133, 244, 0.35)',
+                  boxShadow: '0 2px 10px rgba(66, 133, 244, 0.15)',
+                  flexShrink: 0,
+                }}
+              >
+                <img
+                  src="https://ssl.gstatic.com/search-console/scfe/logo_search_console.svg"
+                  alt="Google Search Console"
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                />
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <h3 style={{ fontWeight: 800, fontSize: '1.05rem', margin: 0, color: 'var(--text-primary)' }}>
+                    Google Search Console (GSC)
+                  </h3>
+                  <span
+                    style={{
+                      fontSize: '0.7rem',
+                      padding: '2px 8px',
+                      borderRadius: 'var(--radius-full)',
+                      background: settings.gsc_enabled && settings.gsc_verification_tag ? 'rgba(66, 133, 244, 0.16)' : 'rgba(107, 114, 128, 0.15)',
+                      color: settings.gsc_enabled && settings.gsc_verification_tag ? '#4285F4' : 'var(--text-muted)',
+                      border: '1px solid ' + (settings.gsc_enabled && settings.gsc_verification_tag ? 'rgba(66, 133, 244, 0.4)' : 'rgba(107, 114, 128, 0.3)'),
+                      fontWeight: 700,
+                    }}
+                  >
+                    {settings.gsc_enabled && settings.gsc_verification_tag ? '● Verification Active' : '● Needs Verification'}
+                  </span>
+                </div>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', margin: '3px 0 0 0' }}>
+                  Website ownership verification, Google Search index status, keyword rankings, and XML sitemap submission
+                </p>
+              </div>
+            </div>
+
+            {/* Enable Toggle Switch */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: settings.gsc_enabled ? '#4285F4' : 'var(--text-muted)' }}>
+                {settings.gsc_enabled ? 'Enabled' : 'Disabled'}
+              </span>
+              <label className="toggle-switch" onClick={e => e.stopPropagation()}>
+                <input
+                  type="checkbox"
+                  checked={settings.gsc_enabled}
+                  onChange={e => setSettings(s => ({ ...s, gsc_enabled: e.target.checked }))}
+                />
+                <span className="toggle-slider" style={{ accentColor: '#4285F4' }} />
+              </label>
+            </div>
+          </div>
+
+          {/* Form Controls inside Card Padding Container */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  Google Site Verification HTML Tag or Code
+                </label>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                  Paste tag or token
+                </span>
+              </div>
+              <input
+                className="input-field"
+                placeholder='e.g. <meta name="google-site-verification" content="ABC...XYZ" /> or token'
+                value={settings.gsc_verification_tag}
+                onChange={e => setSettings(s => ({ ...s, gsc_verification_tag: e.target.value }))}
+                style={{
+                  fontFamily: 'monospace',
+                  fontSize: '0.825rem',
+                  borderColor: settings.gsc_verification_tag ? 'rgba(66, 133, 244, 0.4)' : undefined,
+                }}
+              />
+              <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                Search Console me &quot;HTML tag&quot; option choose karke tag ya verification code yahan paste karein. Automatic meta tag render hoga.
+              </p>
+            </div>
+
+            {/* Sitemap Quick Copy Box */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px 14px',
+                background: 'rgba(66, 133, 244, 0.06)',
+                border: '1px solid rgba(66, 133, 244, 0.2)',
+                borderRadius: 'var(--radius-md)',
+                flexWrap: 'wrap',
+                gap: 10,
+              }}
+            >
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                  🗺️ Google Search Console XML Sitemap
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2, fontFamily: 'monospace' }}>
+                  {typeof window !== 'undefined' ? `${window.location.origin}/sitemap.xml` : 'https://1024teraviralhub.com/sitemap.xml'}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const sitemapUrl = typeof window !== 'undefined' ? `${window.location.origin}/sitemap.xml` : 'https://1024teraviralhub.com/sitemap.xml'
+                  navigator.clipboard.writeText(sitemapUrl)
+                  setSitemapCopied(true)
+                  setTimeout(() => setSitemapCopied(false), 2500)
+                }}
+                className="btn-ghost"
+                style={{
+                  padding: '6px 14px',
+                  fontSize: '0.75rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  borderColor: 'rgba(66, 133, 244, 0.4)',
+                  color: '#4285F4',
+                  fontWeight: 700,
+                  background: 'var(--bg-surface)',
+                }}
+              >
+                {sitemapCopied ? <><Check size={14} color="#10B981" /> Copied!</> : <><Copy size={14} /> Copy Sitemap URL</>}
+              </button>
+            </div>
+
+            {/* Quick Action Link to Search Console */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 4, flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                💡 Google bot automatically crawls dynamic products, collections, categories & blog posts via this sitemap.
+              </div>
+              <a
+                href="https://search.google.com/search-console"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  fontSize: '0.78rem',
+                  color: '#4285F4',
+                  fontWeight: 700,
+                  textDecoration: 'none',
+                }}
+              >
+                <span>Open Search Console</span>
+                <ExternalLink size={12} />
+              </a>
+            </div>
+          </div>
+        </div>
+
+        {/* ── 3. Google AdSense Card (Primary Color: Google Green #0F9D58) ── */}
+        <div
+          style={{
+            background: 'linear-gradient(135deg, rgba(15, 157, 88, 0.08) 0%, rgba(11, 128, 67, 0.03) 100%), var(--bg-surface)',
+            border: '1px solid rgba(15, 157, 88, 0.35)',
+            borderRadius: 'var(--radius-lg)',
+            padding: 24,
+            boxShadow: '0 4px 20px rgba(15, 157, 88, 0.06)',
+            position: 'relative',
+          }}
+        >
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 18, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 12,
+                  background: '#FFFFFF',
+                  padding: 4,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '1.5px solid rgba(15, 157, 88, 0.35)',
+                  boxShadow: '0 2px 10px rgba(15, 157, 88, 0.15)',
+                  flexShrink: 0,
+                }}
+              >
+                <img
+                  src="/assets/ads/adsense.png"
+                  alt="Google AdSense"
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                />
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <h3 style={{ fontWeight: 800, fontSize: '1.05rem', margin: 0, color: 'var(--text-primary)' }}>
+                    Google AdSense
+                  </h3>
+                  <span
+                    style={{
+                      fontSize: '0.7rem',
+                      padding: '2px 8px',
+                      borderRadius: 'var(--radius-full)',
+                      background: settings.adsense_enabled && settings.adsense_publisher_id ? 'rgba(15, 157, 88, 0.16)' : 'rgba(107, 114, 128, 0.15)',
+                      color: settings.adsense_enabled && settings.adsense_publisher_id ? '#0F9D58' : 'var(--text-muted)',
+                      border: '1px solid ' + (settings.adsense_enabled && settings.adsense_publisher_id ? 'rgba(15, 157, 88, 0.4)' : 'rgba(107, 114, 128, 0.3)'),
+                      fontWeight: 700,
+                    }}
+                  >
+                    {settings.adsense_enabled && settings.adsense_publisher_id ? '● AdSense Active' : '● Inactive'}
+                  </span>
+                </div>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', margin: '3px 0 0 0' }}>
+                  Monetize non-paying traffic, blog visitors, and download waiting pages with Google auto responsive ads
+                </p>
+              </div>
+            </div>
+
+            {/* Enable Toggle Switch */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: settings.adsense_enabled ? '#0F9D58' : 'var(--text-muted)' }}>
+                {settings.adsense_enabled ? 'Enabled' : 'Disabled'}
+              </span>
+              <label className="toggle-switch" onClick={e => e.stopPropagation()}>
+                <input
+                  type="checkbox"
+                  checked={settings.adsense_enabled}
+                  onChange={e => setSettings(s => ({ ...s, adsense_enabled: e.target.checked }))}
+                />
+                <span className="toggle-slider" style={{ accentColor: '#0F9D58' }} />
+              </label>
+            </div>
+          </div>
+
+          {/* Form Controls inside Card Padding Container */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  AdSense Publisher Client ID
+                </label>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                  e.g. ca-pub-XXXXXXXXXXXXXXXX or pub-XXXXXXXXXXXXXXXX
+                </span>
+              </div>
+              <input
+                className="input-field"
+                placeholder="ca-pub-1234567890123456"
+                value={settings.adsense_publisher_id}
+                onChange={e => setSettings(s => ({ ...s, adsense_publisher_id: e.target.value.trim() }))}
+                style={{
+                  fontFamily: 'monospace',
+                  fontSize: '0.85rem',
+                  borderColor: settings.adsense_publisher_id ? 'rgba(15, 157, 88, 0.4)' : undefined,
+                }}
+              />
+            </div>
+
+            {/* Auto Ads Toggle */}
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px 14px',
+                background: 'rgba(15, 157, 88, 0.06)',
+                border: '1px solid rgba(15, 157, 88, 0.2)',
+                borderRadius: 'var(--radius-md)',
+                cursor: 'pointer',
+              }}
+            >
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                  ⚡ Auto Ads Injection (Recommended)
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                  Automatically loads <code>adsbygoogle.js</code> script in storefront head for AI-optimized placements
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.adsense_auto_ads}
+                onChange={e => setSettings(s => ({ ...s, adsense_auto_ads: e.target.checked }))}
+                style={{ width: 18, height: 18, accentColor: '#0F9D58', cursor: 'pointer' }}
+              />
+            </label>
+
+            {/* Custom AdSense Head Code */}
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
+                AdSense Custom Script / Head Snippet (Optional)
+              </label>
+              <textarea
+                className="input-field"
+                rows={2}
+                placeholder="<script async src='https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-...' crossorigin='anonymous'></script>"
+                value={settings.adsense_head_code}
+                onChange={e => setSettings(s => ({ ...s, adsense_head_code: e.target.value }))}
+                style={{ fontFamily: 'monospace', fontSize: '0.78rem' }}
+              />
+            </div>
+
+            {/* Quick Action Links */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 4, flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                💡 Ensure your <code>/ads.txt</code> record is active to prevent AdSense crawler earnings warnings.
+              </div>
+              <a
+                href="https://www.google.com/adsense"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  fontSize: '0.78rem',
+                  color: '#0F9D58',
+                  fontWeight: 700,
+                  textDecoration: 'none',
+                }}
+              >
+                <span>Open Google AdSense</span>
+                <ExternalLink size={12} />
+              </a>
+            </div>
+          </div>
+        </div>
+
+        {/* ── 4. Google AdX (Google Ad Manager) Card (Primary Color: Royal Blue & Teal #1A73E8) ── */}
+        <div
+          style={{
+            background: 'linear-gradient(135deg, rgba(26, 115, 232, 0.08) 0%, rgba(2, 132, 199, 0.03) 100%), var(--bg-surface)',
+            border: '1px solid rgba(26, 115, 232, 0.35)',
+            borderRadius: 'var(--radius-lg)',
+            padding: 24,
+            boxShadow: '0 4px 20px rgba(26, 115, 232, 0.06)',
+            position: 'relative',
+          }}
+        >
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 18, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 12,
+                  background: '#FFFFFF',
+                  padding: 4,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '1.5px solid rgba(26, 115, 232, 0.35)',
+                  boxShadow: '0 2px 10px rgba(26, 115, 232, 0.15)',
+                  flexShrink: 0,
+                }}
+              >
+                <img
+                  src="/assets/ads/google-adx.webp"
+                  onError={(e) => {
+                    ;(e.currentTarget as HTMLImageElement).src = 'https://adsparc.com/wp-content/uploads/2022/03/google-adx-logo-1-1.webp'
+                  }}
+                  alt="Google AdX"
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                />
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <h3 style={{ fontWeight: 800, fontSize: '1.05rem', margin: 0, color: 'var(--text-primary)' }}>
+                    Google AdX (Google Ad Manager)
+                  </h3>
+                  <span
+                    style={{
+                      fontSize: '0.7rem',
+                      padding: '2px 8px',
+                      borderRadius: 'var(--radius-full)',
+                      background: settings.adx_enabled && settings.adx_network_code ? 'rgba(26, 115, 232, 0.16)' : 'rgba(107, 114, 128, 0.15)',
+                      color: settings.adx_enabled && settings.adx_network_code ? '#1A73E8' : 'var(--text-muted)',
+                      border: '1px solid ' + (settings.adx_enabled && settings.adx_network_code ? 'rgba(26, 115, 232, 0.4)' : 'rgba(107, 114, 128, 0.3)'),
+                      fontWeight: 700,
+                    }}
+                  >
+                    {settings.adx_enabled && settings.adx_network_code ? '● AdX Exchange Live' : '● Standby'}
+                  </span>
+                </div>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', margin: '3px 0 0 0' }}>
+                  Enterprise programmatic exchange, Google Publisher Tag (GPT), header bidding & high CPM premium deals
+                </p>
+              </div>
+            </div>
+
+            {/* Enable Toggle Switch */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: settings.adx_enabled ? '#1A73E8' : 'var(--text-muted)' }}>
+                {settings.adx_enabled ? 'Enabled' : 'Disabled'}
+              </span>
+              <label className="toggle-switch" onClick={e => e.stopPropagation()}>
+                <input
+                  type="checkbox"
+                  checked={settings.adx_enabled}
+                  onChange={e => setSettings(s => ({ ...s, adx_enabled: e.target.checked }))}
+                />
+                <span className="toggle-slider" style={{ accentColor: '#1A73E8' }} />
+              </label>
+            </div>
+          </div>
+
+          {/* Form Controls inside Card Padding Container */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  AdX / GAM Network Code
+                </label>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                  e.g. 12345678 or /12345678/
+                </span>
+              </div>
+              <input
+                className="input-field"
+                placeholder="12345678"
+                value={settings.adx_network_code}
+                onChange={e => setSettings(s => ({ ...s, adx_network_code: e.target.value.trim() }))}
+                style={{
+                  fontFamily: 'monospace',
+                  fontSize: '0.85rem',
+                  borderColor: settings.adx_network_code ? 'rgba(26, 115, 232, 0.4)' : undefined,
+                }}
+              />
+            </div>
+
+            {/* Google Publisher Tag (GPT) Script Snippet */}
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
+                Google Publisher Tag (GPT) Header Snippet (Optional)
+              </label>
+              <textarea
+                className="input-field"
+                rows={2}
+                placeholder="window.googletag = window.googletag || {cmd: []}; googletag.cmd.push(function() { ... });"
+                value={settings.adx_head_code}
+                onChange={e => setSettings(s => ({ ...s, adx_head_code: e.target.value }))}
+                style={{ fontFamily: 'monospace', fontSize: '0.78rem' }}
+              />
+            </div>
+
+            {/* Quick Action Links */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 4, flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                💡 Automatically initializes <code>securepubads.g.doubleclick.net/tag/js/gpt.js</code> with asynchronous loading.
+              </div>
+              <a
+                href="https://admanager.google.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  fontSize: '0.78rem',
+                  color: '#1A73E8',
+                  fontWeight: 700,
+                  textDecoration: 'none',
+                }}
+              >
+                <span>Open Google Ad Manager</span>
+                <ExternalLink size={12} />
+              </a>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Bottom Save Action Bar ── */}
+        <div
+          style={{
+            marginTop: 20,
+            padding: '20px 24px',
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--bg-border)',
+            borderRadius: 'var(--radius-lg)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 16,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+          }}
+        >
+          <div>
+            <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>
+              Ready to save all settings?
+            </div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 2 }}>
+              Saves Google Search Console, Analytics, AdSense, AdX, UPI intent, and store configuration instantly to database.
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {success && (
+              <span style={{ fontSize: '0.85rem', color: '#10B981', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <CheckCircle2 size={16} /> All settings saved!
+              </span>
+            )}
+            <button
+              onClick={() => saveMutation.mutate()}
+              className="btn-primary"
+              disabled={saveMutation.isPending}
+              style={{
+                fontSize: '0.9rem',
+                padding: '12px 28px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                boxShadow: '0 4px 16px rgba(17, 98, 242, 0.35)',
+              }}
+            >
+              {saveMutation.isPending ? (
+                <><Loader2 size={16} className="animate-spin" /> Saving Settings...</>
+              ) : success ? (
+                <><Check size={16} /> Saved Successfully!</>
+              ) : (
+                <><Save size={16} /> Save All Settings</>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* ── Floating Sticky Quick-Save Bar (Always visible while scrolling) ── */}
+        <div
+          style={{
+            position: 'sticky',
+            bottom: 20,
+            zIndex: 40,
+            marginTop: 20,
+            padding: '12px 20px',
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--bg-border)',
+            borderRadius: 'var(--radius-full)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.22)',
+            backdropFilter: 'blur(12px)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
+            <Sparkles size={16} color="var(--brand-purple-light)" />
+            <span style={{ fontWeight: 600 }}>Save button is always accessible while customizing</span>
+          </div>
+          <button
+            onClick={() => saveMutation.mutate()}
+            className="btn-primary"
+            disabled={saveMutation.isPending}
+            style={{
+              fontSize: '0.825rem',
+              padding: '8px 22px',
+              borderRadius: 'var(--radius-full)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            {saveMutation.isPending ? (
+              <><Loader2 size={14} className="animate-spin" /> Saving...</>
+            ) : success ? (
+              <><Check size={14} /> Saved!</>
+            ) : (
+              <><Save size={14} /> Save Changes</>
+            )}
+          </button>
         </div>
       </div>
     </div>

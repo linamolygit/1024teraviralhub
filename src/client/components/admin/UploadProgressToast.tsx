@@ -9,7 +9,7 @@ export interface UploadStepItem {
   id: string
   label: string
   type: 'gallery' | 'deliverable' | 'data'
-  status: 'pending' | 'processing' | 'completed' | 'error'
+  status: 'pending' | 'processing' | 'completed' | 'error' | 'deduplicated'
   detail?: string
 }
 
@@ -271,7 +271,8 @@ export default function UploadProgressToast({
           }}
         >
           {steps.map((step) => {
-            const isDone = step.status === 'completed'
+            const isDedup = step.status === 'deduplicated'
+            const isDone = step.status === 'completed' || isDedup
             const isCurrent = step.status === 'processing'
             const isErr = step.status === 'error'
 
@@ -287,7 +288,9 @@ export default function UploadProgressToast({
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
-                  {isDone ? (
+                  {isDedup ? (
+                    <Sparkles size={15} color="#10B981" style={{ flexShrink: 0 }} />
+                  ) : isDone ? (
                     <CheckCircle2 size={15} color="#1162F2" style={{ flexShrink: 0 }} />
                   ) : isCurrent ? (
                     <Loader2 size={15} color="#1162F2" className="animate-spin" style={{ flexShrink: 0 }} />
@@ -310,8 +313,8 @@ export default function UploadProgressToast({
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
-                      color: isDone ? 'var(--text-primary)' : isCurrent ? '#1162F2' : 'var(--text-muted)',
-                      fontWeight: isCurrent ? 700 : isDone ? 500 : 400,
+                      color: isDedup ? '#10B981' : isDone ? 'var(--text-primary)' : isCurrent ? '#1162F2' : 'var(--text-muted)',
+                      fontWeight: isCurrent ? 700 : isDedup || isDone ? 500 : 400,
                     }}
                   >
                     {step.label}
@@ -324,16 +327,18 @@ export default function UploadProgressToast({
                     fontWeight: 600,
                     padding: '1px 6px',
                     borderRadius: 4,
-                    background: isDone
+                    background: isDedup
+                      ? 'rgba(16, 185, 129, 0.12)'
+                      : isDone
                       ? 'linear-gradient(135deg, rgba(17, 98, 242, 0.12), rgba(124, 58, 237, 0.12))'
                       : isCurrent
                       ? 'rgba(17,98,242,0.1)'
                       : 'transparent',
-                    color: isDone ? '#1162F2' : isCurrent ? '#1162F2' : 'var(--text-muted)',
+                    color: isDedup ? '#10B981' : isDone ? '#1162F2' : isCurrent ? '#1162F2' : 'var(--text-muted)',
                     flexShrink: 0,
                   }}
                 >
-                  {isDone ? 'Done' : isCurrent ? 'Uploading...' : 'Waiting'}
+                  {isDedup ? '⚡ Reused (0 KB)' : isDone ? 'Done' : isCurrent ? 'Uploading...' : 'Waiting'}
                 </span>
               </div>
             )

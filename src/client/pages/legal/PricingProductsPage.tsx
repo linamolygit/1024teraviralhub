@@ -2,9 +2,11 @@
 import { useSiteConfig, BUSINESS_CONFIG } from '../../lib/site-config'
 import { Tag, ShieldCheck, Zap, Download, CreditCard, Sparkles, HelpCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
 
 export default function PricingProductsPage() {
   const { siteName, supportEmail } = useSiteConfig()
+  const { fullName: gatewayFullName, isBoth } = usePaymentGatewayInfo()
 
   return (
     <div className="section" style={{ minHeight: '80vh', padding: '48px 0 80px' }}>
@@ -143,7 +145,7 @@ export default function PricingProductsPage() {
               3. Payment Processing & Security
             </h2>
             <p>
-              Payments on {siteName || BUSINESS_CONFIG.brandName} are processed securely under the registered commercial entity <strong>{BUSINESS_CONFIG.legalName}</strong> (Govt. of India MSME / Udyam Reg. No.: <strong>{BUSINESS_CONFIG.udyamRegistration}</strong>) through RBI-compliant, PCI-DSS Level 1 certified payment aggregators (including Cashfree Payments).
+              Payments on {siteName || BUSINESS_CONFIG.brandName} are processed securely under the registered commercial entity <strong>{BUSINESS_CONFIG.legalName}</strong> (Govt. of India MSME / Udyam Reg. No.: <strong>{BUSINESS_CONFIG.udyamRegistration}</strong>) through RBI-compliant, PCI-DSS Level 1 certified payment {isBoth ? 'aggregators' : 'aggregator'} ({isBoth ? gatewayFullName : `powered by ${gatewayFullName}`}).
               Supported payment channels include:
             </p>
             <ul style={{ paddingLeft: 22, marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>

@@ -18,7 +18,7 @@ app.get('/', async (c) => {
 
   let orderQuery = `
     SELECT o.id, o.order_number, o.status, o.amount, o.created_at, o.product_id,
-           p.title as product_title
+           p.title as product_title, p.price as original_price, p.sale_price
     FROM orders o
     JOIN products p ON o.product_id = p.id
     WHERE (o.order_number = ? OR o.order_number = ?)
@@ -32,7 +32,8 @@ app.get('/', async (c) => {
 
   const order = await c.env.DB.prepare(orderQuery).bind(...params).first() as {
     id: number; order_number: string; status: string; amount: number;
-    created_at: string; product_id: number; product_title: string
+    created_at: string; product_id: number; product_title: string;
+    original_price?: number; sale_price?: number;
   } | null
 
   if (!order) {
@@ -63,6 +64,8 @@ app.get('/', async (c) => {
     order_number: order.order_number,
     status: order.status,
     amount: order.amount,
+    original_price: order.original_price ?? order.amount,
+    sale_price: order.sale_price ?? order.amount,
     product: order.product_title,
     created_at: order.created_at,
     download_token,

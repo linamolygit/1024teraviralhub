@@ -1,8 +1,11 @@
 // src/client/pages/static/HelpPage.tsx
 import { Link } from 'react-router-dom'
 import { Download, CreditCard, RefreshCw, HelpCircle, Mail } from 'lucide-react'
+import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
 
 export default function HelpPage() {
+  const { name: gatewayName } = usePaymentGatewayInfo()
+
   const guides = [
     {
       icon: <Download size={24} color="#111827" />,
@@ -13,7 +16,7 @@ export default function HelpPage() {
     {
       icon: <CreditCard size={24} color="var(--brand-amber)" />,
       title: 'Payment & Checkout',
-      desc: 'We support all major Indian payment methods through Cashfree: UPI (Google Pay, PhonePe, Paytm), debit/credit cards, and net banking.',
+      desc: `We support all major Indian payment methods through ${gatewayName}: UPI (Google Pay, PhonePe, Paytm), debit/credit cards, and net banking.`,
       action: <Link to="/faq" className="btn-ghost" style={{ fontSize: '0.8125rem', marginTop: 12 }}>Payment FAQ →</Link>,
     },
     {

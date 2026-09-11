@@ -1,35 +1,37 @@
 // src/client/pages/static/FaqPage.tsx
 import { Link } from 'react-router-dom'
 import { HelpCircle } from 'lucide-react'
-
-const allFaqs = [
-  {
-    category: 'Purchases & Downloads',
-    items: [
-      { q: 'How do I download my digital files after payment?', a: 'Immediately after completing payment through Cashfree, you will be redirected to the Payment Success page where your unique download link is ready. You can download the file right away.' },
-      { q: 'How long is my download link valid?', a: 'Download links remain valid for 12 hours from the moment of purchase, allowing up to 3 download attempts for security reasons.' },
-      { q: 'What happens if my download link expires?', a: 'If your 12-hour window expires before you save the files, visit the Order Lookup page or contact our support team with your order number.' },
-      { q: 'Can I download files on mobile?', a: 'Yes! All download links work on mobile browsers (Chrome, Safari) as well as desktop computers.' },
-    ],
-  },
-  {
-    category: 'Payments & Security',
-    items: [
-      { q: 'What payment methods do you accept?', a: 'We accept UPI (Google Pay, PhonePe, Paytm, BHIM), all major Indian Credit and Debit Cards (Visa, MasterCard, RuPay), and Net Banking via Cashfree Payments.' },
-      { q: 'Is my payment secure?', a: 'Yes. All payments are processed through Cashfree Payments with bank-grade 256-bit SSL encryption. We never store your card or bank credentials.' },
-      { q: 'Do I need an account to buy?', a: 'No. You can buy any product directly with guest checkout using just your name, email, and phone number.' },
-    ],
-  },
-  {
-    category: 'Licensing & Usage',
-    items: [
-      { q: 'Can I use these assets commercially?', a: 'Usage rights depend on the license specified on the product page. Personal Use licenses are for private projects; Commercial licenses permit use in commercial work and client projects.' },
-      { q: 'Can I redistribute or resell the files?', a: 'No. Redistribution, reselling, or sharing the raw digital assets without authorization is strictly prohibited under our terms of service.' },
-    ],
-  },
-]
+import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
 
 export default function FaqPage() {
+  const { name: gatewayName, fullName: gatewayFullName } = usePaymentGatewayInfo()
+
+  const allFaqs = [
+    {
+      category: 'Purchases & Downloads',
+      items: [
+        { q: 'How do I download my digital files after payment?', a: `Immediately after completing payment through ${gatewayName}, you will be redirected to the Payment Success page where your unique download link is ready. You can download the file right away.` },
+        { q: 'How long is my download link valid?', a: 'Download links remain valid for 12 hours from the moment of purchase, allowing up to 3 download attempts for security reasons.' },
+        { q: 'What happens if my download link expires?', a: 'If your 12-hour window expires before you save the files, visit the Order Lookup page or contact our support team with your order number.' },
+        { q: 'Can I download files on mobile?', a: 'Yes! All download links work on mobile browsers (Chrome, Safari) as well as desktop computers.' },
+      ],
+    },
+    {
+      category: 'Payments & Security',
+      items: [
+        { q: 'What payment methods do you accept?', a: `We accept UPI (Google Pay, PhonePe, Paytm, BHIM), all major Indian Credit and Debit Cards (Visa, MasterCard, RuPay), and Net Banking via ${gatewayFullName}.` },
+        { q: 'Is my payment secure?', a: `Yes. All payments are processed through ${gatewayFullName} with bank-grade 256-bit SSL encryption. We never store your card or bank credentials.` },
+        { q: 'Do I need an account to buy?', a: 'No. You can buy any product directly with guest checkout using just your name, email, and phone number.' },
+      ],
+    },
+    {
+      category: 'Licensing & Usage',
+      items: [
+        { q: 'Can I use these assets commercially?', a: 'Usage rights depend on the license specified on the product page. Personal Use licenses are for private projects; Commercial licenses permit use in commercial work and client projects.' },
+        { q: 'Can I redistribute or resell the files?', a: 'No. Redistribution, reselling, or sharing the raw digital assets without authorization is strictly prohibited under our terms of service.' },
+      ],
+    },
+  ]
   return (
     <div className="section">
       <div className="container" style={{ maxWidth: 760 }}>

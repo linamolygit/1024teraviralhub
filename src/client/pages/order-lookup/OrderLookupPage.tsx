@@ -5,8 +5,10 @@ import { Search, Download, Package, Clock, CheckCircle2, AlertCircle } from 'luc
 import { Link, useSearchParams } from 'react-router-dom'
 import { api, type OrderLookupResult } from '../../lib/api'
 import { formatPrice, formatDate } from '../../lib/utils'
+import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
 
 export default function OrderLookupPage() {
+  const { name: gatewayName } = usePaymentGatewayInfo()
   const [searchParams] = useSearchParams()
   const [orderNumber, setOrderNumber] = useState(searchParams.get('order') || '')
   const [email, setEmail] = useState(searchParams.get('email') || '')
@@ -287,7 +289,7 @@ export default function OrderLookupPage() {
                 </div>
               ) : result.status !== 'PAID' ? (
                 <div className="alert alert-info" style={{ fontSize: '0.85rem' }}>
-                  Payment status is currently <strong>{result.status}</strong>. If your account was debited, please wait 2–5 minutes for Cashfree webhook confirmation or reach out to customer support.
+                  Payment status is currently <strong>{result.status}</strong>. If your account was debited, please wait 2–5 minutes for {gatewayName} webhook confirmation or reach out to customer support.
                 </div>
               ) : null}
             </motion.div>

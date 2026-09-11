@@ -242,6 +242,29 @@ export default function DownloadProductCard({ item, isExpired = false }: Props) 
               )}
             </button>
 
+            {item.google_drive_link && (
+              <a
+                href={item.google_drive_link}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 14px',
+                  borderRadius: '8px',
+                  background: 'rgba(59, 130, 246, 0.08)',
+                  border: '1px solid rgba(59, 130, 246, 0.25)',
+                  color: '#2563EB',
+                  fontSize: '0.8125rem',
+                  fontWeight: 700,
+                  textDecoration: 'none',
+                }}
+              >
+                <ExternalLink size={14} /> Drive Backup
+              </a>
+            )}
+
             {item.files && item.files.length > 0 && (
               <button
                 type="button"

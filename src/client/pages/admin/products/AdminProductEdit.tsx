@@ -4,8 +4,11 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft, Save, Upload, Plus, X, Trash2, CheckCircle, Sparkles,
-  Image as ImageIcon, Star, ExternalLink, Loader2, RefreshCw, FileCheck, Layers
+  Image as ImageIcon, Star, ExternalLink, Loader2, RefreshCw, FileCheck, Layers, Video, Play, Film, Link as LinkIcon,
+  Crop, Sliders, Eye, ZoomIn, ShieldCheck, Check, Info, Maximize2
 } from 'lucide-react'
+import ImageCropModal from '../../../components/admin/ImageCropModal'
+import { optimizeVideo } from '../../../lib/video-optimizer'
 import { adminApi, type Category, type ProductImage } from '../../../lib/api'
 import { useAuthStore } from '../../../lib/auth-store'
 import { createImageVariants } from '../../../lib/image-optimizer'
@@ -14,6 +17,7 @@ import UploadProgressToast, { type UploadStepItem } from '../../../components/ad
 import DeliverableFilePreviewCard from '../../../components/admin/DeliverableFilePreviewCard'
 import GoogleDrivePreviewCard from '../../../components/admin/GoogleDrivePreviewCard'
 import { adminToast } from '../../../lib/admin-toast'
+import MediaLibraryModal, { type MediaAssetItem } from '../../../components/admin/MediaLibraryModal'
 
 export default function AdminProductEdit() {
   const { id } = useParams<{ id: string }>()
@@ -25,6 +29,8 @@ export default function AdminProductEdit() {
   const [success, setSuccess] = useState('')
   const [uploading, setUploading] = useState(false)
   const [uploadProgressText, setUploadProgressText] = useState('')
+  const [mediaModalOpen, setMediaModalOpen] = useState(false)
+  const [videoMediaModalOpen, setVideoMediaModalOpen] = useState(false)
 
   const [form, setForm] = useState({
     title: '',
@@ -40,6 +46,7 @@ export default function AdminProductEdit() {
     license_type: 'personal',
     button_text: 'Buy',
     google_drive_link: '',
+    video_url: '',
     download_limit: 3,
     access_duration_hours: 12,
     meta_title: '',
@@ -53,6 +60,23 @@ export default function AdminProductEdit() {
   // Newly selected images to upload
   const [newImageFiles, setNewImageFiles] = useState<{ file: File; preview: string }[]>([])
   const [productFile, setProductFile] = useState<File | null>(null)
+
+  // ── Cover & Gallery Image Crop Studio States ──
+  const [cropModalOpen, setCropModalOpen] = useState(false)
+  const [cropTarget, setCropTarget] = useState<{
+    type: 'existing' | 'new'
+    id?: number
+    index?: number
+    name?: string
+    isCover?: boolean
+  } | null>(null)
+  const [cropImageSrc, setCropImageSrc] = useState('')
+
+  // Fullscreen Lightbox Preview State
+  const [previewModalOpen, setPreviewModalOpen] = useState(false)
+  const [previewImageSrc, setPreviewImageSrc] = useState('')
+  const [previewImageTitle, setPreviewImageTitle] = useState('')
+  const [isDropZoneActive, setIsDropZoneActive] = useState(false)
 
   const [showDriveInput, setShowDriveInput] = useState(false)
   const [tagInput, setTagInput] = useState('')
@@ -75,6 +99,13 @@ export default function AdminProductEdit() {
   const [uploadSteps, setUploadSteps] = useState<UploadStepItem[]>([])
   const [uploadCompleted, setUploadCompleted] = useState(false)
   const [uploadError, setUploadError] = useState('')
+
+  // Video Upload & Smart Compression States
+  const [videoInputMode, setVideoInputMode] = useState<'upload' | 'url'>('upload')
+  const [videoUploading, setVideoUploading] = useState(false)
+  const [videoCompressProgress, setVideoCompressProgress] = useState(0)
+  const [videoStatusText, setVideoStatusText] = useState('')
+  const [videoStats, setVideoStats] = useState<{ originalMB: string; optimizedMB: string; liteKB?: number; savedPct: number } | null>(null)
 
   // Fetch product data
   const { data, isLoading } = useQuery({
@@ -119,6 +150,7 @@ export default function AdminProductEdit() {
         license_type: p.license_type || 'personal',
         button_text: p.button_text || 'Buy',
         google_drive_link: p.google_drive_link ?? '',
+        video_url: p.video_url ?? '',
         download_limit: p.download_limit ?? 3,
         access_duration_hours: p.access_duration_hours ?? 12,
         meta_title: p.meta_title ?? '',
@@ -150,8 +182,187 @@ export default function AdminProductEdit() {
     setNewImageFiles((prev) => [...prev, ...items])
   }
 
+  // Handle Video File Select & Smart Client Compression
+  const handleVideoFileSelect = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    const file = files[0]
+    setVideoUploading(true)
+    setVideoCompressProgress(5)
+    setVideoStatusText('Analyzing video for fast, 0-buffering web playback...')
+    setError('')
+
+    try {
+      // 1. Client-side smart optimization
+      const optResult = await optimizeVideo(file, (msg, pct) => {
+        setVideoStatusText(msg)
+        setVideoCompressProgress(pct)
+      })
+
+      // 2. Upload to Cloudflare R2 Edge CDN
+      setVideoStatusText('Uploading optimized stream to Cloudflare Edge R2...')
+      setVideoCompressProgress(88)
+
+      const token = await getToken()
+      if (!token) throw new Error('Not authenticated')
+
+      const res = await adminApi.products.uploadVideo(token, optResult.file, optResult.liteFile)
+      if (!res.success) throw new Error(res.message || 'Upload failed')
+
+      setForm((f) => ({ ...f, video_url: res.url }))
+      setVideoCompressProgress(100)
+      setVideoStatusText('✓ Video ready and published with 0-buffering adaptive streams!')
+
+      setVideoStats({
+        originalMB: (optResult.originalSize / (1024 * 1024)).toFixed(1),
+        optimizedMB: (optResult.optimizedSize / (1024 * 1024)).toFixed(1),
+        liteKB: optResult.liteSize ? Math.round(optResult.liteSize / 1024) : undefined,
+        savedPct: optResult.savedPct,
+      })
+      adminToast.success('Video Uploaded', 'Dual adaptive streams (720p HD + 480p Lite) ready for 0-buffering playback')
+    } catch (err: any) {
+      setError(err.message || 'Video upload failed')
+      adminToast.error('Upload Error', err.message || 'Video upload failed')
+    } finally {
+      setVideoUploading(false)
+    }
+  }
+
   const removeNewImage = (index: number) => {
     setNewImageFiles((prev) => prev.filter((_, idx) => idx !== index))
+  }
+
+  // ── Image Crop & Lightbox Handlers ──
+  const handleOpenCropForExisting = (img: ProductImage) => {
+    const imageUrl = (img as any).url
+      ? (img as any).url
+      : img.r2_key?.startsWith('http')
+      ? img.r2_key
+      : img.r2_key
+      ? `/api/images/${encodeURIComponent(img.r2_key)}`
+      : ''
+    setCropTarget({
+      type: 'existing',
+      id: img.id,
+      name: img.alt_text || 'product-cover.webp',
+      isCover: Boolean(img.is_thumbnail),
+    })
+    setCropImageSrc(imageUrl)
+    setCropModalOpen(true)
+  }
+
+  const handleOpenCropForNew = (item: { file: File; preview: string }, index: number) => {
+    const hasExistingCover = existingImages.some((img) => Boolean(img.is_thumbnail))
+    setCropTarget({
+      type: 'new',
+      index,
+      name: item.file.name,
+      isCover: !hasExistingCover && index === 0,
+    })
+    setCropImageSrc(item.preview)
+    setCropModalOpen(true)
+  }
+
+  const handleOpenLightbox = (src: string, title: string) => {
+    setPreviewImageSrc(src)
+    setPreviewImageTitle(title)
+    setPreviewModalOpen(true)
+  }
+
+  const handleApplyCrop = async (croppedFile: File, croppedPreviewUrl: string) => {
+    if (!cropTarget) return
+
+    if (cropTarget.type === 'new' && cropTarget.index !== undefined) {
+      setNewImageFiles((prev) =>
+        prev.map((item, idx) =>
+          idx === cropTarget.index
+            ? { file: croppedFile, preview: croppedPreviewUrl }
+            : item
+        )
+      )
+      adminToast.success('Crop Applied', 'Pending image updated with your adjustments')
+    } else if (cropTarget.type === 'existing' && cropTarget.id !== undefined) {
+      try {
+        const token = await getToken()
+        if (!token || !id) throw new Error('Not authenticated')
+
+        const productId = parseInt(id)
+        adminToast.info('Optimizing Crop', 'Applying perceptual compression & generating WebP variants...')
+        const variants = await createImageVariants(croppedFile)
+
+        const res = await adminApi.products.uploadImage(
+          token,
+          productId,
+          croppedFile,
+          Boolean(cropTarget.isCover),
+          {
+            thumb: variants.thumb,
+            medium: variants.medium,
+            large: variants.large,
+            blurDataUrl: variants.blurDataUrl,
+          }
+        )
+
+        if (res.success) {
+          qc.invalidateQueries({ queryKey: ['admin-product-edit', id] })
+          adminToast.success(
+            'Cover Image Updated',
+            '✓ Cropped cover image saved and set as primary storefront showcase!'
+          )
+        }
+      } catch (err: any) {
+        adminToast.error('Crop Save Failed', err.message || 'Failed to save cropped image')
+      }
+    }
+  }
+
+  // Handle selecting from existing media storage (zero duplicate upload)
+  const handleSelectFromLibrary = async (asset: MediaAssetItem) => {
+    try {
+      const token = await getToken()
+      if (!token || !id) return
+      const res = await adminApi.products.attachExistingImage(token, parseInt(id), {
+        r2_key: asset.r2_key,
+        content_hash: asset.content_hash,
+        alt_text: asset.original_filename,
+      })
+      if (res.success) {
+        qc.invalidateQueries({ queryKey: ['admin-product-edit', id] })
+        adminToast.success('Existing Image Reused', `✓ Attached "${asset.original_filename}" (0 KB storage consumed)!`)
+      }
+    } catch (err: any) {
+      adminToast.error('Attach Failed', err.message)
+    }
+  }
+
+  const handleSelectMultipleFromLibrary = async (chosenAssets: MediaAssetItem[]) => {
+    try {
+      const token = await getToken()
+      if (!token || !id) return
+      let count = 0
+      for (const asset of chosenAssets) {
+        await adminApi.products.attachExistingImage(token, parseInt(id), {
+          r2_key: asset.r2_key,
+          content_hash: asset.content_hash,
+          alt_text: asset.original_filename,
+        })
+        count++
+      }
+      qc.invalidateQueries({ queryKey: ['admin-product-edit', id] })
+      adminToast.success('Media Assets Reused', `✓ Reused ${count} existing image(s) from storage (0 KB duplicate upload)`)
+    } catch (err: any) {
+      adminToast.error('Attach Failed', err.message)
+    }
+  }
+
+  // Handle attaching video from existing media storage (zero duplicate upload)
+  const handleSelectVideoFromLibrary = (asset: MediaAssetItem) => {
+    setForm((f) => ({ ...f, video_url: asset.url }))
+    setVideoStats({
+      originalMB: (asset.file_size / (1024 * 1024)).toFixed(1),
+      optimizedMB: (asset.file_size / (1024 * 1024)).toFixed(1),
+      savedPct: 100,
+    })
+    adminToast.success('Video Reused', `✓ Attached "${asset.original_filename}" (0 KB storage consumed)!`)
   }
 
   // Delete existing image mutation
@@ -252,6 +463,7 @@ export default function AdminProductEdit() {
         category_id: form.category_id || undefined,
         sale_price: form.sale_price ? parseFloat(form.sale_price) : null,
         tags: form.tags,
+        video_url: form.video_url?.trim() || null,
       })
     },
     onMutate: () => {
@@ -333,7 +545,7 @@ export default function AdminProductEdit() {
             console.log(
               `[Perceptual Compression] #${idx + 1}: ${(item.file.size / 1024).toFixed(1)}KB -> ${(variants.compressedTotalSize / 1024).toFixed(1)}KB (${variants.savingsPercent}% saved)`
             )
-            await adminApi.products.uploadImage(token!, productId, item.file, isCover, {
+            const uploadRes = await adminApi.products.uploadImage(token!, productId, item.file, isCover, {
               thumb: variants.thumb,
               medium: variants.medium,
               large: variants.large,
@@ -341,7 +553,11 @@ export default function AdminProductEdit() {
             })
 
             setUploadSteps((prev) =>
-              prev.map((s) => (s.id === `step-gallery-${idx}` ? { ...s, status: 'completed' } : s))
+              prev.map((s) =>
+                s.id === `step-gallery-${idx}`
+                  ? { ...s, status: uploadRes.deduplicated ? 'deduplicated' : 'completed' }
+                  : s
+              )
             )
           } catch (e: any) {
             console.error('Image upload failed:', e)
@@ -372,9 +588,13 @@ export default function AdminProductEdit() {
         setUploadStatusText('Uploading primary downloadable digital asset file to Cloudflare R2 bucket...')
 
         try {
-          await adminApi.products.uploadFile(token!, productId, productFile)
+          const fileRes = await adminApi.products.uploadFile(token!, productId, productFile)
           setUploadSteps((prev) =>
-            prev.map((s) => (s.id === 'step-deliverable' ? { ...s, status: 'completed' } : s))
+            prev.map((s) =>
+              s.id === 'step-deliverable'
+                ? { ...s, status: fileRes.deduplicated ? 'deduplicated' : 'completed' }
+                : s
+            )
           )
           setProductFile(null)
         } catch (e: any) {
@@ -746,117 +966,246 @@ export default function AdminProductEdit() {
             </div>
           </div>
 
-          {/* Card 2: Media & Multi-Image Gallery */}
+          {/* Card 2: Product Gallery & Images */}
           <div
             style={{
               background: 'var(--bg-surface)',
               border: '1px solid var(--bg-border)',
-              borderRadius: 'var(--radius-lg)',
+              borderRadius: 'var(--radius-lg, 12px)',
               padding: 24,
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            {/* Header: Title, Description & Action Buttons */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 16,
+                flexWrap: 'wrap',
+                gap: 10,
+              }}
+            >
               <div>
-                <h3 style={{ fontWeight: 700, fontSize: '1.05rem', margin: 0 }}>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
                   Product Gallery & Images ({existingImages.length + newImageFiles.length})
                 </h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', margin: '4px 0 0 0' }}>
-                  Manage multiple gallery images. Customer can swipe through them on product page.
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', margin: '3px 0 0' }}>
+                  Upload multiple product showcase images or reuse storage assets (0 KB). Click the star to set primary cover thumbnail.
                 </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                {/* Browse Media Storage Button */}
+                <button
+                  type="button"
+                  onClick={() => setMediaModalOpen(true)}
+                  style={{
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--bg-border)',
+                    color: 'var(--brand-purple, #2874F0)',
+                    borderRadius: 8,
+                    padding: '7px 12px',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                  title="Browse already uploaded storage assets without consuming duplicate disk space"
+                >
+                  <Layers size={14} /> Browse Media Storage (0 KB Reuse)
+                </button>
+
+                {/* Quick Add Photos Trigger */}
+                <button
+                  type="button"
+                  onClick={() => document.getElementById('edit-multi-image-input')?.click()}
+                  style={{
+                    background: 'var(--brand-purple, #2874F0)',
+                    border: 'none',
+                    color: '#ffffff',
+                    borderRadius: 8,
+                    padding: '7px 14px',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(40, 116, 240, 0.25)',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <Plus size={14} /> Add Images
+                </button>
               </div>
             </div>
 
-            {/* Existing Uploaded Images Grid */}
+            {/* ── Direct Existing Images Grid ── */}
             {existingImages.length > 0 && (
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 10 }}>
-                  Active Uploaded Images:
-                </div>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-                    gap: 14,
-                  }}
-                >
-                  {existingImages.map((img) => {
-                    const isCover = Boolean(img.is_thumbnail)
-                    const imageUrl = (img as any).url
-                      ? (img as any).url
-                      : img.r2_key?.startsWith('http')
-                      ? img.r2_key
-                      : img.r2_key
-                      ? `/api/images/${encodeURIComponent(img.r2_key)}`
-                      : ''
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+                  gap: 12,
+                  marginBottom: 16,
+                }}
+              >
+                {existingImages.map((img) => {
+                  const isCover = Boolean(img.is_thumbnail)
+                  const imageUrl = (img as any).url
+                    ? (img as any).url
+                    : img.r2_key?.startsWith('http')
+                    ? img.r2_key
+                    : img.r2_key
+                    ? `/api/images/${encodeURIComponent(img.r2_key)}`
+                    : ''
 
-                    return (
+                  return (
+                    <div
+                      key={img.id}
+                      style={{
+                        position: 'relative',
+                        borderRadius: 10,
+                        border: isCover ? '2px solid var(--brand-purple, #2874F0)' : '1px solid var(--bg-border)',
+                        background: 'var(--bg-surface)',
+                        overflow: 'hidden',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        boxShadow: isCover ? '0 2px 8px rgba(40, 116, 240, 0.2)' : '0 1px 3px rgba(0,0,0,0.05)',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {/* Image Preview Window */}
+                      <div style={{ aspectRatio: '1/1', overflow: 'hidden', background: 'var(--bg-elevated)', position: 'relative' }}>
+                        <img
+                          src={imageUrl}
+                          alt={img.alt_text || 'Product image'}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                          onError={(e) => {
+                            const target = e.currentTarget
+                            if (!target.src.includes('placeholder')) {
+                              target.src = `https://placehold.co/400x400/2874f0/white?text=Image`
+                            }
+                          }}
+                        />
+
+                        {/* Signature Yellow Cover Badge */}
+                        {isCover && (
+                          <span
+                            style={{
+                              position: 'absolute',
+                              top: 6,
+                              left: 6,
+                              background: 'var(--brand-amber, #FFD200)',
+                              color: '#000000',
+                              padding: '2px 6px',
+                              borderRadius: 4,
+                              fontSize: '0.62rem',
+                              fontWeight: 800,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 3,
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
+                            }}
+                          >
+                            <Star size={9} fill="#000000" /> Main Cover
+                          </span>
+                        )}
+
+                        {/* Quick Inspect Button Overlay */}
+                        <button
+                          type="button"
+                          onClick={() => handleOpenLightbox(imageUrl, img.alt_text || 'Gallery Image')}
+                          style={{
+                            position: 'absolute',
+                            top: 6,
+                            right: 6,
+                            background: 'rgba(0,0,0,0.55)',
+                            color: '#ffffff',
+                            border: 'none',
+                            borderRadius: '50%',
+                            width: 22,
+                            height: 22,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                          }}
+                          title="Inspect Image"
+                        >
+                          <Eye size={11} />
+                        </button>
+                      </div>
+
+                      {/* Card Action Controls Footer */}
                       <div
-                        key={img.id}
                         style={{
-                          position: 'relative',
-                          borderRadius: 'var(--radius-md)',
-                          border: isCover ? '2px solid #1162f2' : '1px solid var(--bg-border)',
-                          background: 'var(--bg-elevated)',
-                          overflow: 'hidden',
+                          padding: '6px 8px',
                           display: 'flex',
                           flexDirection: 'column',
+                          gap: 5,
+                          background: 'var(--bg-surface)',
+                          borderTop: '1px solid var(--bg-border)',
                         }}
                       >
-                        <div style={{ aspectRatio: '1/1', overflow: 'hidden', background: '#000', position: 'relative' }}>
-                          <img
-                            src={imageUrl}
-                            alt={img.alt_text || 'Product image'}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                            onError={(e) => {
-                              const target = e.currentTarget
-                              if (!target.src.includes('placeholder')) {
-                                target.src = `https://placehold.co/400x400/1e293b/white?text=Preview+Image`
-                              }
+                        {!isCover && (
+                          <button
+                            type="button"
+                            onClick={() => setCoverMutation.mutate(img.id)}
+                            disabled={setCoverMutation.isPending}
+                            style={{
+                              fontSize: '0.68rem',
+                              fontWeight: 700,
+                              padding: '3px 5px',
+                              width: '100%',
+                              textAlign: 'center',
+                              borderRadius: 5,
+                              background: 'var(--brand-purple-soft, rgba(40, 116, 240, 0.08))',
+                              border: '1px solid var(--brand-purple, #2874F0)',
+                              color: 'var(--brand-purple, #2874F0)',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: 3,
                             }}
-                          />
-                          {isCover && (
-                            <span
-                              style={{
-                                position: 'absolute',
-                                top: 6,
-                                left: 6,
-                                background: '#1162f2',
-                                color: '#fff',
-                                padding: '2px 7px',
-                                borderRadius: 4,
-                                fontSize: '0.68rem',
-                                fontWeight: 700,
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 4,
-                                boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
-                              }}
-                            >
-                              <Star size={10} fill="#fff" /> Main Cover
-                            </span>
-                          )}
-                        </div>
+                            title="Set as Main Storefront Thumbnail"
+                          >
+                            <Star size={10} /> Make Cover
+                          </button>
+                        )}
 
-                        <div style={{ padding: '8px', display: 'flex', flexDirection: 'column', gap: 6, background: 'var(--bg-surface)' }}>
-                          {!isCover && (
-                            <button
-                              type="button"
-                              onClick={() => setCoverMutation.mutate(img.id)}
-                              disabled={setCoverMutation.isPending}
-                              className="btn-ghost"
-                              style={{
-                                fontSize: '0.72rem',
-                                padding: '4px 6px',
-                                width: '100%',
-                                textAlign: 'center',
-                                border: '1px solid var(--bg-border)',
-                                color: 'var(--text-secondary)',
-                              }}
-                            >
-                              Set as Cover
-                            </button>
-                          )}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          {/* ✂️ Crop Button for ANY gallery image */}
+                          <button
+                            type="button"
+                            onClick={() => handleOpenCropForExisting(img)}
+                            style={{
+                              flex: 1,
+                              background: 'var(--bg-surface)',
+                              border: '1px solid var(--bg-border)',
+                              color: 'var(--text-primary)',
+                              borderRadius: 5,
+                              fontSize: '0.68rem',
+                              fontWeight: 600,
+                              padding: '3px 0',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: 3,
+                              cursor: 'pointer',
+                            }}
+                            title="Crop & Adjust image"
+                          >
+                            <Crop size={10} /> Crop
+                          </button>
 
+                          {/* Delete Button */}
                           <button
                             type="button"
                             onClick={() => {
@@ -866,39 +1215,64 @@ export default function AdminProductEdit() {
                             }}
                             disabled={deleteImageMutation.isPending}
                             style={{
-                              background: 'none',
-                              border: 'none',
-                              color: '#ef4444',
-                              fontSize: '0.72rem',
-                              cursor: 'pointer',
+                              background: 'rgba(239, 68, 68, 0.08)',
+                              border: '1px solid rgba(239, 68, 68, 0.2)',
+                              color: 'var(--error, #FF6161)',
+                              borderRadius: 5,
+                              width: 24,
+                              height: 24,
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              gap: 4,
-                              padding: '3px 0',
+                              cursor: 'pointer',
                             }}
+                            title="Delete Image"
                           >
-                            <Trash2 size={12} /> Delete
+                            <Trash2 size={11} />
                           </button>
                         </div>
                       </div>
-                    )
-                  })}
-                </div>
+                    </div>
+                  )
+                })}
               </div>
             )}
 
-            {/* Newly Selected Images Queued for Upload */}
+            {/* ── Newly Selected Images Queued for Upload ── */}
             {newImageFiles.length > 0 && (
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 10 }}>
-                  New Images to be Uploaded on Save:
+              <div
+                style={{
+                  marginBottom: 16,
+                  background: 'var(--brand-purple-soft, rgba(40, 116, 240, 0.04))',
+                  border: '1px dashed var(--brand-purple, #2874F0)',
+                  borderRadius: 10,
+                  padding: 12,
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div
+                      style={{
+                        width: 7,
+                        height: 7,
+                        borderRadius: '50%',
+                        background: 'var(--brand-purple, #2874F0)',
+                      }}
+                    />
+                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      Ready to Upload on Save ({newImageFiles.length})
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '0.68rem', color: 'var(--brand-purple, #2874F0)', fontWeight: 600 }}>
+                    ⚡ You can crop/adjust these before saving
+                  </span>
                 </div>
+
                 <div
                   style={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
-                    gap: 12,
+                    gap: 10,
                   }}
                 >
                   {newImageFiles.map((item, idx) => (
@@ -906,48 +1280,78 @@ export default function AdminProductEdit() {
                       key={idx}
                       style={{
                         position: 'relative',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px dashed #1162f2',
-                        background: 'var(--bg-elevated)',
+                        borderRadius: 8,
+                        border: '1px dashed var(--brand-purple, #2874F0)',
+                        background: 'var(--bg-surface)',
                         overflow: 'hidden',
+                        display: 'flex',
+                        flexDirection: 'column',
                       }}
                     >
-                      <img
-                        src={item.preview}
-                        alt={`New ${idx + 1}`}
-                        style={{ width: '100%', aspectRatio: '1/1', objectFit: 'cover', display: 'block' }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeNewImage(idx)}
-                        style={{
-                          position: 'absolute',
-                          top: 4,
-                          right: 4,
-                          background: 'rgba(0,0,0,0.65)',
-                          color: '#fff',
-                          border: 'none',
-                          borderRadius: '50%',
-                          width: 22,
-                          height: 22,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <X size={12} />
-                      </button>
+                      <div style={{ position: 'relative', aspectRatio: '1/1', background: 'var(--bg-elevated)' }}>
+                        <img
+                          src={item.preview}
+                          alt={`New ${idx + 1}`}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                        />
+
+                        {/* Remove Button */}
+                        <button
+                          type="button"
+                          onClick={() => removeNewImage(idx)}
+                          style={{
+                            position: 'absolute',
+                            top: 4,
+                            right: 4,
+                            background: 'rgba(0,0,0,0.65)',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '50%',
+                            width: 20,
+                            height: 20,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                          }}
+                          title="Remove from queue"
+                        >
+                          <X size={11} />
+                        </button>
+                      </div>
+
+                      {/* Action to Crop Pending File Before Save */}
                       <div
                         style={{
-                          fontSize: '0.68rem',
-                          color: '#1162f2',
-                          textAlign: 'center',
-                          padding: '3px 0',
-                          fontWeight: 600,
+                          padding: '4px 6px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          background: 'var(--bg-surface)',
+                          borderTop: '1px solid var(--bg-border)',
                         }}
                       >
-                        Pending Upload
+                        <button
+                          type="button"
+                          onClick={() => handleOpenCropForNew(item, idx)}
+                          style={{
+                            flex: 1,
+                            background: 'var(--brand-purple-soft, rgba(40, 116, 240, 0.08))',
+                            border: '1px solid var(--brand-purple, #2874F0)',
+                            color: 'var(--brand-purple, #2874F0)',
+                            borderRadius: 4,
+                            fontSize: '0.66rem',
+                            fontWeight: 700,
+                            padding: '3px 0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 3,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <Crop size={10} /> Crop Pre-Save
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -955,18 +1359,30 @@ export default function AdminProductEdit() {
               </div>
             )}
 
-            {/* Multi-Image File Input Dropzone */}
+            {/* ── Drag & Dropzone for Multi-Image ── */}
             <div
-              style={{
-                border: '2px dashed var(--bg-border)',
-                borderRadius: 'var(--radius-lg)',
-                padding: '24px 16px',
-                textAlign: 'center',
-                background: 'var(--bg-elevated)',
-                cursor: 'pointer',
-                transition: 'border-color 0.2s',
+              onDragOver={(e) => {
+                e.preventDefault()
+                setIsDropZoneActive(true)
+              }}
+              onDragLeave={() => setIsDropZoneActive(false)}
+              onDrop={(e) => {
+                e.preventDefault()
+                setIsDropZoneActive(false)
+                handleNewImagesSelect(e.dataTransfer.files)
               }}
               onClick={() => document.getElementById('edit-multi-image-input')?.click()}
+              style={{
+                border: isDropZoneActive ? '2px dashed var(--brand-purple, #2874F0)' : '2px dashed var(--bg-border)',
+                borderRadius: 10,
+                padding: '24px 16px',
+                textAlign: 'center',
+                background: isDropZoneActive
+                  ? 'var(--brand-purple-soft, rgba(40, 116, 240, 0.08))'
+                  : 'var(--bg-surface)',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
             >
               <input
                 id="edit-multi-image-input"
@@ -976,27 +1392,380 @@ export default function AdminProductEdit() {
                 onChange={(e) => handleNewImagesSelect(e.target.files)}
                 style={{ display: 'none' }}
               />
+
               <div
                 style={{
-                  width: 44,
-                  height: 44,
+                  width: 42,
+                  height: 42,
                   borderRadius: '50%',
-                  background: 'rgba(17,98,242,0.1)',
-                  color: '#1162f2',
+                  background: 'var(--brand-purple-soft, rgba(40, 116, 240, 0.08))',
+                  color: 'var(--brand-purple, #2874F0)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  margin: '0 auto 10px auto',
+                  margin: '0 auto 8px auto',
                 }}
               >
-                <ImageIcon size={22} />
+                <Upload size={18} />
               </div>
-              <div style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: 4 }}>
-                Click to add more product images (Multi-Select)
+
+              <div style={{ fontWeight: 700, fontSize: '0.86rem', marginBottom: 3, color: 'var(--text-primary)' }}>
+                {isDropZoneActive ? 'Release to select images!' : 'Click or Drag & Drop showcase photos here'}
               </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                Supports PNG, JPG, WEBP • Automatically optimized into multiple WebP resolutions
+
+              <p style={{ fontSize: '0.74rem', color: 'var(--text-muted)', margin: '0 0 8px 0' }}>
+                Multi-selection supported • Automatically compressed to high-speed WebP formats
+              </p>
+
+              {/* Format pills */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, flexWrap: 'wrap' }}>
+                {['PNG', 'JPG', 'WEBP', 'AVIF'].map((fmt) => (
+                  <span
+                    key={fmt}
+                    style={{
+                      fontSize: '0.64rem',
+                      fontWeight: 700,
+                      background: 'var(--bg-elevated)',
+                      border: '1px solid var(--bg-border)',
+                      color: 'var(--text-secondary)',
+                      padding: '2px 6px',
+                      borderRadius: 4,
+                    }}
+                  >
+                    {fmt}
+                  </span>
+                ))}
+                <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)', marginLeft: 4 }}>
+                  Up to 15MB each
+                </span>
               </div>
+            </div>
+          </div>
+
+          {/* Card: High-Conversion Product Showcase Video (Auto-Slide 2nd Slot) */}
+          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--bg-border)', borderRadius: 'var(--radius-lg)', padding: 24, position: 'relative', overflow: 'hidden' }}>
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                right: 0,
+                width: '180px',
+                height: '180px',
+                background: 'radial-gradient(circle, rgba(17, 98, 242, 0.08) 0%, transparent 70%)',
+                pointerEvents: 'none',
+              }}
+            />
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: 10,
+                    background: 'linear-gradient(135deg, #1162F2 0%, #7C3AED 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#FFFFFF',
+                    boxShadow: '0 4px 12px rgba(17, 98, 242, 0.25)',
+                  }}
+                >
+                  <Video size={20} />
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <h3 style={{ fontSize: '1.05rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+                      High-Conversion Gallery Video
+                    </h3>
+                    <span
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(17, 98, 242, 0.15) 100%)',
+                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                        color: '#10B981',
+                        fontSize: '0.7rem',
+                        fontWeight: 800,
+                        padding: '2px 8px',
+                        borderRadius: 6,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                      }}
+                    >
+                      🚀 2nd Slide Auto-Play
+                    </span>
+                  </div>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', margin: '3px 0 0' }}>
+                    Buyer will see cover photo first, then after 2.5s it automatically slides to 2nd position and plays video unmuted!
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {/* Browse Media Storage Button (Videos Only) */}
+                <button
+                  type="button"
+                  onClick={() => setVideoMediaModalOpen(true)}
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(16,185,129,0.14) 0%, rgba(17,98,242,0.14) 100%)',
+                    border: '1px solid rgba(16,185,129,0.35)',
+                    color: '#10B981',
+                    borderRadius: 9,
+                    padding: '7px 13px',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    boxShadow: '0 2px 8px rgba(16,185,129,0.15)',
+                  }}
+                >
+                  <Layers size={14} /> Browse Media Storage (0 KB Reuse)
+                </button>
+
+                {form.video_url && (
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, video_url: '' }))}
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.1)',
+                      border: '1px solid rgba(239, 68, 68, 0.25)',
+                      color: '#EF4444',
+                      borderRadius: 8,
+                      padding: '5px 10px',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}
+                  >
+                    <X size={13} /> Remove Video
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* Input Mode Selector: Upload File vs Paste URL */}
+              <div style={{ display: 'flex', gap: 6, background: 'var(--bg-elevated)', padding: 4, borderRadius: 8, width: 'fit-content' }}>
+                <button
+                  type="button"
+                  onClick={() => setVideoInputMode('upload')}
+                  style={{
+                    background: videoInputMode === 'upload' ? '#1162F2' : 'transparent',
+                    color: videoInputMode === 'upload' ? '#fff' : 'var(--text-secondary)',
+                    border: 'none',
+                    borderRadius: 6,
+                    padding: '6px 14px',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <Upload size={13} /> Upload Video File
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVideoInputMode('url')}
+                  style={{
+                    background: videoInputMode === 'url' ? '#1162F2' : 'transparent',
+                    color: videoInputMode === 'url' ? '#fff' : 'var(--text-secondary)',
+                    border: 'none',
+                    borderRadius: 6,
+                    padding: '6px 14px',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <LinkIcon size={13} /> Paste Video URL
+                </button>
+              </div>
+
+              {videoInputMode === 'upload' ? (
+                <div>
+                  <input
+                    id="edit-video-upload-input"
+                    type="file"
+                    accept="video/mp4,video/webm,video/quicktime,video/x-matroska,video/*"
+                    onChange={(e) => handleVideoFileSelect(e.target.files)}
+                    style={{ display: 'none' }}
+                  />
+
+                  {videoUploading ? (
+                    <div
+                      style={{
+                        border: '2px solid rgba(17, 98, 242, 0.4)',
+                        borderRadius: 10,
+                        padding: '24px 20px',
+                        background: 'rgba(17, 98, 242, 0.04)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 12,
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <Loader2 size={16} className="animate-spin" color="#1162F2" />
+                          {videoStatusText}
+                        </span>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#1162F2' }}>
+                          {videoCompressProgress}%
+                        </span>
+                      </div>
+
+                      <div style={{ width: '100%', height: '8px', background: 'var(--bg-elevated)', borderRadius: 4, overflow: 'hidden' }}>
+                        <div
+                          style={{
+                            height: '100%',
+                            width: `${videoCompressProgress}%`,
+                            background: 'linear-gradient(90deg, #1162F2 0%, #10B981 100%)',
+                            borderRadius: 4,
+                            transition: 'width 0.25s ease',
+                          }}
+                        />
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        Optimizing resolution and bitrate to prevent buffering for all mobile & 4G visitors...
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => document.getElementById('edit-video-upload-input')?.click()}
+                      style={{
+                        border: '2px dashed var(--bg-border)',
+                        borderRadius: 10,
+                        padding: '24px 16px',
+                        textAlign: 'center',
+                        background: 'var(--bg-elevated)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = '#1162F2'
+                        e.currentTarget.style.background = 'rgba(17, 98, 242, 0.03)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--bg-border)'
+                        e.currentTarget.style.background = 'var(--bg-elevated)'
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 44,
+                          height: 44,
+                          borderRadius: '50%',
+                          background: 'rgba(17,98,242,0.1)',
+                          color: '#1162F2',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          margin: '0 auto 10px',
+                        }}
+                      >
+                        <Film size={22} />
+                      </div>
+                      <div style={{ fontWeight: 700, fontSize: '0.875rem', marginBottom: 3, color: 'var(--text-primary)' }}>
+                        Click or Drag & Drop Showcase Video here
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        Supports MP4, WebM, MOV, MKV • Auto-compresses camera raw files into web-ready streams with 0-buffering byte-range streaming (Max 150MB)
+                      </div>
+                    </div>
+                  )}
+
+                  {videoStats && (
+                    <div
+                      style={{
+                        marginTop: 10,
+                        padding: '10px 14px',
+                        background: 'rgba(16, 185, 129, 0.1)',
+                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                        borderRadius: 8,
+                        fontSize: '0.76rem',
+                        color: '#10B981',
+                        fontWeight: 600,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 4,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Sparkles size={15} />
+                        <span>
+                          <strong>Dual Adaptive Streams Active (0-Buffering):</strong> Master 720p HD ({videoStats.optimizedMB}MB)
+                          {videoStats.liteKB ? ` • 480p Fast Lite (${videoStats.liteKB}KB)` : ''}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', paddingLeft: 21 }}>
+                        Smart Quality Controller: Visitors on WiFi/4G get crystal clear 720p HD. Visitors on slow 2G/3G or mobile data saver get the fast stream with zero stalling.
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 700, marginBottom: 6, color: 'var(--text-secondary)' }}>
+                    Video URL (Direct MP4, WebM, CDN, Cloudflare R2, or Stream Link)
+                  </label>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <input
+                      type="url"
+                      className="input-field"
+                      placeholder="e.g. https://your-cdn.com/product-promo.mp4 or YouTube / Vimeo link"
+                      value={form.video_url}
+                      onChange={(e) => setForm((f) => ({ ...f, video_url: e.target.value }))}
+                    />
+                  </div>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: 5, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>💡 Direct .mp4 links guarantee instantaneous clean autoplay without player ads or borders!</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Video Live Preview Player */}
+              {form.video_url?.trim() && (
+                <div
+                  style={{
+                    borderRadius: 10,
+                    overflow: 'hidden',
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--bg-border)',
+                    padding: '12px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#10B981', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <CheckCircle size={14} /> Live Video Player Preview
+                    </span>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                      Position: Slot 2 (Cover Image → Video)
+                    </span>
+                  </div>
+
+                  <div style={{ position: 'relative', borderRadius: 8, overflow: 'hidden', maxHeight: '320px', background: 'var(--bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <video
+                      src={form.video_url}
+                      controls
+                      playsInline
+                      muted
+                      style={{ width: '100%', maxHeight: '300px', objectFit: 'contain' }}
+                      onError={() => {}}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -1428,6 +2197,123 @@ export default function AdminProductEdit() {
         productSlug={form.slug}
         onClose={() => setUploadToastOpen(false)}
       />
+
+      {/* ── Zero-Storage Media Library & Existing Assets Modal (Images) ── */}
+      <MediaLibraryModal
+        isOpen={mediaModalOpen}
+        onClose={() => setMediaModalOpen(false)}
+        onSelectAsset={handleSelectFromLibrary}
+        onSelectMultiple={handleSelectMultipleFromLibrary}
+        alreadyAttachedKeys={existingImages.map((f) => f.r2_key).filter(Boolean) as string[]}
+      />
+
+      {/* ── Zero-Storage Media Library Modal (Videos Only) ── */}
+      <MediaLibraryModal
+        isOpen={videoMediaModalOpen}
+        onClose={() => setVideoMediaModalOpen(false)}
+        mediaType="video"
+        title="Video Media Storage (0 KB Reuse)"
+        onSelectAsset={handleSelectVideoFromLibrary}
+      />
+
+      {/* ── Studio-Grade Cover & Gallery Image Crop & Adjust Modal ── */}
+      <ImageCropModal
+        isOpen={cropModalOpen}
+        onClose={() => {
+          setCropModalOpen(false)
+          setCropTarget(null)
+          setCropImageSrc('')
+        }}
+        imageSrc={cropImageSrc}
+        imageName={cropTarget?.name || 'product-image.webp'}
+        initialAspectRatio={cropTarget?.isCover ? 1 : null}
+        isCover={Boolean(cropTarget?.isCover)}
+        title={cropTarget?.isCover ? 'Main Cover Crop & Adjust Studio' : 'Gallery Image Crop & Adjust Studio'}
+        onApplyCrop={handleApplyCrop}
+      />
+
+      {/* ── Fullscreen Lightbox Image Inspection Modal ── */}
+      {previewModalOpen && (
+        <div
+          onClick={() => setPreviewModalOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999999,
+            background: 'rgba(0, 0, 0, 0.65)',
+            backdropFilter: 'blur(6px)',
+            WebkitBackdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 20,
+            cursor: 'zoom-out',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'relative',
+              maxWidth: '90vw',
+              maxHeight: '88vh',
+              borderRadius: 'var(--radius-lg, 14px)',
+              overflow: 'hidden',
+              boxShadow: 'var(--shadow-lg, 0 20px 50px rgba(0,0,0,0.3))',
+              border: '1px solid var(--bg-border)',
+              background: 'var(--bg-surface)',
+              display: 'flex',
+              flexDirection: 'column',
+              cursor: 'default',
+            }}
+          >
+            <div
+              style={{
+                padding: '10px 16px',
+                background: 'var(--bg-elevated)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                borderBottom: '1px solid var(--bg-border)',
+              }}
+            >
+              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                {previewImageTitle}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPreviewModalOpen(false)}
+                style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--bg-border)',
+                  borderRadius: 6,
+                  color: 'var(--text-secondary)',
+                  width: 28,
+                  height: 28,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                <X size={15} />
+              </button>
+            </div>
+            <div style={{ padding: 12, background: 'var(--bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <img
+                src={previewImageSrc}
+                alt={previewImageTitle}
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: 'calc(88vh - 80px)',
+                  objectFit: 'contain',
+                  display: 'block',
+                  borderRadius: 6,
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

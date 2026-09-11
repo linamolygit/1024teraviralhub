@@ -178,6 +178,38 @@ export class CashfreeClient {
     }
   }
 
+  // Test Cashfree credentials by making a lightweight API call
+  async testConnection(): Promise<{ success: boolean; message: string }> {
+    if (!this.config.appId || !this.config.secretKey) {
+      return { success: false, message: 'App ID and Secret Key are required.' }
+    }
+
+    try {
+      const response = await fetch(`${this.config.apiUrl}/orders?limit=1`, {
+        method: 'GET',
+        headers: this.headers,
+      })
+
+      if (response.status === 401 || response.status === 403) {
+        return { success: false, message: 'Authentication failed. Please check your Cashfree App ID and Secret Key.' }
+      }
+
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({})) as any
+        const msg = errJson?.message || `Cashfree error (HTTP ${response.status})`
+        return { success: false, message: msg }
+      }
+
+      const isSandbox = this.config.apiUrl.includes('sandbox')
+      return {
+        success: true,
+        message: `Successfully connected to Cashfree PG! (${isSandbox ? 'Sandbox Mode' : 'Production Mode'})`,
+      }
+    } catch (err: any) {
+      return { success: false, message: `Connection error: ${err.message}` }
+    }
+  }
+
   // Verify Cashfree webhook signature
   // Cashfree uses HMAC-SHA256: timestamp + rawBody
   async verifyWebhookSignature(

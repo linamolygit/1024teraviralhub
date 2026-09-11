@@ -1,7 +1,10 @@
 // src/client/components/about/WhyChooseUsAboutSection.tsx — Value Proposition Grid
 import { Zap, ShieldCheck, FileCheck, RefreshCw } from 'lucide-react'
+import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
 
 export default function WhyChooseUsAboutSection() {
+  const { name } = usePaymentGatewayInfo()
+
   const principles = [
     {
       icon: <Zap size={22} color="#111827" />,
@@ -16,7 +19,7 @@ export default function WhyChooseUsAboutSection() {
     {
       icon: <ShieldCheck size={22} color="var(--success)" />,
       title: 'Secure Payment Flow',
-      desc: 'Bank-grade 256-bit encryption powered by verified Cashfree payment gateway with instant UPI options.',
+      desc: `Bank-grade 256-bit encryption powered by verified ${name} payment gateway with instant UPI options.`,
     },
     {
       icon: <RefreshCw size={22} color="#3B82F6" />,

@@ -31,7 +31,16 @@ export default function AboutPage() {
             description: siteTagline || 'A digital platform focused on providing accessible digital products and creative resources.',
             publisher: {
               '@type': 'Organization',
-              name: siteName,
+              name: 'Rishav Media',
+              alternateName: siteName,
+              address: {
+                '@type': 'PostalAddress',
+                streetAddress: 'Flat No. 25, Rishav Media Office, Block Road, Ghorasahan',
+                addressLocality: 'Motihari, Purbi Champaran',
+                addressRegion: 'Bihar',
+                postalCode: '845303',
+                addressCountry: 'IN',
+              },
             },
           }),
         }}

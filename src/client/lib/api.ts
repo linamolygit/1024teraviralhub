@@ -68,15 +68,25 @@ export const api = {
       customer_name?: string
       customer_email?: string
       customer_phone?: string
+      preferred_gateway?: 'cashfree' | 'razorpay'
       utm_source?: string
       utm_medium?: string
       utm_campaign?: string
       referrer_url?: string
     }) => req<{
       success: boolean
+      gateway?: 'cashfree' | 'razorpay' | string
       order_number: string
-      payment_session_id: string
+      payment_session_id?: string
       amount: number
+      currency?: string
+      razorpay_key_id?: string
+      razorpay_order_id?: string
+      razorpay_payment_link_id?: string | null
+      payment_url?: string | null
+      customer_name?: string
+      customer_email?: string
+      customer_phone?: string
       upi_intent?: {
         phonepe?: string
         gpay?: string
@@ -129,6 +139,25 @@ export const api = {
       support_email?: string
       site_tagline?: string
       currency_symbol?: string
+      site_theme?: string
+      show_seed_reviews?: boolean
+      active_payment_gateway?: 'cashfree' | 'razorpay' | 'auto' | 'offline' | string
+      cashfree_mode?: 'sandbox' | 'production'
+      razorpay_mode?: 'test' | 'live'
+      razorpay_key_id?: string
+      // Google Services & Monetization
+      gsc_enabled?: boolean
+      gsc_verification_tag?: string
+      ga4_enabled?: boolean
+      ga4_measurement_id?: string
+      ga4_ecommerce_tracking?: boolean
+      adsense_enabled?: boolean
+      adsense_publisher_id?: string
+      adsense_auto_ads?: boolean
+      adsense_head_code?: string
+      adx_enabled?: boolean
+      adx_network_code?: string
+      adx_head_code?: string
     }>('/settings/public'),
   },
 
@@ -159,11 +188,12 @@ export const api = {
 
   download: {
     verify: (token: string) => req<DownloadPageData>(`/download/${token}`),
-    getPurchases: (params?: { tokens?: string; email?: string; order?: string }) => {
+    getPurchases: (params?: { tokens?: string; email?: string; order?: string; orders?: string }) => {
       const q = new URLSearchParams()
       if (params?.tokens) q.set('tokens', params.tokens)
       if (params?.email) q.set('email', params.email)
       if (params?.order) q.set('order', params.order)
+      if (params?.orders) q.set('orders', params.orders)
       const qs = q.toString()
       return req<{
         active: PurchasedDownloadItem[]
@@ -253,12 +283,57 @@ export const adminApi = {
       if (variants?.medium) form.append('medium', variants.medium, 'medium.webp')
       if (variants?.large) form.append('large', variants.large, 'large.webp')
       if (variants?.blurDataUrl) form.append('blur_data_url', variants.blurDataUrl)
-      return adminReq<{ success: boolean; id: number; url: string }>(`/admin/products/${id}/upload-image`, token, {
+      return adminReq<{ success: boolean; id: number; url: string; deduplicated?: boolean; bytes_saved?: number; message?: string }>(`/admin/products/${id}/upload-image`, token, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` } as HeadersInit,
         body: form,
       })
     },
+    checkDedup: (token: string, hashes: string[]) =>
+      adminReq<{ success: boolean; matches: Record<string, any> }>('/admin/products/check-dedup', token, {
+        method: 'POST',
+        body: JSON.stringify({ hashes }),
+      }),
+    getMediaLibrary: (token: string, params?: { q?: string; limit?: number; offset?: number; type?: 'image' | 'video' | 'all' }) => {
+      const sp = new URLSearchParams()
+      if (params?.q) sp.set('q', params.q)
+      if (params?.limit) sp.set('limit', params.limit.toString())
+      if (params?.offset) sp.set('offset', params.offset.toString())
+      if (params?.type && params.type !== 'all') sp.set('type', params.type)
+      const qs = sp.toString() ? `?${sp.toString()}` : ''
+      return adminReq<{
+        success: boolean
+        assets: Array<{
+          id: number
+          content_hash: string
+          r2_key: string
+          url: string
+          thumb_url: string
+          original_filename: string
+          file_size: number
+          mime_type: string
+          reference_count: number
+          created_at: string
+        }>
+        total: number
+      }>(`/admin/products/media-library${qs}`, token)
+    },
+    attachExistingImage: (
+      token: string,
+      productId: number,
+      data: { r2_key: string; content_hash?: string; alt_text?: string; is_thumbnail?: boolean }
+    ) =>
+      adminReq<{
+        success: boolean
+        id: number
+        key: string
+        url: string
+        already_attached?: boolean
+        message?: string
+      }>(`/admin/products/${productId}/attach-existing-image`, token, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
     attachVariants: (token: string, imageId: number, variants: { thumb?: Blob; medium?: Blob; large?: Blob }) => {
       const form = new FormData()
       if (variants.thumb) form.append('thumb', variants.thumb, 'thumb.webp')
@@ -271,13 +346,35 @@ export const adminApi = {
       })
     },
     deleteImage: (token: string, productId: number, imageId: number) =>
-      adminReq<{ success: boolean }>(`/admin/products/${productId}/images/${imageId}`, token, { method: 'DELETE' }),
+      adminReq<{ success: boolean; r2_retained?: boolean }>(`/admin/products/${productId}/images/${imageId}`, token, { method: 'DELETE' }),
     setThumbnail: (token: string, productId: number, imageId: number) =>
       adminReq<{ success: boolean }>(`/admin/products/${productId}/images/${imageId}/thumbnail`, token, { method: 'PUT' }),
     uploadFile: (token: string, id: number, file: File) => {
       const form = new FormData()
       form.append('file', file)
-      return adminReq<{ success: boolean; id: number }>(`/admin/products/${id}/upload-file`, token, {
+      return adminReq<{ success: boolean; id: number; deduplicated?: boolean; bytes_saved?: number; message?: string }>(`/admin/products/${id}/upload-file`, token, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` } as HeadersInit,
+        body: form,
+      })
+    },
+    uploadVideo: (token: string, file: File, liteFile?: File) => {
+      const form = new FormData()
+      form.append('file', file)
+      if (liteFile) {
+        form.append('lite_file', liteFile)
+      }
+      return adminReq<{
+        success: boolean
+        url: string
+        lite_url?: string
+        key: string
+        lite_key?: string
+        file_size: number
+        lite_size?: number
+        deduplicated?: boolean
+        message?: string
+      }>('/admin/products/upload-video', token, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` } as HeadersInit,
         body: form,
@@ -345,7 +442,7 @@ export const adminApi = {
   },
 
   analytics: {
-    get: (token: string) => adminReq<AnalyticsData>('/admin/analytics', token),
+    get: (token: string, period?: string) => adminReq<AnalyticsData>(`/admin/analytics${period ? `?period=${period}` : ''}`, token),
   },
 
   settings: {
@@ -353,6 +450,18 @@ export const adminApi = {
     update: (token: string, data: Record<string, unknown>) =>
       adminReq<{ success: boolean }>('/admin/settings', token, {
         method: 'PUT', body: JSON.stringify(data),
+      }),
+  },
+
+  paymentGateways: {
+    get: (token: string) => adminReq<PaymentGatewaysConfig>('/admin/settings/payment-gateways', token),
+    update: (token: string, data: PaymentGatewaysConfigUpdate) =>
+      adminReq<{ success: boolean; message: string }>('/admin/settings/payment-gateways', token, {
+        method: 'POST', body: JSON.stringify(data),
+      }),
+    test: (token: string, gateway: 'cashfree' | 'razorpay', config?: Record<string, string>) =>
+      adminReq<{ success: boolean; message: string; details?: unknown }>('/admin/settings/payment-gateways/test', token, {
+        method: 'POST', body: JSON.stringify({ gateway, config }),
       }),
   },
 
@@ -507,6 +616,173 @@ export const adminApi = {
         }),
     },
   },
+
+  gateways: {
+    stats: (token: string) =>
+      adminReq<{
+        total_partners: number
+        active_partners: number
+        total_orders: number
+        paid_orders: number
+        total_revenue: number
+        global_enabled: boolean
+        stealth_mode_active: boolean
+      }>('/admin/gateways/stats', token),
+    toggleGlobal: (token: string, enabled: boolean) =>
+      adminReq<{ success: boolean; enabled: boolean }>('/admin/gateways/toggle-global', token, {
+        method: 'POST', body: JSON.stringify({ enabled }),
+      }),
+    partners: {
+      list: (token: string) =>
+        adminReq<{ partners: ExternalPartner[] }>('/admin/gateways/partners', token),
+      create: (token: string, data: { site_name: string; site_url: string; webhook_url?: string; notes?: string }) =>
+        adminReq<{ success: boolean; partner: ExternalPartner }>('/admin/gateways/partners', token, {
+          method: 'POST', body: JSON.stringify(data),
+        }),
+      update: (token: string, id: number, data: Partial<ExternalPartner>) =>
+        adminReq<{ success: boolean; partner: ExternalPartner }>(`/admin/gateways/partners/${id}`, token, {
+          method: 'PUT', body: JSON.stringify(data),
+        }),
+      regenerateKey: (token: string, id: number) =>
+        adminReq<{ success: boolean; api_key: string }>(`/admin/gateways/partners/${id}/regenerate-key`, token, {
+          method: 'POST',
+        }),
+      delete: (token: string, id: number) =>
+        adminReq<{ success: boolean }>(`/admin/gateways/partners/${id}`, token, {
+          method: 'DELETE',
+        }),
+    },
+    transactions: (token: string, params?: { status?: string; partner_id?: string; limit?: number }) => {
+      const q = new URLSearchParams()
+      if (params?.status) q.set('status', params.status)
+      if (params?.partner_id) q.set('partner_id', params.partner_id)
+      if (params?.limit) q.set('limit', params.limit.toString())
+      return adminReq<{ transactions: ExternalTransaction[] }>(`/admin/gateways/transactions?${q}`, token)
+    },
+  },
+
+  media: {
+    list: (token: string, params?: { q?: string; filter?: string; type?: string; sort?: string; limit?: number; offset?: number }) => {
+      const sp = new URLSearchParams()
+      if (params?.q) sp.set('q', params.q)
+      if (params?.filter) sp.set('filter', params.filter)
+      if (params?.type) sp.set('type', params.type)
+      if (params?.sort) sp.set('sort', params.sort)
+      if (params?.limit) sp.set('limit', params.limit.toString())
+      if (params?.offset) sp.set('offset', params.offset.toString())
+      const qs = sp.toString() ? `?${sp.toString()}` : ''
+      return adminReq<AdminMediaListResponse>(`/admin/media${qs}`, token)
+    },
+    upload: (token: string, file: File, variants?: { thumb?: Blob; medium?: Blob; large?: Blob }) => {
+      const form = new FormData()
+      form.append('file', file)
+      if (variants?.thumb) form.append('thumb', variants.thumb, 'thumb.webp')
+      if (variants?.medium) form.append('medium', variants.medium, 'medium.webp')
+      if (variants?.large) form.append('large', variants.large, 'large.webp')
+      return adminReq<AdminMediaUploadResponse>('/admin/media/upload', token, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` } as HeadersInit,
+        body: form,
+      })
+    },
+    delete: (token: string, id: number, force = false) => {
+      const qs = force ? '?force=true' : ''
+      return adminReq<{ success: boolean; deleted_key?: string; message?: string }>(`/admin/media/${id}${qs}`, token, {
+        method: 'DELETE',
+      })
+    },
+    syncSizes: (token: string) =>
+      adminReq<{ success: boolean; updated_count: number; duplicates_merged?: number; bytes_saved?: number; message: string }>('/admin/media/sync-sizes', token, {
+        method: 'POST',
+      }),
+  },
+}
+
+export interface AdminMediaAsset {
+  id: number
+  content_hash: string
+  r2_key: string
+  original_filename: string
+  file_size: number
+  mime_type: string
+  reference_count: number
+  created_at: string
+  updated_at?: string
+  url: string
+  thumb_url: string
+  medium_url: string
+  large_url: string
+  is_video?: boolean
+  products_linked: Array<{
+    id: number
+    title: string
+    slug: string
+    is_thumbnail: boolean
+    link_type?: string
+  }>
+  live_reference_count: number
+}
+
+export interface AdminMediaMetrics {
+  total_assets: number
+  total_size_bytes: number
+  storage_saved_bytes: number
+  total_references: number
+  total_images?: number
+  total_videos?: number
+  duplicates_prevented?: number
+}
+
+export interface AdminMediaListResponse {
+  success: boolean
+  assets: AdminMediaAsset[]
+  total: number
+  metrics: AdminMediaMetrics
+}
+
+export interface AdminMediaUploadResponse {
+  success: boolean
+  deduplicated: boolean
+  asset: AdminMediaAsset
+  bytes_saved: number
+  message: string
+}
+
+export interface ExternalPartner {
+  id: number
+  partner_id: string
+  site_name: string
+  site_url: string
+  api_key: string
+  webhook_url?: string
+  status: 'active' | 'paused'
+  total_orders: number
+  paid_orders: number
+  total_revenue: number
+  notes?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ExternalTransaction {
+  id: number
+  order_number: string
+  origin_site: string
+  item_id: string
+  item_name?: string
+  chat_session_id?: string
+  amount: number
+  currency: string
+  status: 'PENDING' | 'PAID' | 'FAILED'
+  customer_name?: string
+  customer_email?: string
+  customer_phone?: string
+  phonepe_deep_link?: string
+  return_url?: string
+  webhook_url?: string
+  webhook_delivered?: number
+  webhook_response?: string
+  created_at: string
 }
 
 export interface Coupon {
@@ -572,6 +848,7 @@ export interface Product {
   usage_instructions?: string | null
   button_text?: string | null
   google_drive_link?: string | null
+  video_url?: string | null
   meta_title?: string | null
   meta_description?: string | null
   download_limit: number
@@ -705,6 +982,8 @@ export interface DownloadFile {
 export interface PurchasedDownloadItem {
   token: string
   order_number: string
+  customer_name?: string
+  amount?: number
   product: {
     id: number
     title: string
@@ -727,6 +1006,8 @@ export interface OrderLookupResult {
   order_number: string
   status: string
   amount: number
+  original_price?: number
+  sale_price?: number
   product: string
   created_at: string
   download_token: string | null
@@ -756,6 +1037,32 @@ export interface AnalyticsData {
   top_products: Array<{ title: string; slug: string; total_sales: number; total_revenue: number }>
   daily_revenue: Array<{ day: string; revenue: number; orders: number }>
   recent_orders: Order[]
+  period?: string
+  live_visitors?: number
+  traffic?: {
+    total_visitors: number
+    total_pageviews: number
+    new_visitors: number
+    returning_visitors: number
+    new_visitor_pct: number
+    avg_dwell_seconds: number
+    dwell_time_formatted: string
+    total_clicks: number
+    buy_now_clicks: number
+    buy_now_ctr: number
+  }
+  funnel?: Array<{
+    stage: string
+    count: number
+    pctOfTotal: number
+    dropoffPct: number
+  }>
+  traffic_sources?: Array<{
+    source: string
+    total_events: number
+    unique_visitors: number
+    percentage: number
+  }>
 }
 
 export interface DownloadLog {
@@ -882,3 +1189,61 @@ export interface ActiveAdsResponse {
     product_page_back_button_ad: boolean
   }
 }
+
+export interface PaymentGatewaysConfig {
+  active_payment_gateway: 'cashfree' | 'razorpay' | 'both' | 'offline' | string
+  default_dual_gateway?: 'cashfree' | 'razorpay' | string
+  cashfree: {
+    enabled: boolean
+    mode: 'sandbox' | 'production' | string
+    app_id: string
+    secret_key?: string
+    masked_secret_key: string
+    has_secret_key: boolean
+    webhook_secret: string
+    api_url: string
+    webhook_url: string
+  }
+  razorpay: {
+    enabled: boolean
+    mode: 'test' | 'live' | string
+    key_id: string
+    key_secret?: string
+    masked_key_secret: string
+    has_key_secret: boolean
+    webhook_secret: string
+    webhook_url: string
+  }
+  upi: {
+    upi_direct_launch: boolean
+    preferred_upi_app: string
+    guest_checkout_mode: string
+  }
+  site_url: string
+}
+
+export interface PaymentGatewaysConfigUpdate {
+  active_payment_gateway?: string
+  default_dual_gateway?: string
+  cashfree?: {
+    enabled?: boolean
+    mode?: string
+    app_id?: string
+    secret_key?: string
+    webhook_secret?: string
+    api_url?: string
+  }
+  razorpay?: {
+    enabled?: boolean
+    mode?: string
+    key_id?: string
+    key_secret?: string
+    webhook_secret?: string
+  }
+  upi?: {
+    upi_direct_launch?: boolean
+    preferred_upi_app?: string
+    guest_checkout_mode?: string
+  }
+}
+

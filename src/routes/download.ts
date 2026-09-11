@@ -15,20 +15,52 @@ const app = new Hono<{ Bindings: Env }>()
 app.get('/purchases/access', async (c) => {
   const tokenParam = c.req.query('tokens')
   const emailParam = c.req.query('email')?.toLowerCase().trim()
-  const orderParam = c.req.query('order')?.trim()
+  const orderParam = c.req.query('order')?.trim() || c.req.query('orders')?.trim()
 
   let tokensToQuery: string[] = []
   if (tokenParam) {
     tokensToQuery = tokenParam.split(',').map((t) => t.trim()).filter(Boolean)
   }
 
+  const orderNumsToQuery: string[] = []
   if (orderParam) {
+    for (const num of orderParam.split(',').map((o) => o.trim()).filter(Boolean)) {
+      if (!orderNumsToQuery.includes(num)) orderNumsToQuery.push(num)
+    }
+  }
+
+  // Auto-detect saved purchases from browser cookie if query params are minimal
+  const cookieHeader = c.req.header('cookie') || ''
+  if (cookieHeader) {
+    const cookieMatch = cookieHeader.match(/tvh_customer_orders=([^;]+)/) || cookieHeader.match(/tvh_orders=([^;]+)/)
+    if (cookieMatch) {
+      try {
+        const decoded = decodeURIComponent(cookieMatch[1])
+        const parsed = JSON.parse(decoded)
+        if (Array.isArray(parsed)) {
+          for (const item of parsed) {
+            if (item?.token && typeof item.token === 'string' && !tokensToQuery.includes(item.token.trim())) {
+              tokensToQuery.push(item.token.trim())
+            }
+            if (item?.orderNumber && typeof item.orderNumber === 'string' && !orderNumsToQuery.includes(item.orderNumber.trim())) {
+              orderNumsToQuery.push(item.orderNumber.trim())
+            }
+          }
+        }
+      } catch {
+        // Ignore cookie parsing errors
+      }
+    }
+  }
+
+  // Resolve tokens from order numbers
+  for (const ordNum of orderNumsToQuery) {
     const orderTokens = await c.env.DB.prepare(
       `SELECT dt.token FROM download_tokens dt
        JOIN orders o ON dt.order_id = o.id
        WHERE o.order_number = ? AND dt.is_revoked = 0`
-    ).bind(orderParam).all()
-    for (const r of orderTokens.results as { token: string }[]) {
+    ).bind(ordNum).all()
+    for (const r of (orderTokens.results as { token: string }[] || [])) {
       if (!tokensToQuery.includes(r.token)) tokensToQuery.push(r.token)
     }
   }
@@ -40,7 +72,7 @@ app.get('/purchases/access', async (c) => {
        WHERE LOWER(o.customer_email) = ? AND dt.is_revoked = 0
        ORDER BY dt.created_at DESC LIMIT 20`
     ).bind(emailParam).all()
-    for (const r of emailTokens.results as { token: string }[]) {
+    for (const r of (emailTokens.results as { token: string }[] || [])) {
       if (!tokensToQuery.includes(r.token)) tokensToQuery.push(r.token)
     }
   }
@@ -59,7 +91,7 @@ app.get('/purchases/access', async (c) => {
   for (const tok of tokensToQuery) {
     const tokenRecord = await c.env.DB.prepare(
       `SELECT dt.*, o.order_number, o.created_at as order_date, o.amount, o.customer_name,
-              p.id as product_id, p.title as product_title, p.slug as product_slug, p.file_count, p.file_type
+              p.id as product_id, p.title as product_title, p.slug as product_slug, p.file_count, p.file_type, p.google_drive_link
        FROM download_tokens dt
        JOIN orders o ON dt.order_id = o.id
        JOIN products p ON dt.product_id = p.id
@@ -82,6 +114,9 @@ app.get('/purchases/access', async (c) => {
     const item = {
       token: tokenRecord.token,
       order_number: tokenRecord.order_number,
+      customer_name: tokenRecord.customer_name,
+      amount: tokenRecord.amount,
+      google_drive_link: tokenRecord.google_drive_link || null,
       product: {
         id: tokenRecord.product_id,
         title: tokenRecord.product_title,

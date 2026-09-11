@@ -27,8 +27,17 @@ export default function ContactPage() {
             description: `Contact ${siteName} for questions, product assistance, purchase support and general inquiries.`,
             mainEntity: {
               '@type': 'Organization',
-              name: siteName,
+              name: 'Rishav Media',
+              alternateName: siteName,
               email: supportEmail,
+              address: {
+                '@type': 'PostalAddress',
+                streetAddress: 'Flat No. 25, Rishav Media Office, Block Road, Ghorasahan',
+                addressLocality: 'Motihari, Purbi Champaran',
+                addressRegion: 'Bihar',
+                postalCode: '845303',
+                addressCountry: 'IN',
+              },
             },
           }),
         }}

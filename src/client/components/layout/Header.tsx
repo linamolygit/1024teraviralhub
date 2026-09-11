@@ -8,11 +8,11 @@ import {
 } from 'lucide-react'
 import { useSiteConfig } from '../../lib/site-config'
 import { useWishlistStore } from '../../lib/wishlist-store'
+import { useSavedOrders } from '../../lib/orderSession'
 
 const navLinks = [
   { to: '/', label: 'Home', end: true },
   { to: '/products', label: 'Explore' },
-  { to: '/categories', label: 'Categories' },
   { to: '/products?sort=popular', label: 'Popular' },
   { to: '/blog', label: 'Blog' },
 ]
@@ -26,14 +26,12 @@ export default function Header() {
   const location = useLocation()
   const { items: wishlistItems } = useWishlistStore()
   const wishlistCount = wishlistItems.length
+  const { count: ordersCount } = useSavedOrders()
 
   // Accurately determine active navigation link based on path and query parameters
   const isLinkActive = (l: (typeof navLinks)[number]) => {
     if (l.to === '/') {
       return location.pathname === '/'
-    }
-    if (l.label === 'Categories') {
-      return location.pathname === '/categories' || location.pathname.startsWith('/category')
     }
     if (l.label === 'Popular') {
       return location.pathname === '/products' && location.search.includes('sort=popular')
@@ -51,11 +49,6 @@ export default function Header() {
   useEffect(() => {
     setMenuOpen(false)
     setSearchOpen(false)
-    try {
-      window.scrollTo(0, 0)
-    } catch {
-      // fallback
-    }
   }, [location.pathname])
 
   // Prevent body scroll when mobile menu is open
@@ -211,6 +204,52 @@ export default function Header() {
             Browse Products
           </Link>
 
+          {/* Desktop My Orders Button */}
+          <Link
+            to="/my-orders"
+            className="hide-mobile"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              color: ordersCount > 0 ? '#1D4ED8' : '#212121',
+              background: ordersCount > 0 ? 'rgba(37, 99, 235, 0.08)' : '#F1F3F6',
+              border: ordersCount > 0 ? '1px solid rgba(37, 99, 235, 0.25)' : '1px solid #E0E0E0',
+              textDecoration: 'none',
+              fontSize: '0.875rem',
+              fontWeight: 700,
+              padding: '8px 16px',
+              borderRadius: '9999px',
+              position: 'relative',
+              minHeight: 38,
+              transition: 'all 0.15s ease',
+            }}
+            title="Your purchased orders and downloads"
+          >
+            <Package size={17} color={ordersCount > 0 ? '#2563EB' : '#212121'} />
+            <span>My Orders</span>
+            {ordersCount > 0 && (
+              <span
+                style={{
+                  background: '#2563EB',
+                  color: '#FFFFFF',
+                  fontSize: '0.65rem',
+                  fontWeight: 800,
+                  borderRadius: '9999px',
+                  minWidth: '17px',
+                  height: '17px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '0 4px',
+                  boxShadow: '0 1px 3px rgba(37, 99, 235, 0.3)',
+                }}
+              >
+                {ordersCount}
+              </span>
+            )}
+          </Link>
+
           {/* Desktop Wishlist Button (Right side of Browse Products) */}
           <Link
             to="/wishlist"
@@ -315,6 +354,52 @@ export default function Header() {
             )}
           </Link>
 
+          {/* Mobile Quick My Orders Icon Button */}
+          <Link
+            to="/my-orders"
+            className="hide-desktop"
+            style={{
+              background: ordersCount > 0 ? 'rgba(37, 99, 235, 0.08)' : '#F1F3F6',
+              border: ordersCount > 0 ? '1px solid rgba(37, 99, 235, 0.25)' : 'none',
+              color: ordersCount > 0 ? '#2563EB' : '#212121',
+              padding: 8,
+              borderRadius: 8,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: 38,
+              minWidth: 38,
+              textDecoration: 'none',
+              position: 'relative',
+            }}
+            aria-label={`My Orders (${ordersCount})`}
+            title="My Orders"
+          >
+            <Package size={20} color={ordersCount > 0 ? '#2563EB' : '#212121'} />
+            {ordersCount > 0 && (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: 2,
+                  right: 2,
+                  background: '#2563EB',
+                  color: '#FFFFFF',
+                  fontSize: '0.6rem',
+                  fontWeight: 800,
+                  borderRadius: '9999px',
+                  minWidth: '15px',
+                  height: '15px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '0 3px',
+                }}
+              >
+                {ordersCount}
+              </span>
+            )}
+          </Link>
+
           {/* Mobile Hamburger Menu Button */}
           <button
             className="hide-desktop"
@@ -407,7 +492,7 @@ export default function Header() {
             </Link>
 
             <Link
-              to="/downloads"
+              to="/my-orders"
               onClick={() => setMenuOpen(false)}
               style={{
                 display: 'flex',
@@ -416,17 +501,18 @@ export default function Header() {
                 justifyContent: 'center',
                 padding: '12px 6px',
                 borderRadius: '12px',
-                background: '#F9FAFB',
-                border: '1px solid #E5E7EB',
+                background: ordersCount > 0 ? 'rgba(37, 99, 235, 0.08)' : '#F9FAFB',
+                border: ordersCount > 0 ? '1px solid rgba(37, 99, 235, 0.25)' : '1px solid #E5E7EB',
                 textDecoration: 'none',
+                position: 'relative',
               }}
             >
-              <Download size={20} color="#2563EB" />
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#212121', marginTop: 4 }}>
-                Downloads
+              <Package size={20} color="#2563EB" />
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: ordersCount > 0 ? '#1D4ED8' : '#212121', marginTop: 4 }}>
+                My Orders
               </span>
               <span style={{ fontSize: '0.68rem', color: '#6B7280' }}>
-                My Files
+                {ordersCount > 0 ? `${ordersCount} saved` : 'My Files'}
               </span>
             </Link>
 
@@ -510,8 +596,8 @@ export default function Header() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {[
-                { to: '/order-lookup', label: 'Order Lookup & File Recovery', icon: <Package size={18} /> },
-                { to: '/downloads', label: 'My Purchased Downloads', icon: <Download size={18} /> },
+                { to: '/my-orders', label: 'My Orders & Downloads', icon: <Package size={18} /> },
+                { to: '/order-lookup', label: 'Order Lookup & File Recovery', icon: <Search size={18} /> },
                 { to: '/help', label: 'Help Center & How-To', icon: <CircleHelp size={18} /> },
                 { to: '/faq', label: 'Frequently Asked Questions', icon: <CircleHelp size={18} /> },
                 { to: '/contact', label: 'Contact Support (24/7)', icon: <MessageSquare size={18} /> },

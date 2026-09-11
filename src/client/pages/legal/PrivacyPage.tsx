@@ -3,9 +3,11 @@ import { useSiteConfig, BUSINESS_CONFIG } from '../../lib/site-config'
 import { Link } from 'react-router-dom'
 import { useEffect } from 'react'
 import { ShieldCheck, Lock, Eye, Database, UserCheck } from 'lucide-react'
+import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
 
 export default function PrivacyPage() {
   const { siteName, supportEmail } = useSiteConfig()
+  const { name: gatewayName, legalEntity: gatewayLegalEntity, isBoth } = usePaymentGatewayInfo()
 
   useEffect(() => {
     document.title = `Privacy Policy — ${siteName}`
@@ -68,10 +70,10 @@ export default function PrivacyPage() {
 
           <section>
             <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 8 }}>
-              3. Secure Payment Gateway Processing (Cashfree)
+              3. Secure Payment Gateway Processing ({gatewayName})
             </h2>
             <p>
-              Online transactions are securely processed through <strong>Cashfree Payments India Pvt. Ltd.</strong>, an RBI-authorized Payment Aggregator. Cashfree is certified under <strong>PCI-DSS Level 1</strong> standards and employs 256-bit SSL encryption to guarantee end-to-end security of your financial data.
+              Online transactions are securely processed through <strong>{gatewayLegalEntity}</strong>, {isBoth ? 'RBI-authorized Payment Aggregators' : 'an RBI-authorized Payment Aggregator'}. {gatewayName} {isBoth ? 'are certified' : 'is certified'} under <strong>PCI-DSS Level 1</strong> standards and {isBoth ? 'employ' : 'employs'} 256-bit SSL encryption to guarantee end-to-end security of your financial data.
             </p>
           </section>
 
@@ -106,6 +108,7 @@ export default function PrivacyPage() {
             <div style={{ background: 'var(--bg-elevated)', padding: '16px 20px', borderRadius: 10, fontSize: '0.85rem' }}>
               <div><strong>Designation:</strong> {BUSINESS_CONFIG.grievanceOfficer}</div>
               <div><strong>Organization:</strong> {BUSINESS_CONFIG.legalName}</div>
+              <div><strong>Physical Office:</strong> {BUSINESS_CONFIG.registeredOffice}</div>
               <div><strong>Udyam Registration:</strong> {BUSINESS_CONFIG.udyamRegistration}</div>
               <div><strong>Email:</strong> <a href={`mailto:${BUSINESS_CONFIG.grievanceEmail}`} style={{ color: 'inherit' }}>{BUSINESS_CONFIG.grievanceEmail}</a></div>
               <div><strong>Jurisdiction:</strong> {BUSINESS_CONFIG.operatingState}</div>

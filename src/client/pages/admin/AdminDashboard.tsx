@@ -189,7 +189,81 @@ export default function AdminDashboard() {
         </Link>
       </div>
 
-      {/* ── 3. Primary KPI Cards Grid ── */}
+      {/* ── 3. Traffic Overview Quick Card ── */}
+      <div
+        className="glass-card"
+        style={{
+          padding: '16px 20px',
+          borderRadius: 'var(--radius-lg)',
+          border: '1px solid var(--bg-border)',
+          marginBottom: 20,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 12,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          {/* Live Pulse */}
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 7,
+              padding: '5px 13px',
+              background: (data.live_visitors ?? 0) > 0 ? 'rgba(16,185,129,0.12)' : 'var(--bg-surface)',
+              border: `1px solid ${(data.live_visitors ?? 0) > 0 ? 'rgba(16,185,129,0.35)' : 'var(--bg-border)'}`,
+              borderRadius: '20px',
+              fontSize: '0.8125rem',
+              fontWeight: 700,
+              color: (data.live_visitors ?? 0) > 0 ? '#10B981' : 'var(--text-muted)',
+            }}
+          >
+            <span
+              style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                background: (data.live_visitors ?? 0) > 0 ? '#10B981' : '#9CA3AF',
+                boxShadow: (data.live_visitors ?? 0) > 0 ? '0 0 10px #10B981' : 'none',
+              }}
+            />
+            {data.live_visitors ?? 0} Active Shoppers Right Now
+          </div>
+
+          {data.traffic && (
+            <div style={{ display: 'flex', gap: 16, fontSize: '0.8125rem', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
+              <span><strong style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{(data.traffic.total_visitors || 0).toLocaleString()}</strong> visitors</span>
+              <span><strong style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{(data.traffic.buy_now_clicks || 0).toLocaleString()}</strong> Buy clicks</span>
+              <span><strong style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{data.traffic.dwell_time_formatted || '0m 0s'}</strong> avg. time</span>
+            </div>
+          )}
+        </div>
+
+        <Link
+          to="/admin/analytics"
+          style={{
+            fontSize: '0.8125rem',
+            fontWeight: 700,
+            color: 'var(--brand-primary)',
+            textDecoration: 'none',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 5,
+            padding: '7px 14px',
+            border: '1px solid rgba(17,98,242,0.3)',
+            borderRadius: '8px',
+            background: 'rgba(17,98,242,0.06)',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <Activity size={14} />
+          Full Analytics →
+        </Link>
+      </div>
+
+      {/* ── 4. Primary KPI Cards Grid ── */}
       <div
         style={{
           display: 'grid',

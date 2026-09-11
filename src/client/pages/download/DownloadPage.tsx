@@ -1,10 +1,12 @@
 // src/client/pages/download/DownloadPage.tsx — 12-Hour Secure Download
+import { useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { Download, Clock, Shield, FileText, AlertTriangle, CheckCircle } from 'lucide-react'
+import { Download, Clock, Shield, FileText, AlertTriangle, CheckCircle, Headphones, ShieldCheck, Package } from 'lucide-react'
 import { api, type DownloadFile } from '../../lib/api'
 import { formatFileSize, timeRemaining } from '../../lib/utils'
+import { saveOrderSession } from '../../lib/orderSession'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
 
 export default function DownloadPage() {
@@ -17,6 +19,19 @@ export default function DownloadPage() {
     refetchInterval: false,
     retry: 1,
   })
+
+  // Auto-save verified order to browser cookie and localStorage session
+  useEffect(() => {
+    if (data?.valid && token) {
+      saveOrderSession({
+        orderNumber: data.order?.order_number || '',
+        token,
+        productTitle: data.files?.[0]?.product || undefined,
+        amount: data.order?.amount,
+        createdAt: Date.now(),
+      })
+    }
+  }, [data, token])
 
   if (isLoading) return <LoadingSpinner fullPage />
 
@@ -193,6 +208,88 @@ export default function DownloadPage() {
               </a>
             </motion.div>
           ))}
+        </div>
+
+        {/* 🛡️ Direct Resolution & 100% Anti-Dispute Support Card */}
+        <div
+          style={{
+            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(59, 130, 246, 0.05))',
+            border: '1.5px solid rgba(16, 185, 129, 0.35)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '20px 22px',
+            textAlign: 'left',
+            marginBottom: '20px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+            <ShieldCheck size={20} color="#10B981" />
+            <span style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+              100% Direct Resolution & Support Guarantee
+            </span>
+          </div>
+          <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', margin: '0 0 14px', lineHeight: 1.55 }}>
+            Having trouble opening your download link or saving files? <strong>No need to file a dispute with your bank or UPI app</strong> — our direct support team will resolve your issue within 2 minutes or provide an immediate 100% full refund!
+          </p>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <Link
+              to={`/contact?order=${encodeURIComponent(data.order?.order_number || '')}&type=download`}
+              style={{
+                flex: 1,
+                minWidth: '200px',
+                padding: '10px 16px',
+                fontSize: '0.85rem',
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                background: '#111827',
+                color: '#FFFFFF',
+                borderRadius: '8px',
+                textDecoration: 'none',
+              }}
+            >
+              <Headphones size={16} /> Instant Support / Complaint Desk
+            </Link>
+            <Link
+              to="/my-orders"
+              style={{
+                padding: '10px 16px',
+                fontSize: '0.85rem',
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                color: 'var(--brand-purple)',
+                background: 'rgba(124, 58, 237, 0.08)',
+                border: '1px solid rgba(124, 58, 237, 0.25)',
+                borderRadius: '8px',
+                textDecoration: 'none',
+              }}
+            >
+              <Package size={16} /> My Orders
+            </Link>
+            <Link
+              to="/order-lookup"
+              style={{
+                padding: '10px 16px',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                color: 'var(--text-primary)',
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--bg-border)',
+                borderRadius: '8px',
+                textDecoration: 'none',
+              }}
+            >
+              Order Lookup
+            </Link>
+          </div>
         </div>
 
         {/* Security Notice */}

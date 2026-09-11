@@ -92,6 +92,95 @@ app.post('/webhook', async (c) => {
   } | null
 
   if (!order) {
+    // Check if order belongs to external partner (e.g. instatextpro.online)
+    const externalOrder = await c.env.DB.prepare(
+      `SELECT * FROM external_orders WHERE cashfree_order_id = ?`
+    ).bind(cashfreeOrderId).first() as {
+      id: number
+      order_number: string
+      status: string
+      amount: number
+      origin_site: string
+      item_id: string
+      chat_session_id: string
+      webhook_url: string
+    } | null
+
+    if (externalOrder) {
+      if (orderStatus === 'PAID' || paymentData?.payment_status === 'SUCCESS') {
+        await c.env.DB.prepare(
+          `UPDATE external_orders SET status = 'PAID', updated_at = datetime('now') WHERE id = ?`
+        ).bind(externalOrder.id).run()
+
+        // Lookup partner in external_partners
+        const partner = await c.env.DB.prepare(
+          `SELECT * FROM external_partners WHERE site_url = ? OR ? LIKE ('%' || site_url || '%') LIMIT 1`
+        ).bind(externalOrder.origin_site, externalOrder.origin_site).first() as { id: number; api_key: string } | null
+
+        if (partner) {
+          await c.env.DB.prepare(
+            `UPDATE external_partners SET paid_orders = paid_orders + 1, total_revenue = total_revenue + ?, updated_at = datetime('now') WHERE id = ?`
+          ).bind(externalOrder.amount, partner.id).run()
+        }
+
+        // Forward webhook to partner site
+        if (externalOrder.webhook_url) {
+          try {
+            let secretKey = partner?.api_key
+            if (!secretKey) {
+              const partnerKeyRow = await c.env.DB.prepare(
+                `SELECT value FROM website_settings WHERE key = 'external_partner_api_key'`
+              ).first() as { value: string } | null
+              secretKey = partnerKeyRow?.value || ''
+            }
+
+            const notifyPayload = JSON.stringify({
+              event: 'PAYMENT_SUCCESS',
+              status: 'PAID',
+              order_number: externalOrder.order_number,
+              item_id: externalOrder.item_id,
+              chat_session_id: externalOrder.chat_session_id,
+              amount: externalOrder.amount,
+              currency: 'INR',
+              timestamp: new Date().toISOString(),
+            })
+
+            // Generate HMAC-SHA256 signature
+            const enc = new TextEncoder()
+            const cryptoKey = await crypto.subtle.importKey(
+              'raw', enc.encode(secretKey),
+              { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+            )
+            const sigBuf = await crypto.subtle.sign('HMAC', cryptoKey, enc.encode(notifyPayload))
+            const sigHex = Array.from(new Uint8Array(sigBuf)).map(b => b.toString(16).padStart(2, '0')).join('')
+
+            const forwardRes = await fetch(externalOrder.webhook_url, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Gateway-Signature': sigHex,
+              },
+              body: notifyPayload,
+            })
+
+            await c.env.DB.prepare(
+              `UPDATE external_orders SET webhook_delivered = ?, webhook_response = ? WHERE id = ?`
+            ).bind(forwardRes.ok ? 1 : 0, `HTTP ${forwardRes.status}`, externalOrder.id).run()
+          } catch (fwdErr: any) {
+            console.error('[Webhook Forwarder Error]', fwdErr)
+          }
+        }
+      }
+
+      if (orderStatus === 'FAILED' || paymentData?.payment_status === 'FAILED') {
+        await c.env.DB.prepare(
+          `UPDATE external_orders SET status = 'FAILED', updated_at = datetime('now') WHERE id = ?`
+        ).bind(externalOrder.id).run()
+      }
+
+      return c.json({ received: true, note: 'External order processed' })
+    }
+
     return c.json({ received: true, note: 'Order not found in DB' })
   }
 

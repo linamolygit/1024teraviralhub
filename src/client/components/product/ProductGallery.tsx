@@ -1,11 +1,17 @@
-// src/client/components/product/ProductGallery.tsx — Interactive Media Gallery & Lightbox with Progress Slider Bar
-import { useState, useEffect, useCallback } from 'react'
-import { ChevronLeft, ChevronRight, X, Package, Star, Check } from 'lucide-react'
+// src/client/components/product/ProductGallery.tsx — Interactive Media Gallery & Lightbox with Video Autoplay, Smooth Slide & Liquid Glass Navigation
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { ChevronLeft, ChevronRight, X, Package, Star, Check, Volume2, VolumeX, Play } from 'lucide-react'
 import type { ProductImage } from '../../lib/api'
 import OptimizedImage from '../ui/OptimizedImage'
 
+export type GalleryMediaItem =
+  | { type: 'image'; id: number | string; url: string; alt_text?: string | null; originalIndex: number }
+  | { type: 'video'; id: string; url: string; isYouTube: boolean; youTubeEmbedUrl: string | null }
+
 interface Props {
   images: ProductImage[]
+  videoUrl?: string | null
   title: string
   hasDiscount?: boolean
   discountPercent?: number
@@ -15,8 +21,56 @@ interface Props {
   reviewsCount?: number
 }
 
+// Buttery smooth slide transitions with organic spring physics
+const slideVariants = {
+  enter: (direction: number) => ({
+    x: direction > 0 ? '100%' : direction < 0 ? '-100%' : 0,
+    opacity: 0.1,
+    scale: 0.97,
+  }),
+  center: {
+    zIndex: 1,
+    x: 0,
+    opacity: 1,
+    scale: 1,
+    transition: {
+      x: { type: 'spring' as const, stiffness: 320, damping: 32 },
+      opacity: { duration: 0.2 },
+      scale: { duration: 0.2 },
+    },
+  },
+  exit: (direction: number) => ({
+    zIndex: 0,
+    x: direction > 0 ? '-100%' : '100%',
+    opacity: 0.1,
+    scale: 0.97,
+    transition: {
+      x: { type: 'spring' as const, stiffness: 320, damping: 32 },
+      opacity: { duration: 0.2 },
+      scale: { duration: 0.2 },
+    },
+  }),
+}
+
+function getYouTubeEmbedUrl(url: string): string | null {
+  try {
+    const trimmed = url.trim()
+    const parsed = new URL(trimmed.startsWith('http') ? trimmed : `https://${trimmed}`)
+    if (parsed.hostname.includes('youtube.com')) {
+      const v = parsed.searchParams.get('v')
+      if (v) return `https://www.youtube-nocookie.com/embed/${v}?autoplay=1&mute=0&controls=0&loop=1&playlist=${v}&modestbranding=1&rel=0`
+    }
+    if (parsed.hostname === 'youtu.be') {
+      const v = parsed.pathname.replace(/^\//, '')
+      if (v) return `https://www.youtube-nocookie.com/embed/${v}?autoplay=1&mute=0&controls=0&loop=1&playlist=${v}&modestbranding=1&rel=0`
+    }
+  } catch { }
+  return null
+}
+
 export default function ProductGallery({
   images,
+  videoUrl,
   title,
   hasDiscount,
   discountPercent,
@@ -26,30 +80,192 @@ export default function ProductGallery({
   reviewsCount = 0,
 }: Props) {
   const [activeIdx, setActiveIdx] = useState(0)
+  const [direction, setDirection] = useState<number>(0)
   const [lightboxOpen, setLightboxOpen] = useState(false)
+  const [lightboxImageIdx, setLightboxImageIdx] = useState(0)
   const [copiedToast, setCopiedToast] = useState(false)
   const [touchStartX, setTouchStartX] = useState<number | null>(null)
+  const [userInteracted, setUserInteracted] = useState(false)
 
-  const activeImage = images[activeIdx] || images[0]
+  // Video playback & Audio states
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const [isMuted, setIsMuted] = useState(false)
+  const [showUnmutePill, setShowUnmutePill] = useState(false)
+  const [isPlaying, setIsPlaying] = useState(false)
 
-  const nextImage = useCallback(
+  // Unified media gallery sequence:
+  // Slot 0: Cover Image (images[0])
+  // Slot 1: High-conversion Video (if videoUrl is present)
+  // Slot 2..N: Remaining gallery images
+  const mediaItems = useMemo<GalleryMediaItem[]>(() => {
+    const items: GalleryMediaItem[] = []
+    const trimmedVideo = videoUrl?.trim()
+
+    if (!trimmedVideo) {
+      return images.map((img, idx) => ({
+        type: 'image',
+        id: img.id,
+        url: img.url,
+        alt_text: img.alt_text,
+        originalIndex: idx,
+      }))
+    }
+
+    const ytEmbed = getYouTubeEmbedUrl(trimmedVideo)
+    const videoItem: GalleryMediaItem = {
+      type: 'video',
+      id: 'product-showcase-video',
+      url: trimmedVideo,
+      isYouTube: !!ytEmbed,
+      youTubeEmbedUrl: ytEmbed,
+    }
+
+    if (images.length === 0) {
+      items.push(videoItem)
+    } else {
+      // Slot 0: 1st image (Cover)
+      items.push({
+        type: 'image',
+        id: images[0].id,
+        url: images[0].url,
+        alt_text: images[0].alt_text,
+        originalIndex: 0,
+      })
+      // Slot 1: High-conversion video
+      items.push(videoItem)
+      // Slot 2..N: Remaining images
+      for (let i = 1; i < images.length; i++) {
+        items.push({
+          type: 'image',
+          id: images[i].id,
+          url: images[i].url,
+          alt_text: images[i].alt_text,
+          originalIndex: i,
+        })
+      }
+    }
+
+    return items
+  }, [images, videoUrl])
+
+  const videoIdx = mediaItems.findIndex((m) => m.type === 'video')
+  const hasVideo = videoIdx !== -1
+  const isVideoActive = hasVideo && activeIdx === videoIdx
+  const activeItem = mediaItems[activeIdx] || mediaItems[0]
+
+  // Auto-slide from 1st image (Slot 0) to 2nd slot (Video) after 2.5 seconds
+  useEffect(() => {
+    if (!hasVideo || userInteracted || mediaItems.length <= 1) return
+
+    const timer = setTimeout(() => {
+      if (!userInteracted && activeIdx === 0) {
+        setDirection(1)
+        setActiveIdx(videoIdx)
+      }
+    }, 2500)
+
+
+    return () => clearTimeout(timer)
+  }, [hasVideo, userInteracted, activeIdx, videoIdx, mediaItems.length])
+
+  // Mark user interaction to pause any further automatic switching
+  const markUserInteracted = useCallback(() => {
+    if (!userInteracted) setUserInteracted(true)
+  }, [userInteracted])
+
+  // Handle Video Autoplay & Audio Unmute attempt on slide switch
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    if (isVideoActive) {
+      // Attempt unmuted autoplay first
+      video.muted = false
+      const playPromise = video.play()
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            setIsMuted(false)
+            setShowUnmutePill(false)
+            setIsPlaying(true)
+          })
+          .catch(() => {
+            // Modern browser autoplay policy blocked unmuted audio!
+            // Fall back gracefully to muted autoplay & display pulsing "Tap to Unmute" glass pill
+            video.muted = true
+            setIsMuted(true)
+            setShowUnmutePill(true)
+            video.play().then(() => setIsPlaying(true)).catch(() => { })
+          })
+      }
+    } else {
+      video.pause()
+      setIsPlaying(false)
+    }
+  }, [isVideoActive])
+
+  // Toggle Mute / Unmute
+  const handleToggleMute = useCallback((e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    markUserInteracted()
+    const video = videoRef.current
+    if (!video) return
+
+    if (isMuted) {
+      video.muted = false
+      setIsMuted(false)
+      setShowUnmutePill(false)
+      video.play().catch(() => { })
+    } else {
+      video.muted = true
+      setIsMuted(true)
+    }
+  }, [isMuted, markUserInteracted])
+
+  // Tap anywhere on video frame to unmute or play/pause
+  const handleVideoFrameClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    markUserInteracted()
+    const video = videoRef.current
+    if (!video) return
+
+    if (isMuted) {
+      // If muted, first tap immediately activates audio!
+      handleToggleMute(e)
+    } else {
+      // If unmuted, toggle play / pause
+      if (video.paused) {
+        video.play().catch(() => { })
+        setIsPlaying(true)
+      } else {
+        video.pause()
+        setIsPlaying(false)
+      }
+    }
+  }
+
+  const nextMedia = useCallback(
     (e?: React.MouseEvent) => {
       e?.stopPropagation()
-      if (images.length > 1) {
-        setActiveIdx((i) => (i + 1) % images.length)
+      markUserInteracted()
+      if (mediaItems.length > 1) {
+        setDirection(1)
+        setActiveIdx((i) => (i + 1) % mediaItems.length)
       }
     },
-    [images.length]
+    [mediaItems.length, markUserInteracted]
   )
 
-  const prevImage = useCallback(
+  const prevMedia = useCallback(
     (e?: React.MouseEvent) => {
       e?.stopPropagation()
-      if (images.length > 1) {
-        setActiveIdx((i) => (i - 1 + images.length) % images.length)
+      markUserInteracted()
+      if (mediaItems.length > 1) {
+        setDirection(-1)
+        setActiveIdx((i) => (i - 1 + mediaItems.length) % mediaItems.length)
       }
     },
-    [images.length]
+    [mediaItems.length, markUserInteracted]
   )
 
   // Touch Swipe Handling
@@ -61,9 +277,9 @@ export default function ProductGallery({
     if (touchStartX === null) return
     const diff = touchStartX - e.changedTouches[0].clientX
     if (diff > 45) {
-      nextImage()
+      nextMedia()
     } else if (diff < -45) {
-      prevImage()
+      prevMedia()
     }
     setTouchStartX(null)
   }
@@ -78,17 +294,13 @@ export default function ProductGallery({
           url: window.location.href,
         })
         return
-      } catch {
-        // user cancelled or fallback
-      }
+      } catch { }
     }
     try {
       await navigator.clipboard.writeText(window.location.href)
       setCopiedToast(true)
       setTimeout(() => setCopiedToast(false), 2200)
-    } catch {
-      // ignore
-    }
+    } catch { }
   }
 
   // Keyboard navigation
@@ -96,15 +308,19 @@ export default function ProductGallery({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!lightboxOpen) return
       if (e.key === 'Escape') setLightboxOpen(false)
-      if (e.key === 'ArrowRight') nextImage()
-      if (e.key === 'ArrowLeft') prevImage()
+      if (e.key === 'ArrowRight' && images.length > 1) {
+        setLightboxImageIdx((i) => (i + 1) % images.length)
+      }
+      if (e.key === 'ArrowLeft' && images.length > 1) {
+        setLightboxImageIdx((i) => (i - 1 + images.length) % images.length)
+      }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [lightboxOpen, nextImage, prevImage])
+  }, [lightboxOpen, images.length])
 
-  const totalImages = Math.max(images.length, 1)
-  const barWidthPct = 100 / totalImages
+  const totalItems = Math.max(mediaItems.length, 1)
+  const barWidthPct = 100 / totalItems
 
   return (
     <div>
@@ -119,25 +335,172 @@ export default function ProductGallery({
           overflow: 'hidden',
           position: 'relative',
           border: '1px solid var(--bg-border)',
-          cursor: activeImage ? 'zoom-in' : 'default',
+          cursor: activeItem?.type === 'image' ? 'zoom-in' : 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'var(--bg-surface)',
+          background: '#0B0F19',
           boxShadow: 'var(--shadow-sm)',
         }}
-        onClick={() => {
-          if (activeImage) setLightboxOpen(true)
+        onClick={(e) => {
+          if (activeItem?.type === 'image') {
+            setLightboxImageIdx(activeItem.originalIndex ?? 0)
+            setLightboxOpen(true)
+          } else if (activeItem?.type === 'video') {
+            handleVideoFrameClick(e)
+          }
         }}
       >
-        {activeImage ? (
-          <OptimizedImage
-            src={activeImage.url}
-            alt={activeImage.alt_text || `${title} preview`}
-            variant="large"
-            priority={activeIdx === 0}
-            aspectRatio="1/1"
-          />
+        {activeItem ? (
+          <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
+            <AnimatePresence initial={false} custom={direction} mode="popLayout">
+              <motion.div
+                key={activeIdx}
+                custom={direction}
+                variants={slideVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  position: 'relative',
+                }}
+              >
+                {activeItem.type === 'image' ? (
+                  <OptimizedImage
+                    src={activeItem.url}
+                    alt={activeItem.alt_text || `${title} preview`}
+                    variant="large"
+                    priority={activeIdx === 0}
+                    aspectRatio="1/1"
+                    containerStyle={{ width: '100%', height: '100%' }}
+                  />
+                ) : activeItem.isYouTube && activeItem.youTubeEmbedUrl ? (
+                  <iframe
+                    src={activeItem.youTubeEmbedUrl}
+                    title="Product Showcase Video"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    style={{ width: '100%', height: '100%', border: 'none' }}
+                  />
+                ) : (
+                  <div style={{ width: '100%', height: '100%', position: 'relative', background: '#000' }}>
+                    <video
+                      ref={videoRef}
+                      src={activeItem.url}
+                      playsInline
+                      autoPlay
+                      loop
+                      muted={isMuted}
+                      controls={false}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'contain',
+                        display: 'block',
+                      }}
+                    />
+
+                    {/* Corner Mute/Unmute Toggle Button */}
+                    <button
+                      type="button"
+                      onClick={handleToggleMute}
+                      aria-label={isMuted ? 'Unmute Video' : 'Mute Video'}
+                      style={{
+                        position: 'absolute',
+                        top: '14px',
+                        left: '14px',
+                        height: '38px',
+                        borderRadius: '20px',
+                        background: 'rgba(15, 23, 42, 0.78)',
+                        backdropFilter: 'blur(14px)',
+                        WebkitBackdropFilter: 'blur(14px)',
+                        border: '1px solid rgba(255, 255, 255, 0.22)',
+                        color: '#FFFFFF',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '0 12px',
+                        cursor: 'pointer',
+                        zIndex: 20,
+                        boxShadow: '0 4px 14px rgba(0,0,0,0.4)',
+                        fontSize: '0.78rem',
+                        fontWeight: 700,
+                        transition: 'transform 0.15s ease, background 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'scale(1.05)'
+                        e.currentTarget.style.background = 'rgba(15, 23, 42, 0.92)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'scale(1)'
+                        e.currentTarget.style.background = 'rgba(15, 23, 42, 0.78)'
+                      }}
+                    >
+                      {isMuted ? (
+                        <>
+                          <VolumeX size={17} color="#EF4444" />
+                          <span>Muted</span>
+                        </>
+                      ) : (
+                        <>
+                          <Volume2 size={17} color="#10B981" />
+                          <span>Sound On</span>
+                        </>
+                      )}
+                    </button>
+
+                    {/* Pulsing "🔊 Tap to Unmute" Glass Pill Badge */}
+                    {showUnmutePill && isMuted && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{
+                          opacity: [0.95, 1, 0.95],
+                          scale: [1, 1.05, 1],
+                          y: 0,
+                        }}
+                        transition={{
+                          repeat: Infinity,
+                          duration: 1.8,
+                          ease: 'easeInOut',
+                        }}
+                        onClick={handleToggleMute}
+                        style={{
+                          position: 'absolute',
+                          bottom: '20px',
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          background: 'linear-gradient(135deg, rgba(17, 98, 242, 0.92) 0%, rgba(124, 58, 237, 0.92) 100%)',
+                          backdropFilter: 'blur(12px)',
+                          WebkitBackdropFilter: 'blur(12px)',
+                          color: '#FFFFFF',
+                          border: '1.5px solid rgba(255, 255, 255, 0.35)',
+                          boxShadow: '0 8px 24px rgba(17, 98, 242, 0.45)',
+                          borderRadius: '30px',
+                          padding: '8px 18px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          cursor: 'pointer',
+                          zIndex: 25,
+                          fontWeight: 800,
+                          fontSize: '0.82rem',
+                          letterSpacing: '0.02em',
+                        }}
+                      >
+                        <Volume2 size={18} />
+                        <span>Tap to Unmute Audio</span>
+                      </motion.div>
+                    )}
+                  </div>
+                )}
+              </motion.div>
+            </AnimatePresence>
+          </div>
         ) : (
           <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>
             <Package size={56} style={{ margin: '0 auto 12px', opacity: 0.6 }} />
@@ -278,8 +641,8 @@ export default function ProductGallery({
           </div>
         )}
 
-        {/* Floating Bottom-Left Rating Badge (Matching Reference: 4.8 ★ | 6) */}
-        {reviewsCount > 0 && averageRating ? (
+        {/* Floating Bottom-Left Rating Badge */}
+        {reviewsCount > 0 && averageRating && activeItem?.type === 'image' ? (
           <div
             style={{
               position: 'absolute',
@@ -307,69 +670,90 @@ export default function ProductGallery({
           </div>
         ) : null}
 
-        {/* Gallery Navigation Arrows */}
-        {images.length > 1 && (
+        {/* Gallery Navigation Arrows with Pure Transparent Frosted Glass Optics */}
+        {mediaItems.length > 1 && (
           <>
             <button
               type="button"
-              onClick={prevImage}
-              aria-label="Previous image"
+              onClick={prevMedia}
+              aria-label="Previous media"
               style={{
                 position: 'absolute',
-                left: '12px',
+                left: '14px',
                 top: '50%',
                 transform: 'translateY(-50%)',
-                width: '38px',
-                height: '38px',
+                width: '42px',
+                height: '42px',
                 borderRadius: '50%',
-                background: 'rgba(255, 255, 255, 0.9)',
-                backdropFilter: 'blur(4px)',
-                border: '1px solid rgba(0, 0, 0, 0.08)',
-                color: '#111827',
+                background: 'transparent',
+                backgroundColor: 'transparent',
+                backdropFilter: 'blur(16px)',
+                WebkitBackdropFilter: 'blur(16px)',
+                border: 'none',
+                outline: 'none',
+                color: '#FFFFFF',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                boxShadow: '0 2px 10px rgba(0, 0, 0, 0.15)',
-                transition: 'transform 0.15s ease',
-                zIndex: 10,
+                boxShadow: '0 4px 14px -1px rgba(0, 0, 0, 0.35)',
+                transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                zIndex: 15,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-50%) scale(1.1)'
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(-50%) scale(1)'
+                e.currentTarget.style.background = 'transparent'
               }}
             >
-              <ChevronLeft size={22} />
+              <ChevronLeft size={22} strokeWidth={2.5} />
             </button>
             <button
               type="button"
-              onClick={nextImage}
-              aria-label="Next image"
+              onClick={nextMedia}
+              aria-label="Next media"
               style={{
                 position: 'absolute',
-                right: '12px',
+                right: '14px',
                 top: '50%',
                 transform: 'translateY(-50%)',
-                width: '38px',
-                height: '38px',
+                width: '42px',
+                height: '42px',
                 borderRadius: '50%',
-                background: 'rgba(255, 255, 255, 0.9)',
-                backdropFilter: 'blur(4px)',
-                border: '1px solid rgba(0, 0, 0, 0.08)',
-                color: '#111827',
+                background: 'transparent',
+                backgroundColor: 'transparent',
+                backdropFilter: 'blur(16px)',
+                WebkitBackdropFilter: 'blur(16px)',
+                border: 'none',
+                outline: 'none',
+                color: '#FFFFFF',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                boxShadow: '0 2px 10px rgba(0, 0, 0, 0.15)',
-                transition: 'transform 0.15s ease',
-                zIndex: 10,
+                boxShadow: '0 4px 14px -1px rgba(0, 0, 0, 0.35)',
+                transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                zIndex: 15,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-50%) scale(1.1)'
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(-50%) scale(1)'
+                e.currentTarget.style.background = 'transparent'
               }}
             >
-              <ChevronRight size={22} />
+              <ChevronRight size={22} strokeWidth={2.5} />
             </button>
           </>
         )}
       </div>
 
       {/* ── Dynamic Gallery Slider Bar (Requested by User) ── */}
-      {/* Black indicator that slides horizontally as user switches images */}
       <div
         style={{
           width: '100%',
@@ -394,7 +778,7 @@ export default function ProductGallery({
       </div>
 
       {/* ── Thumbnail Strip ── */}
-      {images.length > 1 && (
+      {mediaItems.length > 1 && (
         <div
           style={{
             display: 'flex',
@@ -404,13 +788,79 @@ export default function ProductGallery({
             paddingBottom: '4px',
           }}
         >
-          {images.map((img, idx) => {
+          {mediaItems.map((item, idx) => {
             const isActive = idx === activeIdx
+
+            if (item.type === 'video') {
+              return (
+                <button
+                  key="video-slot-thumbnail"
+                  type="button"
+                  onClick={() => {
+                    markUserInteracted()
+                    setDirection(idx > activeIdx ? 1 : -1)
+                    setActiveIdx(idx)
+                  }}
+                  style={{
+                    width: '68px',
+                    height: '54px',
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    padding: 0,
+                    cursor: 'pointer',
+                    border: `2px solid ${isActive ? '#1162F2' : 'var(--bg-border)'}`,
+                    background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
+                    flexShrink: 0,
+                    transition: 'all 0.15s ease',
+                    position: 'relative',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: isActive ? 1 : 0.75,
+                    boxShadow: isActive ? '0 0 12px rgba(17, 98, 242, 0.4)' : 'none',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #1162F2 0%, #7C3AED 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#fff',
+                      boxShadow: '0 2px 8px rgba(17, 98, 242, 0.6)',
+                      marginBottom: 2,
+                    }}
+                  >
+                    <Play size={11} fill="#fff" style={{ marginLeft: 1 }} />
+                  </div>
+                  <span
+                    style={{
+                      fontSize: '0.58rem',
+                      fontWeight: 800,
+                      letterSpacing: '0.04em',
+                      color: '#93C5FD',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    Video
+                  </span>
+                </button>
+              )
+            }
+
             return (
               <button
-                key={img.id}
+                key={item.id}
                 type="button"
-                onClick={() => setActiveIdx(idx)}
+                onClick={() => {
+                  markUserInteracted()
+                  setDirection(idx > activeIdx ? 1 : -1)
+                  setActiveIdx(idx)
+                }}
                 style={{
                   width: '68px',
                   height: '54px',
@@ -426,8 +876,8 @@ export default function ProductGallery({
                 }}
               >
                 <OptimizedImage
-                  src={img.url}
-                  alt={img.alt_text || `Thumbnail ${idx + 1}`}
+                  src={item.url}
+                  alt={item.alt_text || `Thumbnail ${idx + 1}`}
                   variant="thumbnail"
                   aspectRatio="68/54"
                 />
@@ -437,8 +887,8 @@ export default function ProductGallery({
         </div>
       )}
 
-      {/* ── Fullscreen Lightbox Modal ── */}
-      {lightboxOpen && activeImage && (
+      {/* ── Fullscreen Lightbox Modal (For Photos) ── */}
+      {lightboxOpen && images[lightboxImageIdx] && (
         <div
           style={{
             position: 'fixed',
@@ -481,8 +931,8 @@ export default function ProductGallery({
             onClick={(e) => e.stopPropagation()}
           >
             <img
-              src={activeImage.url}
-              alt={activeImage.alt_text || title}
+              src={images[lightboxImageIdx].url}
+              alt={images[lightboxImageIdx].alt_text || title}
               draggable={false}
               onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
               onDragStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
@@ -511,9 +961,92 @@ export default function ProductGallery({
               }}
             />
           </div>
+
+          {/* Fullscreen Frosted Glass Navigation Arrows */}
+          {images.length > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setLightboxImageIdx((i) => (i - 1 + images.length) % images.length)
+                }}
+                aria-label="Previous fullscreen image"
+                style={{
+                  position: 'absolute',
+                  left: '20px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: '46px',
+                  height: '46px',
+                  borderRadius: '50%',
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  backdropFilter: 'blur(16px)',
+                  WebkitBackdropFilter: 'blur(16px)',
+                  border: '1.5px solid rgba(255, 255, 255, 0.4)',
+                  color: '#FFFFFF',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)',
+                  zIndex: 10,
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-50%) scale(1.08)'
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.35)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-50%) scale(1)'
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'
+                }}
+              >
+                <ChevronLeft size={28} />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setLightboxImageIdx((i) => (i + 1) % images.length)
+                }}
+                aria-label="Next fullscreen image"
+                style={{
+                  position: 'absolute',
+                  right: '20px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: '46px',
+                  height: '46px',
+                  borderRadius: '50%',
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  backdropFilter: 'blur(16px)',
+                  WebkitBackdropFilter: 'blur(16px)',
+                  border: '1.5px solid rgba(255, 255, 255, 0.4)',
+                  color: '#FFFFFF',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)',
+                  zIndex: 10,
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-50%) scale(1.08)'
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.35)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-50%) scale(1)'
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'
+                }}
+              >
+                <ChevronRight size={28} />
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
   )
 }
-

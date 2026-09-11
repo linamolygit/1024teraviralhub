@@ -1,5 +1,5 @@
 // src/client/components/contact/ContactInfoSidebar.tsx — Real Contact Details & Support Channels
-import { Mail, Clock, ShieldCheck, FileQuestion, Building2, UserCheck } from 'lucide-react'
+import { Mail, Clock, ShieldCheck, FileQuestion, Building2, UserCheck, MapPin } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useSiteConfig, BUSINESS_CONFIG } from '../../lib/site-config'
 
@@ -44,10 +44,17 @@ export default function ContactInfoSidebar() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
           <div>
             <span style={{ color: 'var(--text-muted)' }}>Trading / Brand Name:</span>{' '}
             <strong style={{ color: 'var(--text-primary)' }}>{siteName || BUSINESS_CONFIG.brandName}</strong>
+          </div>
+          <div>
+            <span style={{ color: 'var(--text-muted)' }}>Physical Office & Support Address:</span>
+            <div style={{ color: 'var(--text-primary)', fontWeight: 600, marginTop: '3px', lineHeight: 1.5, display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+              <MapPin size={16} color="#EF4444" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <span>{BUSINESS_CONFIG.registeredOffice}</span>
+            </div>
           </div>
           <div>
             <span style={{ color: 'var(--text-muted)' }}>MSME / Udyam Reg.:</span>{' '}
@@ -60,11 +67,11 @@ export default function ContactInfoSidebar() {
             <span>{BUSINESS_CONFIG.registrationType}</span>
           </div>
           <div>
-            <span style={{ color: 'var(--text-muted)' }}>Jurisdiction / State:</span>{' '}
+            <span style={{ color: 'var(--text-muted)' }}>Operating Jurisdiction:</span>{' '}
             <span>{BUSINESS_CONFIG.operatingState}</span>
           </div>
           <div>
-            <span style={{ color: 'var(--text-muted)' }}>Business Hours:</span>{' '}
+            <span style={{ color: 'var(--text-muted)' }}>Office & Support Hours:</span>{' '}
             <span>{BUSINESS_CONFIG.supportHours}</span>
           </div>
         </div>

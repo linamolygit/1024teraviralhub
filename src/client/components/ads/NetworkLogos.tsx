@@ -79,7 +79,35 @@ export function NetworkLogo({ provider, size = 24, className = '', style }: Netw
     )
   }
 
-  // 3. Google AdSense — Official Brand Logo
+  // 3. Google AdX / Google Ad Manager — Official Logo
+  if (norm.includes('adx') || norm.includes('ad manager') || norm.includes('gam')) {
+    return (
+      <img
+        src="/assets/ads/google-adx.webp"
+        alt="Google AdX"
+        width={size}
+        height={size}
+        className={className}
+        style={{
+          width: size,
+          height: size,
+          objectFit: 'contain',
+          borderRadius: 6,
+          background: '#FFFFFF',
+          padding: 2,
+          flexShrink: 0,
+          border: '1px solid rgba(26, 115, 232, 0.3)',
+          ...style,
+        }}
+        onError={(e) => {
+          // Fallback to hosted webp
+          ;(e.currentTarget as HTMLImageElement).src = 'https://adsparc.com/wp-content/uploads/2022/03/google-adx-logo-1-1.webp'
+        }}
+      />
+    )
+  }
+
+  // 4. Google AdSense — Official Brand Logo
   if (norm.includes('adsense') || norm.includes('google')) {
     return (
       <img
