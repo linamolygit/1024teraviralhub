@@ -369,6 +369,12 @@ export default function ProductPage() {
         const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
         const directUpiUrl = orderRes.payment_url || orderRes.upi_link || orderRes.upi_intent?.phonepe || orderRes.upi_intent?.default
 
+        // 🚀 DIRECT PHONE UPI: Instant direct PhonePe / UPI launch without popup on mobile!
+        if (isMobile && directUpiUrl) {
+          window.location.href = directUpiUrl
+          return
+        }
+
         if (!(window as any).Razorpay) {
           const script = document.createElement('script')
           script.src = 'https://checkout.razorpay.com/v1/checkout.js'

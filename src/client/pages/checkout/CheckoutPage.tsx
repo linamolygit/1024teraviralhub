@@ -292,6 +292,13 @@ export default function CheckoutPage() {
         const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
         const directUpiUrl = result.payment_url || result.upi_link || result.upi_intent?.default
 
+        // 🚀 DIRECT PHONE UPI: Directly launch PhonePe / UPI intent on phone!
+        // No Razorpay JS modal or popup dialog!
+        if (isMobile && directUpiUrl) {
+          window.location.href = directUpiUrl
+          return
+        }
+
         if (!(window as any).Razorpay) {
           const script = document.createElement('script')
           script.src = 'https://checkout.razorpay.com/v1/checkout.js'
