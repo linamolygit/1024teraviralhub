@@ -15,7 +15,9 @@ app.get('/public', async (c) => {
     gscEnabled, gscVerificationTag,
     ga4Enabled, ga4MeasurementId, ga4EcommerceTracking,
     adsenseEnabled, adsensePublisherId, adsenseAutoAds, adsenseHeadCode,
-    adxEnabled, adxNetworkCode, adxHeadCode
+    adxEnabled, adxNetworkCode, adxHeadCode,
+    pagePrivacyPolicyEnabled, pageTermsConditionsEnabled, pageRefundPolicyEnabled,
+    pageDisclaimerEnabled, pageCookiePolicyEnabled, pageAboutEnabled, pageContactEnabled
   ] = await Promise.all([
     getSetting<boolean>(c.env.DB, 'upi_direct_launch', true),
     getSetting<string>(c.env.DB, 'preferred_upi_app', 'phonepe'),
@@ -49,6 +51,14 @@ app.get('/public', async (c) => {
     getSetting<boolean>(c.env.DB, 'adx_enabled', false),
     getSetting<string>(c.env.DB, 'adx_network_code', ''),
     getSetting<string>(c.env.DB, 'adx_head_code', ''),
+    // Legal & Information Pages Visibility
+    getSetting<boolean>(c.env.DB, 'page_privacy_policy_enabled', true),
+    getSetting<boolean>(c.env.DB, 'page_terms_conditions_enabled', true),
+    getSetting<boolean>(c.env.DB, 'page_refund_policy_enabled', true),
+    getSetting<boolean>(c.env.DB, 'page_disclaimer_enabled', true),
+    getSetting<boolean>(c.env.DB, 'page_cookie_policy_enabled', true),
+    getSetting<boolean>(c.env.DB, 'page_about_enabled', true),
+    getSetting<boolean>(c.env.DB, 'page_contact_enabled', true),
   ])
 
   return c.json({
@@ -81,6 +91,14 @@ app.get('/public', async (c) => {
     adx_enabled: adxEnabled ?? false,
     adx_network_code: adxNetworkCode ?? '',
     adx_head_code: adxHeadCode ?? '',
+    // Legal & Information Pages Visibility
+    page_privacy_policy_enabled: pagePrivacyPolicyEnabled ?? true,
+    page_terms_conditions_enabled: pageTermsConditionsEnabled ?? true,
+    page_refund_policy_enabled: pageRefundPolicyEnabled ?? true,
+    page_disclaimer_enabled: pageDisclaimerEnabled ?? true,
+    page_cookie_policy_enabled: pageCookiePolicyEnabled ?? true,
+    page_about_enabled: pageAboutEnabled ?? true,
+    page_contact_enabled: pageContactEnabled ?? true,
   })
 })
 

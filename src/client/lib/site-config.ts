@@ -2,6 +2,16 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from './api'
 
+export interface LegalPagesConfig {
+  privacyPolicy: boolean
+  termsConditions: boolean
+  refundPolicy: boolean
+  disclaimer: boolean
+  cookiePolicy: boolean
+  about: boolean
+  contact: boolean
+}
+
 export interface SiteConfig {
   siteName: string
   siteUrl: string
@@ -11,6 +21,7 @@ export interface SiteConfig {
   upiDirectLaunch: boolean
   currencySymbol: string
   siteTheme: 'dark' | 'light'
+  legalPages: LegalPagesConfig
 }
 
 /**
@@ -42,6 +53,15 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
   upiDirectLaunch: true,
   currencySymbol: '₹',
   siteTheme: 'dark',
+  legalPages: {
+    privacyPolicy: true,
+    termsConditions: true,
+    refundPolicy: true,
+    disclaimer: true,
+    cookiePolicy: true,
+    about: true,
+    contact: true,
+  },
 }
 
 export function useSiteConfig(): SiteConfig {
@@ -62,5 +82,19 @@ export function useSiteConfig(): SiteConfig {
     upiDirectLaunch: publicSettings.upi_direct_launch ?? true,
     currencySymbol: publicSettings.currency_symbol || '₹',
     siteTheme: ((publicSettings as any).site_theme as 'dark' | 'light') || 'dark',
+    legalPages: {
+      privacyPolicy: (publicSettings as any).page_privacy_policy_enabled ?? true,
+      termsConditions: (publicSettings as any).page_terms_conditions_enabled ?? true,
+      refundPolicy: (publicSettings as any).page_refund_policy_enabled ?? true,
+      disclaimer: (publicSettings as any).page_disclaimer_enabled ?? true,
+      cookiePolicy: (publicSettings as any).page_cookie_policy_enabled ?? true,
+      about: (publicSettings as any).page_about_enabled ?? true,
+      contact: (publicSettings as any).page_contact_enabled ?? true,
+    },
   }
+}
+
+export function useLegalPages(): LegalPagesConfig {
+  const { legalPages } = useSiteConfig()
+  return legalPages
 }

@@ -189,6 +189,14 @@ export const api = {
       adx_enabled?: boolean
       adx_network_code?: string
       adx_head_code?: string
+      // Legal & Information Pages Visibility
+      page_privacy_policy_enabled?: boolean
+      page_terms_conditions_enabled?: boolean
+      page_refund_policy_enabled?: boolean
+      page_disclaimer_enabled?: boolean
+      page_cookie_policy_enabled?: boolean
+      page_about_enabled?: boolean
+      page_contact_enabled?: boolean
     }>('/settings/public'),
   },
 

@@ -21,7 +21,7 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQ, setSearchQ] = useState('')
-  const { siteName } = useSiteConfig()
+  const { siteName, legalPages } = useSiteConfig()
   const navigate = useNavigate()
   const location = useLocation()
   const { items: wishlistItems } = useWishlistStore()
@@ -600,8 +600,8 @@ export default function Header() {
                 { to: '/order-lookup', label: 'Order Lookup & File Recovery', icon: <Search size={18} /> },
                 { to: '/help', label: 'Help Center & How-To', icon: <CircleHelp size={18} /> },
                 { to: '/faq', label: 'Frequently Asked Questions', icon: <CircleHelp size={18} /> },
-                { to: '/contact', label: 'Contact Support (24/7)', icon: <MessageSquare size={18} /> },
-                { to: '/about', label: 'About 1024 Tera Viral Hub', icon: <Info size={18} /> },
+                ...(legalPages.contact ? [{ to: '/contact', label: 'Contact Support (24/7)', icon: <MessageSquare size={18} /> }] : []),
+                ...(legalPages.about ? [{ to: '/about', label: 'About 1024 Tera Viral Hub', icon: <Info size={18} /> }] : []),
                 { to: '/affiliate', label: 'Affiliate Program (Earn 25%)', icon: <Users size={18} /> },
               ].map((item) => {
                 const active = location.pathname === item.to

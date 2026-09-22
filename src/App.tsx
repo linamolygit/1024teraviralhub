@@ -16,6 +16,7 @@ import ErrorBoundary from './client/components/ErrorBoundary'
 import NonBuyerAdTrigger from './client/components/ads/NonBuyerAdTrigger'
 import { lazyWithRetry } from './client/lib/lazyWithRetry'
 import { initAnalyticsListeners, trackPageView } from './client/lib/analytics-tracker'
+import { useSiteConfig } from './client/lib/site-config'
 
 // Public Pages (lazy loaded with auto-retry)
 const HomePage = lazyWithRetry(() => import('./client/pages/home/HomePage'))
@@ -86,6 +87,12 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+// Legal Route Guard (checks if page is enabled in Admin Settings)
+function LegalRoute({ enabled, element }: { enabled: boolean; element: React.ReactElement }) {
+  if (!enabled) return <NotFoundPage />
+  return element
+}
+
 // Persistent Layouts via <Outlet /> — prevents unmounting/remounting on back navigation
 function PublicLayout() {
   return (
@@ -126,6 +133,7 @@ function ScrollToTop() {
 
 export default function App() {
   const initialize = useAuthStore(s => s.initialize)
+  const { legalPages } = useSiteConfig()
 
   useEffect(() => {
     if (typeof window !== 'undefined' && 'scrollRestoration' in window.history) {
@@ -154,8 +162,8 @@ export default function App() {
               <Route path="/search" element={<SearchPage />} />
               <Route path="/wishlist" element={<WishlistPage />} />
               <Route path="/affiliate" element={<AffiliatePage />} />
-              <Route path="/about" element={<AboutPage />} />
-              <Route path="/contact" element={<ContactPage />} />
+              <Route path="/about" element={<LegalRoute enabled={legalPages.about} element={<AboutPage />} />} />
+              <Route path="/contact" element={<LegalRoute enabled={legalPages.contact} element={<ContactPage />} />} />
               <Route path="/help" element={<HelpPage />} />
               <Route path="/faq" element={<FaqPage />} />
               <Route path="/blog" element={<BlogListPage />} />
@@ -167,13 +175,13 @@ export default function App() {
               <Route path="/my-downloads" element={<MyOrdersPage />} />
 
               {/* ─── Legal Routes ─── */}
-              <Route path="/privacy-policy" element={<PrivacyPage />} />
-              <Route path="/terms-and-conditions" element={<TermsPage />} />
-              <Route path="/refund-policy" element={<RefundPage />} />
+              <Route path="/privacy-policy" element={<LegalRoute enabled={legalPages.privacyPolicy} element={<PrivacyPage />} />} />
+              <Route path="/terms-and-conditions" element={<LegalRoute enabled={legalPages.termsConditions} element={<TermsPage />} />} />
+              <Route path="/refund-policy" element={<LegalRoute enabled={legalPages.refundPolicy} element={<RefundPage />} />} />
               <Route path="/shipping-policy" element={<ShippingPolicyPage />} />
               <Route path="/shipping-and-delivery-policy" element={<ShippingPolicyPage />} />
-              <Route path="/disclaimer" element={<DisclaimerPage />} />
-              <Route path="/cookie-policy" element={<CookiePolicyPage />} />
+              <Route path="/disclaimer" element={<LegalRoute enabled={legalPages.disclaimer} element={<DisclaimerPage />} />} />
+              <Route path="/cookie-policy" element={<LegalRoute enabled={legalPages.cookiePolicy} element={<CookiePolicyPage />} />} />
               <Route path="/pricing-products" element={<PricingProductsPage />} />
               <Route path="/pricing" element={<PricingProductsPage />} />
               <Route path="/pricing-policy" element={<PricingProductsPage />} />

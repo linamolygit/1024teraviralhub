@@ -42,8 +42,23 @@ const companyLinks = [
 ]
 
 export default function Footer() {
-  const { siteName } = useSiteConfig()
+  const { siteName, legalPages } = useSiteConfig()
   const { securedByText, logos } = usePaymentGatewayInfo()
+
+  const activeSupportLinks = supportLinks.filter((l) => {
+    if (l.to === '/contact') return legalPages.contact
+    if (l.to === '/about') return legalPages.about
+    return true
+  })
+
+  const activeCompanyLinks = companyLinks.filter((l) => {
+    if (l.to === '/privacy-policy') return legalPages.privacyPolicy
+    if (l.to === '/terms-and-conditions') return legalPages.termsConditions
+    if (l.to === '/refund-policy') return legalPages.refundPolicy
+    if (l.to === '/disclaimer') return legalPages.disclaimer
+    if (l.to === '/cookie-policy') return legalPages.cookiePolicy
+    return true
+  })
 
   return (
     <footer
@@ -253,7 +268,7 @@ export default function Footer() {
               Support & Info
             </h4>
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {supportLinks.map((l) => (
+              {activeSupportLinks.map((l) => (
                 <li key={l.label}>
                   <Link
                     to={l.to}
@@ -274,7 +289,7 @@ export default function Footer() {
               Legal Policies
             </h4>
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {companyLinks.map((l) => (
+              {activeCompanyLinks.map((l) => (
                 <li key={l.label}>
                   <Link
                     to={l.to}
@@ -386,8 +401,13 @@ export default function Footer() {
           </p>
           <p style={{ color: '#6B7280', fontSize: '0.71875rem', margin: 0, lineHeight: 1.5 }}>
             All commercial contracts, digital fulfillment, and payment gateway transactions are processed under the legal entity name <strong>{BUSINESS_CONFIG.legalName}</strong>.
-            All digital downloads are subject to our verified <Link to="/terms-and-conditions" style={{ color: '#9CA3AF', textDecoration: 'underline' }}>Terms & Conditions</Link>,{' '}
-            <Link to="/refund-policy" style={{ color: '#9CA3AF', textDecoration: 'underline' }}>Refund Policy</Link>, and{' '}
+            All digital downloads are subject to our verified{' '}
+            {legalPages.termsConditions && (
+              <><Link to="/terms-and-conditions" style={{ color: '#9CA3AF', textDecoration: 'underline' }}>Terms & Conditions</Link>,{' '}</>
+            )}
+            {legalPages.refundPolicy && (
+              <><Link to="/refund-policy" style={{ color: '#9CA3AF', textDecoration: 'underline' }}>Refund Policy</Link>, and{' '}</>
+            )}
             <Link to="/shipping-policy" style={{ color: '#9CA3AF', textDecoration: 'underline' }}>Shipping & Digital Delivery Policy</Link>.
           </p>
         </div>
