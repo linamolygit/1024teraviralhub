@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Save, Check, Zap, Smartphone, Shield, Globe, Moon, Sun, Palette,
   CheckCircle2, Sparkles, Key, AlertCircle, Loader2, Bot, Star, Copy, RefreshCw, ExternalLink,
-  Eye, EyeOff, Scale, FileText, ShieldCheck, RotateCcw, Cookie, Info, Phone
+  Eye, EyeOff, Scale, FileText, ShieldCheck, RotateCcw, Cookie, Info, Phone, Award
 } from 'lucide-react'
 import { adminApi } from '../../lib/api'
 import { useAuthStore } from '../../lib/auth-store'
@@ -39,6 +39,7 @@ export default function AdminSettings() {
     gemini_api_key: '',
     gemini_model: 'gemini-flash-latest',
     show_seed_reviews: true,
+    show_msme_badge: true,
     external_payments_enabled: true,
     external_partner_api_key: '',
     external_allowed_origins: '',
@@ -1087,6 +1088,117 @@ export default function AdminSettings() {
                 </div>
               )
             })}
+          </div>
+
+          {/* ── Registered MSME Enterprise Visibility Toggle ── */}
+          <div
+            style={{
+              marginTop: 14,
+              padding: '16px 18px',
+              background: settings.show_msme_badge ? 'rgba(255, 210, 0, 0.06)' : 'rgba(107, 114, 128, 0.05)',
+              border: `1px solid ${settings.show_msme_badge ? 'rgba(255, 210, 0, 0.35)' : 'var(--bg-border)'}`,
+              borderRadius: 'var(--radius-md)',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, minWidth: 0, flex: 1 }}>
+                <div
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 10,
+                    background: settings.show_msme_badge ? 'rgba(255, 210, 0, 0.16)' : 'rgba(107, 114, 128, 0.1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    color: '#FFD200',
+                  }}
+                >
+                  <Award size={22} />
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                    <span style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                      Registered MSME Enterprise Compliance Card
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '0.68rem',
+                        padding: '2px 8px',
+                        borderRadius: 'var(--radius-full)',
+                        background: settings.show_msme_badge ? 'rgba(255, 210, 0, 0.15)' : 'rgba(107, 114, 128, 0.15)',
+                        color: settings.show_msme_badge ? '#FFD200' : 'var(--text-muted)',
+                        border: `1px solid ${settings.show_msme_badge ? 'rgba(255, 210, 0, 0.3)' : 'rgba(107, 114, 128, 0.3)'}`,
+                        fontWeight: 700,
+                      }}
+                    >
+                      {settings.show_msme_badge ? '● Live on Store Footer' : '● Hidden from Footer'}
+                    </span>
+                  </div>
+
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', margin: '0 0 10px 0', lineHeight: 1.45 }}>
+                    Controls the official government compliance badge displayed in the website footer & contact info.
+                  </p>
+
+                  {/* Registered Information Preview Box */}
+                  <div
+                    style={{
+                      padding: '12px 14px',
+                      borderRadius: 8,
+                      background: 'var(--bg-surface)',
+                      border: '1px solid var(--bg-border)',
+                      fontSize: '0.75rem',
+                      lineHeight: 1.55,
+                      color: 'var(--text-secondary)',
+                      fontFamily: 'monospace',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 800, color: '#FFD200', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      <ShieldCheck size={13} /> Registered MSME Enterprise
+                    </div>
+                    <div>
+                      <span style={{ color: 'var(--text-muted)' }}>Legal Entity:</span>{' '}
+                      <strong style={{ color: 'var(--text-primary)' }}>RISHAV MEDIA</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: 'var(--text-muted)' }}>Udyam Reg. No.:</span>{' '}
+                      <strong style={{ color: '#FFD200' }}>UDYAM-BR-11-0107325</strong>
+                    </div>
+                    <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Office:</span> Flat No. 25, Rishav Media Office, Block Road, Ghorasahan, Motihari, Purbi Champaran, Bihar - 845303, India
+                    </div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem', marginTop: 3 }}>
+                      Ministry of Micro, Small & Medium Enterprises, Govt. of India
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Toggle Switch */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+                <span
+                  style={{
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    color: settings.show_msme_badge ? '#FFD200' : 'var(--text-muted)',
+                    minWidth: 50,
+                    textAlign: 'right',
+                  }}
+                >
+                  {settings.show_msme_badge ? 'Visible' : 'Hidden'}
+                </span>
+                <label className="toggle-switch" onClick={e => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={settings.show_msme_badge}
+                    onChange={e => setSettings(s => ({ ...s, show_msme_badge: e.target.checked }))}
+                  />
+                  <span className="toggle-slider" style={{ accentColor: '#FFD200' }} />
+                </label>
+              </div>
+            </div>
           </div>
 
           {/* Educational Callout */}

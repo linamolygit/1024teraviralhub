@@ -21,6 +21,7 @@ export interface SiteConfig {
   upiDirectLaunch: boolean
   currencySymbol: string
   siteTheme: 'dark' | 'light'
+  showMsmeBadge: boolean
   legalPages: LegalPagesConfig
 }
 
@@ -53,6 +54,7 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
   upiDirectLaunch: true,
   currencySymbol: '₹',
   siteTheme: 'dark',
+  showMsmeBadge: true,
   legalPages: {
     privacyPolicy: true,
     termsConditions: true,
@@ -82,6 +84,7 @@ export function useSiteConfig(): SiteConfig {
     upiDirectLaunch: publicSettings.upi_direct_launch ?? true,
     currencySymbol: publicSettings.currency_symbol || '₹',
     siteTheme: ((publicSettings as any).site_theme as 'dark' | 'light') || 'dark',
+    showMsmeBadge: (publicSettings as any).show_msme_badge ?? true,
     legalPages: {
       privacyPolicy: (publicSettings as any).page_privacy_policy_enabled ?? true,
       termsConditions: (publicSettings as any).page_terms_conditions_enabled ?? true,

@@ -9,7 +9,7 @@ app.get('/public', async (c) => {
   const [
     upiDirect, preferredApp, checkoutMode, announcement,
     siteName, siteUrl, supportEmail, siteTagline, currencySymbol, siteTheme,
-    showSeedReviews,
+    showSeedReviews, showMsmeBadge,
     activeGateway, defaultDualGateway, cfMode, rzpMode, rzpKeyId,
     // Google Services & Monetization
     gscEnabled, gscVerificationTag,
@@ -30,6 +30,7 @@ app.get('/public', async (c) => {
     getSetting<string>(c.env.DB, 'currency_symbol', '₹'),
     getSetting<string>(c.env.DB, 'site_theme', 'dark'),
     getSetting<boolean>(c.env.DB, 'show_seed_reviews', true),
+    getSetting<boolean>(c.env.DB, 'show_msme_badge', true),
     getSetting<string>(c.env.DB, 'active_payment_gateway', 'cashfree'),
     getSetting<string>(c.env.DB, 'default_dual_gateway', 'cashfree'),
     getSetting<string>(c.env.DB, 'cashfree_mode', c.env.CASHFREE_API_URL?.includes('sandbox') ? 'sandbox' : 'production'),
@@ -73,6 +74,7 @@ app.get('/public', async (c) => {
     currency_symbol: currencySymbol,
     site_theme: siteTheme ?? 'dark',
     show_seed_reviews: showSeedReviews ?? true,
+    show_msme_badge: showMsmeBadge ?? true,
     active_payment_gateway: activeGateway ?? 'cashfree',
     default_dual_gateway: defaultDualGateway ?? 'cashfree',
     cashfree_mode: cfMode ?? 'sandbox',

@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import { useSiteConfig, BUSINESS_CONFIG } from '../../lib/site-config'
 
 export default function ContactInfoSidebar() {
-  const { siteName, supportEmail } = useSiteConfig()
+  const { siteName, supportEmail, showMsmeBadge } = useSiteConfig()
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -56,12 +56,14 @@ export default function ContactInfoSidebar() {
               <span>{BUSINESS_CONFIG.registeredOffice}</span>
             </div>
           </div>
-          <div>
-            <span style={{ color: 'var(--text-muted)' }}>MSME / Udyam Reg.:</span>{' '}
-            <strong style={{ color: '#D97706', fontFamily: 'monospace', fontSize: '0.85rem' }}>
-              {BUSINESS_CONFIG.udyamRegistration}
-            </strong>
-          </div>
+          {showMsmeBadge && (
+            <div>
+              <span style={{ color: 'var(--text-muted)' }}>MSME / Udyam Reg.:</span>{' '}
+              <strong style={{ color: '#D97706', fontFamily: 'monospace', fontSize: '0.85rem' }}>
+                {BUSINESS_CONFIG.udyamRegistration}
+              </strong>
+            </div>
+          )}
           <div>
             <span style={{ color: 'var(--text-muted)' }}>Category:</span>{' '}
             <span>{BUSINESS_CONFIG.registrationType}</span>

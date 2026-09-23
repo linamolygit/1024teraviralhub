@@ -42,7 +42,7 @@ const companyLinks = [
 ]
 
 export default function Footer() {
-  const { siteName, legalPages } = useSiteConfig()
+  const { siteName, legalPages, showMsmeBadge } = useSiteConfig()
   const { securedByText, logos } = usePaymentGatewayInfo()
 
   const activeSupportLinks = supportLinks.filter((l) => {
@@ -110,38 +110,40 @@ export default function Footer() {
             </p>
 
             {/* Official Registered Enterprise Card (Cashfree / MSME Verification) */}
-            <div
-              style={{
-                padding: '12px 14px',
-                borderRadius: '10px',
-                background: 'rgba(255, 210, 0, 0.08)',
-                border: '1px solid rgba(255, 210, 0, 0.28)',
-                fontSize: '0.78125rem',
-                color: '#E5E7EB',
-                lineHeight: 1.55,
-                marginBottom: '20px',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 800, color: '#FFD200', marginBottom: '4px', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                <ShieldCheck size={14} /> Registered MSME Enterprise
+            {showMsmeBadge && (
+              <div
+                style={{
+                  padding: '12px 14px',
+                  borderRadius: '10px',
+                  background: 'rgba(255, 210, 0, 0.08)',
+                  border: '1px solid rgba(255, 210, 0, 0.28)',
+                  fontSize: '0.78125rem',
+                  color: '#E5E7EB',
+                  lineHeight: 1.55,
+                  marginBottom: '20px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 800, color: '#FFD200', marginBottom: '4px', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  <ShieldCheck size={14} /> Registered MSME Enterprise
+                </div>
+                <div>
+                  <span style={{ color: '#9CA3AF' }}>Legal Entity:</span>{' '}
+                  <strong style={{ color: '#FFFFFF' }}>{BUSINESS_CONFIG.legalName}</strong>
+                </div>
+                <div>
+                  <span style={{ color: '#9CA3AF' }}>Udyam Reg. No.:</span>{' '}
+                  <strong style={{ color: '#FFD200', fontFamily: 'monospace', letterSpacing: '0.02em' }}>
+                    {BUSINESS_CONFIG.udyamRegistration}
+                  </strong>
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#9CA3AF', marginTop: '6px', lineHeight: 1.45 }}>
+                  <span style={{ color: '#D1D5DB' }}>Office:</span> {BUSINESS_CONFIG.registeredOffice}
+                </div>
+                <div style={{ fontSize: '0.7rem', color: '#9CA3AF', marginTop: '4px' }}>
+                  Ministry of Micro, Small & Medium Enterprises, Govt. of India
+                </div>
               </div>
-              <div>
-                <span style={{ color: '#9CA3AF' }}>Legal Entity:</span>{' '}
-                <strong style={{ color: '#FFFFFF' }}>{BUSINESS_CONFIG.legalName}</strong>
-              </div>
-              <div>
-                <span style={{ color: '#9CA3AF' }}>Udyam Reg. No.:</span>{' '}
-                <strong style={{ color: '#FFD200', fontFamily: 'monospace', letterSpacing: '0.02em' }}>
-                  {BUSINESS_CONFIG.udyamRegistration}
-                </strong>
-              </div>
-              <div style={{ fontSize: '0.72rem', color: '#9CA3AF', marginTop: '6px', lineHeight: 1.45 }}>
-                <span style={{ color: '#D1D5DB' }}>Office:</span> {BUSINESS_CONFIG.registeredOffice}
-              </div>
-              <div style={{ fontSize: '0.7rem', color: '#9CA3AF', marginTop: '4px' }}>
-                Ministry of Micro, Small & Medium Enterprises, Govt. of India
-              </div>
-            </div>
+            )}
 
             {/* Social Icons */}
             <div style={{ display: 'flex', gap: '10px' }}>
@@ -395,9 +397,13 @@ export default function Footer() {
         >
           <p style={{ color: '#9CA3AF', fontSize: '0.78125rem', lineHeight: 1.6, margin: '0 0 8px' }}>
             © {new Date().getFullYear()} <strong>{siteName || BUSINESS_CONFIG.brandName}</strong>. All rights reserved.
-            {' • '}
-            Owned, operated and managed by <strong>{BUSINESS_CONFIG.legalName}</strong> (Govt. of India MSME / Udyam Reg. No.:{' '}
-            <strong style={{ color: '#FFD200', fontFamily: 'monospace' }}>{BUSINESS_CONFIG.udyamRegistration}</strong>).
+            {showMsmeBadge && (
+              <>
+                {' • '}
+                Owned, operated and managed by <strong>{BUSINESS_CONFIG.legalName}</strong> (Govt. of India MSME / Udyam Reg. No.:{' '}
+                <strong style={{ color: '#FFD200', fontFamily: 'monospace' }}>{BUSINESS_CONFIG.udyamRegistration}</strong>)
+              </>
+            )}.
           </p>
           <p style={{ color: '#6B7280', fontSize: '0.71875rem', margin: 0, lineHeight: 1.5 }}>
             All commercial contracts, digital fulfillment, and payment gateway transactions are processed under the legal entity name <strong>{BUSINESS_CONFIG.legalName}</strong>.

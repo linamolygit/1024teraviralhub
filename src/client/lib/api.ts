@@ -172,6 +172,7 @@ export const api = {
       currency_symbol?: string
       site_theme?: string
       show_seed_reviews?: boolean
+      show_msme_badge?: boolean
       active_payment_gateway?: 'cashfree' | 'razorpay' | 'auto' | 'offline' | string
       cashfree_mode?: 'sandbox' | 'production'
       razorpay_mode?: 'test' | 'live'
