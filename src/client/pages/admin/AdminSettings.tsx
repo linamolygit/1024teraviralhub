@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Save, Check, Zap, Smartphone, Shield, Globe, Moon, Sun, Palette,
   CheckCircle2, Sparkles, Key, AlertCircle, Loader2, Bot, Star, Copy, RefreshCw, ExternalLink,
-  Eye, EyeOff
+  Eye, EyeOff, Scale, FileText, ShieldCheck, RotateCcw, Cookie, Info, Phone
 } from 'lucide-react'
 import { adminApi } from '../../lib/api'
 import { useAuthStore } from '../../lib/auth-store'
@@ -55,6 +55,14 @@ export default function AdminSettings() {
     adx_enabled: false,
     adx_network_code: '',
     adx_head_code: '',
+    // Legal & Information Pages Visibility
+    page_privacy_policy_enabled: true,
+    page_terms_conditions_enabled: true,
+    page_refund_policy_enabled: true,
+    page_disclaimer_enabled: true,
+    page_cookie_policy_enabled: true,
+    page_about_enabled: true,
+    page_contact_enabled: true,
   })
 
   const [sitemapCopied, setSitemapCopied] = useState(false)
@@ -760,6 +768,347 @@ export default function AdminSettings() {
               <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>Site Description (SEO)</label>
               <textarea className="input-field" rows={2} value={settings.site_description} onChange={e => setSettings(s => ({ ...s, site_description: e.target.value }))} />
             </div>
+          </div>
+        </div>
+
+        {/* ── Legal & Information Pages Visibility Controls ── */}
+        <div
+          style={{
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--bg-border)',
+            borderRadius: 'var(--radius-lg)',
+            padding: 24,
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div
+                style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: 'var(--radius-md)',
+                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(59, 130, 246, 0.18))',
+                  border: '1px solid rgba(16, 185, 129, 0.35)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#10B981',
+                  flexShrink: 0,
+                }}
+              >
+                <Scale size={22} />
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <h3 style={{ fontWeight: 800, fontSize: '1.1rem', margin: 0, color: 'var(--text-primary)' }}>
+                    Legal & Policy Pages Visibility Controls
+                  </h3>
+                  <span
+                    style={{
+                      fontSize: '0.72rem',
+                      padding: '2px 10px',
+                      borderRadius: 'var(--radius-full)',
+                      background: ([
+                        settings.page_privacy_policy_enabled,
+                        settings.page_terms_conditions_enabled,
+                        settings.page_refund_policy_enabled,
+                        settings.page_disclaimer_enabled,
+                        settings.page_cookie_policy_enabled,
+                        settings.page_about_enabled,
+                        settings.page_contact_enabled,
+                      ].filter(Boolean).length) > 0 ? 'rgba(16, 185, 129, 0.14)' : 'rgba(239, 68, 68, 0.14)',
+                      color: ([
+                        settings.page_privacy_policy_enabled,
+                        settings.page_terms_conditions_enabled,
+                        settings.page_refund_policy_enabled,
+                        settings.page_disclaimer_enabled,
+                        settings.page_cookie_policy_enabled,
+                        settings.page_about_enabled,
+                        settings.page_contact_enabled,
+                      ].filter(Boolean).length) > 0 ? '#10B981' : '#EF4444',
+                      border: `1px solid ${([
+                        settings.page_privacy_policy_enabled,
+                        settings.page_terms_conditions_enabled,
+                        settings.page_refund_policy_enabled,
+                        settings.page_disclaimer_enabled,
+                        settings.page_cookie_policy_enabled,
+                        settings.page_about_enabled,
+                        settings.page_contact_enabled,
+                      ].filter(Boolean).length) > 0 ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                      fontWeight: 700,
+                    }}
+                  >
+                    ● {[
+                      settings.page_privacy_policy_enabled,
+                      settings.page_terms_conditions_enabled,
+                      settings.page_refund_policy_enabled,
+                      settings.page_disclaimer_enabled,
+                      settings.page_cookie_policy_enabled,
+                      settings.page_about_enabled,
+                      settings.page_contact_enabled,
+                    ].filter(Boolean).length} of 7 Pages Active
+                  </span>
+                </div>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', margin: '4px 0 0 0' }}>
+                  Manage storefront availability for all compliance and support pages. Disabled pages are hidden from the footer & menus and return a safe 404 page.
+                </p>
+              </div>
+            </div>
+
+            {/* Quick Bulk Action Buttons */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => setSettings(s => ({
+                  ...s,
+                  page_privacy_policy_enabled: true,
+                  page_terms_conditions_enabled: true,
+                  page_refund_policy_enabled: true,
+                  page_disclaimer_enabled: true,
+                  page_cookie_policy_enabled: true,
+                  page_about_enabled: true,
+                  page_contact_enabled: true,
+                }))}
+                className="btn-secondary"
+                style={{
+                  fontSize: '0.75rem',
+                  padding: '6px 12px',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                }}
+              >
+                Enable All
+              </button>
+              <button
+                type="button"
+                onClick={() => setSettings(s => ({
+                  ...s,
+                  page_privacy_policy_enabled: false,
+                  page_terms_conditions_enabled: false,
+                  page_refund_policy_enabled: false,
+                  page_disclaimer_enabled: false,
+                  page_cookie_policy_enabled: false,
+                  page_about_enabled: false,
+                  page_contact_enabled: false,
+                }))}
+                className="btn-secondary"
+                style={{
+                  fontSize: '0.75rem',
+                  padding: '6px 12px',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  color: 'var(--text-muted)',
+                }}
+              >
+                Disable All
+              </button>
+            </div>
+          </div>
+
+          {/* 7 Legal & Information Pages Grid / List */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {[
+              {
+                key: 'page_privacy_policy_enabled' as const,
+                title: 'Privacy Policy',
+                path: '/privacy-policy',
+                description: 'Customer data protection, privacy disclosure, payment information security & analytics policies.',
+                icon: <ShieldCheck size={20} color="#10B981" />,
+                accentColor: '#10B981',
+                bgGlow: 'rgba(16, 185, 129, 0.12)',
+                borderGlow: 'rgba(16, 185, 129, 0.3)',
+              },
+              {
+                key: 'page_terms_conditions_enabled' as const,
+                title: 'Terms & Conditions',
+                path: '/terms-and-conditions',
+                description: 'Digital purchase agreement, user licensing rights, intellectual property rules & storefront usage terms.',
+                icon: <FileText size={20} color="#3B82F6" />,
+                accentColor: '#3B82F6',
+                bgGlow: 'rgba(59, 130, 246, 0.12)',
+                borderGlow: 'rgba(59, 130, 246, 0.3)',
+              },
+              {
+                key: 'page_refund_policy_enabled' as const,
+                title: 'Refund Policy',
+                path: '/refund-policy',
+                description: 'Instant download replacement terms, cancellation eligibility window, and refund processing guidelines.',
+                icon: <RotateCcw size={20} color="#F59E0B" />,
+                accentColor: '#F59E0B',
+                bgGlow: 'rgba(245, 158, 11, 0.12)',
+                borderGlow: 'rgba(245, 158, 11, 0.3)',
+              },
+              {
+                key: 'page_disclaimer_enabled' as const,
+                title: 'Disclaimer',
+                path: '/disclaimer',
+                description: 'Earnings disclaimer, digital assets educational scope, third-party logos & limitation of liability.',
+                icon: <AlertCircle size={20} color="#EC4899" />,
+                accentColor: '#EC4899',
+                bgGlow: 'rgba(236, 72, 153, 0.12)',
+                borderGlow: 'rgba(236, 72, 153, 0.3)',
+              },
+              {
+                key: 'page_cookie_policy_enabled' as const,
+                title: 'Cookie Policy',
+                path: '/cookie-policy',
+                description: 'Session cookies, browser local storage usage, advertising tags & cookie consent preference management.',
+                icon: <Cookie size={20} color="#8B5CF6" />,
+                accentColor: '#8B5CF6',
+                bgGlow: 'rgba(139, 92, 246, 0.12)',
+                borderGlow: 'rgba(139, 92, 246, 0.3)',
+              },
+              {
+                key: 'page_about_enabled' as const,
+                title: 'About Us',
+                path: '/about',
+                description: 'Brand story, MSME registered entity details (Rishav Media), mission, leadership & business transparency.',
+                icon: <Info size={20} color="#06B6D4" />,
+                accentColor: '#06B6D4',
+                bgGlow: 'rgba(6, 182, 212, 0.12)',
+                borderGlow: 'rgba(6, 182, 212, 0.3)',
+              },
+              {
+                key: 'page_contact_enabled' as const,
+                title: 'Contact Us',
+                path: '/contact',
+                description: 'Customer support channels, official helpdesk email, turnaround time SLA & grievance officer details.',
+                icon: <Phone size={20} color="#6366F1" />,
+                accentColor: '#6366F1',
+                bgGlow: 'rgba(99, 102, 241, 0.12)',
+                borderGlow: 'rgba(99, 102, 241, 0.3)',
+              },
+            ].map((item) => {
+              const isEnabled = Boolean((settings as any)[item.key])
+              return (
+                <div
+                  key={item.key}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '14px 18px',
+                    background: isEnabled ? 'var(--bg-elevated)' : 'rgba(107, 114, 128, 0.05)',
+                    border: `1px solid ${isEnabled ? item.borderGlow : 'var(--bg-border)'}`,
+                    borderRadius: 'var(--radius-md)',
+                    transition: 'all 0.2s ease',
+                    gap: 16,
+                  }}
+                >
+                  {/* Left Page Details */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0, flex: 1 }}>
+                    <div
+                      style={{
+                        width: 38,
+                        height: 38,
+                        borderRadius: 10,
+                        background: isEnabled ? item.bgGlow : 'rgba(107, 114, 128, 0.1)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {item.icon}
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 2 }}>
+                        <span style={{ fontWeight: 700, fontSize: '0.925rem', color: 'var(--text-primary)' }}>
+                          {item.title}
+                        </span>
+                        <a
+                          href={item.path}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            fontSize: '0.72rem',
+                            fontFamily: 'monospace',
+                            padding: '2px 8px',
+                            borderRadius: 6,
+                            background: 'var(--bg-surface)',
+                            border: '1px solid var(--bg-border)',
+                            color: isEnabled ? item.accentColor : 'var(--text-muted)',
+                            textDecoration: 'none',
+                            fontWeight: 600,
+                          }}
+                          title="Click to preview page in new tab"
+                        >
+                          <span>{item.path}</span>
+                          <ExternalLink size={10} />
+                        </a>
+                        <span
+                          style={{
+                            fontSize: '0.68rem',
+                            padding: '2px 8px',
+                            borderRadius: 'var(--radius-full)',
+                            background: isEnabled ? 'rgba(16, 185, 129, 0.12)' : 'rgba(107, 114, 128, 0.15)',
+                            color: isEnabled ? '#10B981' : 'var(--text-muted)',
+                            border: `1px solid ${isEnabled ? 'rgba(16, 185, 129, 0.25)' : 'rgba(107, 114, 128, 0.25)'}`,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {isEnabled ? 'Live on Storefront' : 'Hidden (404 Not Found)'}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
+                        {item.description}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Switch Toggle */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+                    <span
+                      style={{
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        color: isEnabled ? item.accentColor : 'var(--text-muted)',
+                        minWidth: 50,
+                        textAlign: 'right',
+                      }}
+                    >
+                      {isEnabled ? 'Active' : 'Off'}
+                    </span>
+                    <label className="toggle-switch" onClick={e => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={isEnabled}
+                        onChange={e => setSettings(s => ({ ...s, [item.key]: e.target.checked }))}
+                      />
+                      <span className="toggle-slider" />
+                    </label>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Educational Callout */}
+          <div
+            style={{
+              marginTop: 14,
+              padding: '12px 16px',
+              borderRadius: 'var(--radius-md)',
+              background: 'rgba(17, 98, 242, 0.06)',
+              border: '1px solid rgba(17, 98, 242, 0.18)',
+              fontSize: '0.78rem',
+              color: 'var(--text-muted)',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 10,
+              lineHeight: 1.5,
+            }}
+          >
+            <span style={{ fontSize: '1rem', marginTop: -1 }}>💡</span>
+            <span>
+              <strong>Storefront Visibility Notice:</strong> Turning any page <strong>OFF</strong> removes it immediately from the main Footer columns, Mobile Navigation drawer, and Checkout footer. Any user attempting to visit that URL directly will see a 404 page. Click <strong>Save Changes</strong> above to persist your updates to the live store.
+            </span>
           </div>
         </div>
 

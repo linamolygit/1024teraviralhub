@@ -32,7 +32,7 @@ export default function CheckoutPage() {
   const { id } = useParams<{ id?: string }>()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const { siteName, supportEmail } = useSiteConfig()
+  const { siteName, supportEmail, legalPages } = useSiteConfig()
 
   const {
     mode: gatewayMode,
@@ -1114,10 +1114,18 @@ export default function CheckoutPage() {
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', flexWrap: 'wrap', marginBottom: '10px' }}>
-          <Link to="/privacy-policy" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Privacy Policy</Link>
-          <Link to="/terms-and-conditions" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Terms & Conditions</Link>
-          <Link to="/refund-policy" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Refund Policy</Link>
-          <Link to="/contact" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Support</Link>
+          {legalPages?.privacyPolicy && (
+            <Link to="/privacy-policy" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Privacy Policy</Link>
+          )}
+          {legalPages?.termsConditions && (
+            <Link to="/terms-and-conditions" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Terms & Conditions</Link>
+          )}
+          {legalPages?.refundPolicy && (
+            <Link to="/refund-policy" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Refund Policy</Link>
+          )}
+          {legalPages?.contact && (
+            <Link to="/contact" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Support</Link>
+          )}
         </div>
         <p>© {new Date().getFullYear()} {siteName}. All rights reserved.</p>
       </footer>
