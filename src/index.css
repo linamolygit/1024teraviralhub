@@ -704,6 +704,21 @@ textarea.input-field { min-height: 80px; resize: vertical; }
   box-shadow: 0 1px 12px rgba(0,0,0,0.06);
 }
 
+/* Mobile Header: Non-sticky (scrolls naturally with page) */
+@media (max-width: 768px) {
+  .header {
+    position: relative !important;
+    top: auto !important;
+  }
+  .header.header-menu-open {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+  }
+}
+
 /* ─── Mobile Nav Utilities ───────────────── */
 @media (max-width: 768px) {
   .hide-mobile { display: none !important; }

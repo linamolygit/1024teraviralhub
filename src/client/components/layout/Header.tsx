@@ -71,7 +71,10 @@ export default function Header() {
   }
 
   return (
-    <header className="header" style={{ position: 'sticky', top: 0, zIndex: 100, background: '#FFFFFF', borderBottom: '1px solid #E0E0E0', boxShadow: '0 1px 4px rgba(0, 0, 0, 0.05)' }}>
+    <header
+      className={`header ${menuOpen ? 'header-menu-open' : ''}`}
+      style={{ zIndex: 100, background: '#FFFFFF', borderBottom: '1px solid #E0E0E0', boxShadow: '0 1px 4px rgba(0, 0, 0, 0.05)' }}
+    >
       <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '64px' }}>
         {/* Left: Brand Logo */}
         <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
