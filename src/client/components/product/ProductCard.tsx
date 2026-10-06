@@ -47,20 +47,6 @@ export default function ProductCard({ product, onBuyNow }: Props) {
         )}
         {hasDiscount && (
           <div style={{
-            position: 'absolute', top: 10, left: 10,
-            background: 'linear-gradient(135deg, #DC2626 0%, #EA580C 100%)',
-            color: 'white',
-            padding: '2px 8px', borderRadius: 6, fontSize: '0.68rem', fontWeight: 800,
-            boxShadow: '0 2px 6px rgba(220, 38, 38, 0.4)',
-            zIndex: 2,
-            display: 'flex', alignItems: 'center', gap: 3,
-            textTransform: 'uppercase', letterSpacing: '0.03em',
-          }}>
-            ⚡ Loot Deal
-          </div>
-        )}
-        {hasDiscount && (
-          <div style={{
             position: 'absolute', bottom: 10, left: 10,
             background: '#008444', color: 'white',
             padding: '3px 8px', borderRadius: 6, fontSize: '0.75rem', fontWeight: 800,

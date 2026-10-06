@@ -107,10 +107,10 @@ export default function RecentPurchasesPopup({
         zIndex: 900,
         maxWidth: '350px',
         width: 'calc(100% - 32px)',
-        background: 'rgba(255, 255, 255, 0.95)',
-        border: '1px solid rgba(229, 231, 235, 0.9)',
+        background: 'var(--bg-surface)',
+        border: '1.5px solid rgba(255, 210, 0, 0.45)',
         borderRadius: '12px',
-        boxShadow: '0 10px 30px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06)',
+        boxShadow: '0 10px 30px rgba(0, 0, 0, 0.45), 0 0 16px rgba(255, 210, 0, 0.12)',
         padding: '12px 14px',
         display: 'flex',
         alignItems: 'center',
@@ -128,7 +128,7 @@ export default function RecentPurchasesPopup({
               height: '44px',
               borderRadius: '8px',
               objectFit: 'cover',
-              border: '1px solid rgba(0, 0, 0, 0.08)',
+              border: '1px solid var(--bg-border)',
             }}
           />
         ) : (
@@ -144,7 +144,7 @@ export default function RecentPurchasesPopup({
               justifyContent: 'center',
               fontWeight: 800,
               fontSize: '0.85rem',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.25)',
             }}
           >
             {initials}
@@ -164,7 +164,7 @@ export default function RecentPurchasesPopup({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            border: '1.5px solid #FFFFFF',
+            border: '1.5px solid var(--bg-surface)',
           }}
         >
           <CheckCircle2 size={11} color="#FFFFFF" strokeWidth={3} />
@@ -186,14 +186,14 @@ export default function RecentPurchasesPopup({
             style={{
               fontWeight: 800,
               fontSize: '0.825rem',
-              color: '#111827',
+              color: 'var(--text-primary)',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
             }}
           >
             {currentItem.name}{' '}
-            <span style={{ fontWeight: 500, color: '#6B7280', fontSize: '0.75rem' }}>
+            <span style={{ fontWeight: 500, color: 'var(--text-muted)', fontSize: '0.75rem' }}>
               ({currentItem.city})
             </span>
           </span>
@@ -201,7 +201,7 @@ export default function RecentPurchasesPopup({
           <span
             style={{
               fontSize: '0.7rem',
-              color: '#9CA3AF',
+              color: 'var(--text-muted)',
               flexShrink: 0,
               fontWeight: 600,
             }}
@@ -213,7 +213,7 @@ export default function RecentPurchasesPopup({
         <div
           style={{
             fontSize: '0.76rem',
-            color: '#047857',
+            color: '#10B981',
             fontWeight: 700,
             lineHeight: 1.25,
             display: 'flex',
@@ -224,17 +224,17 @@ export default function RecentPurchasesPopup({
             textOverflow: 'ellipsis',
           }}
         >
-          <Zap size={11} color="#059669" />
+          <Zap size={11} color="#FFD200" />
           <span>{currentItem.action}</span>
           {price !== undefined && (
-            <span style={{ color: '#111827', fontWeight: 800 }}>({formatPrice(price)})</span>
+            <span style={{ color: '#FFD200', fontWeight: 800 }}>({formatPrice(price)})</span>
           )}
         </div>
 
         <div
           style={{
             fontSize: '0.68rem',
-            color: '#6B7280',
+            color: 'var(--text-muted)',
             fontWeight: 600,
             display: 'flex',
             alignItems: 'center',
@@ -257,7 +257,7 @@ export default function RecentPurchasesPopup({
           border: 'none',
           padding: '4px',
           cursor: 'pointer',
-          color: '#9CA3AF',
+          color: 'var(--text-muted)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -265,8 +265,8 @@ export default function RecentPurchasesPopup({
           transition: 'color 0.15s ease',
           flexShrink: 0,
         }}
-        onMouseEnter={(e) => (e.currentTarget.style.color = '#111827')}
-        onMouseLeave={(e) => (e.currentTarget.style.color = '#9CA3AF')}
+        onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-primary)')}
+        onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
       >
         <X size={14} />
       </button>
