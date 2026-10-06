@@ -198,6 +198,10 @@ export const api = {
       page_cookie_policy_enabled?: boolean
       page_about_enabled?: boolean
       page_contact_enabled?: boolean
+      // Big Billion Days FOMO & Scarcity
+      fomo_loot_deal_enabled?: boolean
+      fomo_social_proof_enabled?: boolean
+      fomo_slots_total?: number
     }>('/settings/public'),
   },
 

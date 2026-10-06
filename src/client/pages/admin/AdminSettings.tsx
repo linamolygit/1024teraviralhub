@@ -4,7 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Save, Check, Zap, Smartphone, Shield, Globe, Moon, Sun, Palette,
   CheckCircle2, Sparkles, Key, AlertCircle, Loader2, Bot, Star, Copy, RefreshCw, ExternalLink,
-  Eye, EyeOff, Scale, FileText, ShieldCheck, RotateCcw, Cookie, Info, Phone, Award
+  Eye, EyeOff, Scale, FileText, ShieldCheck, RotateCcw, Cookie, Info, Phone, Award,
+  Flame, Users, Clock
 } from 'lucide-react'
 import { adminApi } from '../../lib/api'
 import { useAuthStore } from '../../lib/auth-store'
@@ -43,6 +44,10 @@ export default function AdminSettings() {
     external_payments_enabled: true,
     external_partner_api_key: '',
     external_allowed_origins: '',
+    // Big Billion Days FOMO & Scarcity Booster
+    fomo_loot_deal_enabled: true,
+    fomo_social_proof_enabled: true,
+    fomo_slots_total: 200,
     // Google Services & Monetization Suite
     gsc_enabled: true,
     gsc_verification_tag: '',
@@ -1221,6 +1226,150 @@ export default function AdminSettings() {
             <span>
               <strong>Storefront Visibility Notice:</strong> Turning any page <strong>OFF</strong> removes it immediately from the main Footer columns, Mobile Navigation drawer, and Checkout footer. Any user attempting to visit that URL directly will see a 404 page. Click <strong>Save Changes</strong> above to persist your updates to the live store.
             </span>
+          </div>
+        </div>
+
+        {/* ── Big Billion Days Flash Loot Deal & Scarcity (FOMO Booster) ── */}
+        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--bg-border)', borderRadius: 'var(--radius-lg)', padding: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#EF4444',
+                }}
+              >
+                <Flame size={20} />
+              </div>
+              <div>
+                <h3 style={{ fontWeight: 700, margin: 0, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
+                  Big Billion Days Loot Offer & Scarcity (FOMO Booster)
+                </h3>
+                <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  Flipkart Big Billion Days style early-bird loot deal, urgency countdown timer, stock scarcity bar, and live buyer social proof.
+                </p>
+              </div>
+            </div>
+
+            <span
+              style={{
+                fontSize: '0.72rem',
+                padding: '3px 10px',
+                borderRadius: 'var(--radius-full)',
+                background: settings.fomo_loot_deal_enabled ? 'rgba(239, 68, 68, 0.15)' : 'rgba(107, 114, 128, 0.15)',
+                color: settings.fomo_loot_deal_enabled ? '#EF4444' : 'var(--text-muted)',
+                border: `1px solid ${settings.fomo_loot_deal_enabled ? 'rgba(239, 68, 68, 0.3)' : 'rgba(107, 114, 128, 0.3)'}`,
+                fontWeight: 700,
+              }}
+            >
+              {settings.fomo_loot_deal_enabled ? '● High Conversion Active' : '● Inactive'}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {/* Toggle 1: Flash Loot Banner */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '14px 16px',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--bg-border)',
+                gap: 16,
+              }}
+            >
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span>⚡ Flash Loot Deal & Scarcity Banner</span>
+                  <span style={{ fontSize: '0.7rem', color: '#10B981', background: 'rgba(16, 185, 129, 0.1)', padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>
+                    Recommended
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                  Displays "Pehle 200 buyers ko sirf ₹{'{price}'} me milega", ticking countdown timer, and remaining slots progress bar on product detail page.
+                </div>
+              </div>
+              <label className="toggle-switch" onClick={e => e.stopPropagation()}>
+                <input
+                  type="checkbox"
+                  checked={settings.fomo_loot_deal_enabled}
+                  onChange={e => setSettings(s => ({ ...s, fomo_loot_deal_enabled: e.target.checked }))}
+                />
+                <span className="toggle-slider" style={{ accentColor: '#EF4444' }} />
+              </label>
+            </div>
+
+            {/* Toggle 2: Floating Social Proof Ticker */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '14px 16px',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--bg-border)',
+                gap: 16,
+              }}
+            >
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span>👥 Live Social Proof & Recent Buyer Notifications</span>
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                  Displays floating real-time verified buyer notifications from Indian cities (e.g. "Amit from Mumbai just grabbed this loot deal").
+                </div>
+              </div>
+              <label className="toggle-switch" onClick={e => e.stopPropagation()}>
+                <input
+                  type="checkbox"
+                  checked={settings.fomo_social_proof_enabled}
+                  onChange={e => setSettings(s => ({ ...s, fomo_social_proof_enabled: e.target.checked }))}
+                />
+                <span className="toggle-slider" style={{ accentColor: '#3B82F6' }} />
+              </label>
+            </div>
+
+            {/* Total Slots Configuration */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '14px 16px',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--bg-border)',
+                gap: 16,
+                flexWrap: 'wrap',
+              }}
+            >
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                  Total Early-Bird Loot Slots Limit
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                  Controls the number of initial buyers shown in "Pehle X buyers ko sirf ₹... me milega" (default: 200).
+                </div>
+              </div>
+              <input
+                type="number"
+                className="input-field"
+                value={settings.fomo_slots_total || 200}
+                onChange={e => setSettings(s => ({ ...s, fomo_slots_total: parseInt(e.target.value) || 200 }))}
+                min="10"
+                max="5000"
+                style={{ width: '130px', textAlign: 'center', fontWeight: 800 }}
+              />
+            </div>
           </div>
         </div>
 

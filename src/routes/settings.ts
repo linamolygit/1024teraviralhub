@@ -17,7 +17,9 @@ app.get('/public', async (c) => {
     adsenseEnabled, adsensePublisherId, adsenseAutoAds, adsenseHeadCode,
     adxEnabled, adxNetworkCode, adxHeadCode,
     pagePrivacyPolicyEnabled, pageTermsConditionsEnabled, pageRefundPolicyEnabled,
-    pageDisclaimerEnabled, pageCookiePolicyEnabled, pageAboutEnabled, pageContactEnabled
+    pageDisclaimerEnabled, pageCookiePolicyEnabled, pageAboutEnabled, pageContactEnabled,
+    // Big Billion FOMO & Scarcity
+    fomoLootDealEnabled, fomoSocialProofEnabled, fomoSlotsTotal
   ] = await Promise.all([
     getSetting<boolean>(c.env.DB, 'upi_direct_launch', true),
     getSetting<string>(c.env.DB, 'preferred_upi_app', 'phonepe'),
@@ -60,6 +62,10 @@ app.get('/public', async (c) => {
     getSetting<boolean>(c.env.DB, 'page_cookie_policy_enabled', true),
     getSetting<boolean>(c.env.DB, 'page_about_enabled', true),
     getSetting<boolean>(c.env.DB, 'page_contact_enabled', true),
+    // Big Billion FOMO & Scarcity
+    getSetting<boolean>(c.env.DB, 'fomo_loot_deal_enabled', true),
+    getSetting<boolean>(c.env.DB, 'fomo_social_proof_enabled', true),
+    getSetting<number>(c.env.DB, 'fomo_slots_total', 200),
   ])
 
   return c.json({
@@ -101,6 +107,10 @@ app.get('/public', async (c) => {
     page_cookie_policy_enabled: pageCookiePolicyEnabled ?? true,
     page_about_enabled: pageAboutEnabled ?? true,
     page_contact_enabled: pageContactEnabled ?? true,
+    // Big Billion Days FOMO & Social Proof
+    fomo_loot_deal_enabled: fomoLootDealEnabled ?? true,
+    fomo_social_proof_enabled: fomoSocialProofEnabled ?? true,
+    fomo_slots_total: fomoSlotsTotal ?? 200,
   })
 })
 

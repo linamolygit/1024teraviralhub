@@ -11,8 +11,11 @@ import WhyChooseUsSection from '../../components/home/WhyChooseUsSection'
 import BlogPreviewSection from '../../components/home/BlogPreviewSection'
 import FinalCtaSection from '../../components/home/FinalCtaSection'
 import AdPlacement from '../../components/ads/AdPlacement'
+import RecentPurchasesPopup from '../../components/product/RecentPurchasesPopup'
+import { useSiteConfig } from '../../lib/site-config'
 
 export default function HomePage() {
+  const { fomoSocialProofEnabled } = useSiteConfig()
   // Query 1: Actual Products from Database (Featured first, then latest)
   const { data: productsData, isLoading: isProductsLoading } = useQuery({
     queryKey: ['products', 'trending-home'],
@@ -64,6 +67,9 @@ export default function HomePage() {
 
       {/* 9. Final CTA (Find Something Worth Downloading) */}
       <FinalCtaSection />
+
+      {/* 🚀 Real-time Floating Social Proof Activity Notification */}
+      {fomoSocialProofEnabled && <RecentPurchasesPopup />}
     </div>
   )
 }

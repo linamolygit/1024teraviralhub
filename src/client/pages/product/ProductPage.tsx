@@ -19,6 +19,8 @@ import ProductFaqAccordion from '../../components/product/ProductFaqAccordion'
 import { getUpiAppIcon } from '../../components/ui/UpiIcons'
 import { useWishlistStore } from '../../lib/wishlist-store'
 import { useSiteConfig } from '../../lib/site-config'
+import ProductLootScarcityBanner from '../../components/product/ProductLootScarcityBanner'
+import RecentPurchasesPopup from '../../components/product/RecentPurchasesPopup'
 import ReviewGateModal from '../../components/product/ReviewGateModal'
 import AdPlacement from '../../components/ads/AdPlacement'
 import { detectInAppBrowser } from '../../lib/inAppBrowser'
@@ -41,7 +43,7 @@ declare global {
 export default function ProductPage() {
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
-  const { siteName } = useSiteConfig()
+  const { siteName, fomoLootDealEnabled, fomoSocialProofEnabled, fomoSlotsTotal, currencySymbol } = useSiteConfig()
   const { name: gatewayName, isRazorpay, isBoth, defaultDualGateway, errorConnectingMessage } = usePaymentGatewayInfo()
 
   const [isProcessing, setIsProcessing] = useState(false)
@@ -783,6 +785,19 @@ export default function ProductPage() {
             </span>
           </div>
 
+          {/* ⚡ Flipkart Big Billion Days Style Flash Loot Offer & Scarcity Widget */}
+          {fomoLootDealEnabled && (
+            <ProductLootScarcityBanner
+              productId={product.id}
+              productTitle={product.title}
+              effectivePrice={effectivePrice}
+              originalPrice={originalPrice}
+              discountPct={calcDiscountPct}
+              totalSlots={fomoSlotsTotal || 200}
+              currencySymbol={currencySymbol || '₹'}
+            />
+          )}
+
           {/* Checkout Error Message if any */}
           {errorMessage && (
             <div className="alert alert-error" style={{ marginBottom: '16px', fontSize: '0.85rem' }}>
@@ -1178,6 +1193,22 @@ export default function ProductPage() {
           }}
         >
           <div>
+            {fomoLootDealEnabled && (
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontSize: '0.68rem',
+                  fontWeight: 800,
+                  color: '#DC2626',
+                  marginBottom: '2px',
+                }}
+              >
+                <span className="fomo-live-dot" style={{ width: 6, height: 6 }} />
+                <span>⚡ Big Billion Loot Deal</span>
+              </div>
+            )}
             <div style={{ fontSize: '0.75rem', color: '#6B7280', textDecoration: 'line-through', fontWeight: 500 }}>
               MRP: {formatPrice(originalPrice)}
             </div>
@@ -1257,6 +1288,16 @@ export default function ProductPage() {
           />
           <span>Confirming payment... Redirecting to download...</span>
         </div>
+      )}
+
+      {/* 🚀 Real-time Floating Social Proof Activity Notification */}
+      {fomoSocialProofEnabled && (
+        <RecentPurchasesPopup
+          productTitle={product.title}
+          productImage={product.thumbnail_url || product.images?.[0]?.url}
+          price={effectivePrice}
+          currencySymbol={currencySymbol || '₹'}
+        />
       )}
 
     </div>
