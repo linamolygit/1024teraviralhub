@@ -19,7 +19,7 @@ app.get('/public', async (c) => {
     pagePrivacyPolicyEnabled, pageTermsConditionsEnabled, pageRefundPolicyEnabled,
     pageDisclaimerEnabled, pageCookiePolicyEnabled, pageAboutEnabled, pageContactEnabled,
     // Big Billion FOMO & Scarcity
-    fomoLootDealEnabled, fomoSocialProofEnabled, fomoSlotsTotal
+    fomoLootDealEnabled, fomoSocialProofEnabled, fomoSlotsTotal, fomoDealOfDayEnabled
   ] = await Promise.all([
     getSetting<boolean>(c.env.DB, 'upi_direct_launch', true),
     getSetting<string>(c.env.DB, 'preferred_upi_app', 'phonepe'),
@@ -66,6 +66,7 @@ app.get('/public', async (c) => {
     getSetting<boolean>(c.env.DB, 'fomo_loot_deal_enabled', true),
     getSetting<boolean>(c.env.DB, 'fomo_social_proof_enabled', true),
     getSetting<number>(c.env.DB, 'fomo_slots_total', 200),
+    getSetting<boolean>(c.env.DB, 'fomo_deal_of_day_enabled', true),
   ])
 
   return c.json({
@@ -111,6 +112,7 @@ app.get('/public', async (c) => {
     fomo_loot_deal_enabled: fomoLootDealEnabled ?? true,
     fomo_social_proof_enabled: fomoSocialProofEnabled ?? true,
     fomo_slots_total: fomoSlotsTotal ?? 200,
+    fomo_deal_of_day_enabled: fomoDealOfDayEnabled ?? true,
   })
 })
 

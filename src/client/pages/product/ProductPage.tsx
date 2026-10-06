@@ -43,7 +43,7 @@ declare global {
 export default function ProductPage() {
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
-  const { siteName, fomoLootDealEnabled, fomoSocialProofEnabled, fomoSlotsTotal, currencySymbol } = useSiteConfig()
+  const { siteName, fomoLootDealEnabled, fomoSocialProofEnabled, fomoSlotsTotal, fomoDealOfDayEnabled, currencySymbol } = useSiteConfig()
   const { name: gatewayName, isRazorpay, isBoth, defaultDualGateway, errorConnectingMessage } = usePaymentGatewayInfo()
 
   const [isProcessing, setIsProcessing] = useState(false)
@@ -738,122 +738,128 @@ export default function ProductPage() {
           </h1>
 
           {/* ── Flipkart Reference Feature: 🔥 1.2K+ bought in past month ── */}
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '0.8125rem',
-              fontWeight: 600,
-              color: 'var(--text-secondary)',
-              marginBottom: '8px',
-            }}
-          >
-            <span style={{ fontSize: '0.95rem' }}>🔥</span>
-            <span>{boughtPastMonth} bought in past month</span>
-          </div>
-
-          {/* ── Flipkart Deal of the Day & Live Countdown Timer ── */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              flexWrap: 'wrap',
-              marginBottom: '10px',
-            }}
-          >
-            {/* Purple Pill: ⚡ Deal of the Day */}
-            <span
-              style={{
-                background: '#5B21B6',
-                color: '#FFFFFF',
-                fontWeight: 800,
-                fontSize: '0.8125rem',
-                padding: '4px 10px',
-                borderRadius: '6px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                letterSpacing: '0.01em',
-                boxShadow: '0 2px 6px rgba(91, 33, 182, 0.35)',
-              }}
-            >
-              <Zap size={13} fill="#FFD200" color="#FFD200" />
-              <span>Deal of the Day</span>
-            </span>
-
-            {/* Timer: Ends in 00 h : 14 m : 57 s */}
+          {fomoDealOfDayEnabled && (
             <div
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '5px',
-                fontSize: '0.825rem',
+                gap: '6px',
+                fontSize: '0.8125rem',
                 fontWeight: 600,
                 color: 'var(--text-secondary)',
+                marginBottom: '8px',
               }}
             >
-              <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>Ends in</span>
-              <span
-                style={{
-                  background: 'rgba(239, 68, 68, 0.08)',
-                  border: '1px solid rgba(239, 68, 68, 0.25)',
-                  color: '#DC2626',
-                  fontWeight: 800,
-                  fontSize: '0.825rem',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  fontFamily: 'monospace',
-                }}
-              >
-                {String(dealTimeLeft.hours).padStart(2, '0')}
-              </span>
-              <span>h :</span>
-              <span
-                style={{
-                  background: 'rgba(239, 68, 68, 0.08)',
-                  border: '1px solid rgba(239, 68, 68, 0.25)',
-                  color: '#DC2626',
-                  fontWeight: 800,
-                  fontSize: '0.825rem',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  fontFamily: 'monospace',
-                }}
-              >
-                {String(dealTimeLeft.minutes).padStart(2, '0')}
-              </span>
-              <span>m :</span>
-              <span
-                style={{
-                  background: 'rgba(239, 68, 68, 0.08)',
-                  border: '1px solid rgba(239, 68, 68, 0.25)',
-                  color: '#DC2626',
-                  fontWeight: 800,
-                  fontSize: '0.825rem',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  fontFamily: 'monospace',
-                }}
-              >
-                {String(dealTimeLeft.seconds).padStart(2, '0')}
-              </span>
-              <span>s</span>
+              <span style={{ fontSize: '0.95rem' }}>🔥</span>
+              <span>{boughtPastMonth} bought in past month</span>
             </div>
-          </div>
+          )}
+
+          {/* ── Flipkart Deal of the Day & Live Countdown Timer ── */}
+          {fomoDealOfDayEnabled && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                flexWrap: 'wrap',
+                marginBottom: '10px',
+              }}
+            >
+              {/* Purple Pill: ⚡ Deal of the Day */}
+              <span
+                style={{
+                  background: '#5B21B6',
+                  color: '#FFFFFF',
+                  fontWeight: 800,
+                  fontSize: '0.8125rem',
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  letterSpacing: '0.01em',
+                  boxShadow: '0 2px 6px rgba(91, 33, 182, 0.35)',
+                }}
+              >
+                <Zap size={13} fill="#FFD200" color="#FFD200" />
+                <span>Deal of the Day</span>
+              </span>
+
+              {/* Timer: Ends in 00 h : 14 m : 57 s */}
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  fontSize: '0.825rem',
+                  fontWeight: 600,
+                  color: 'var(--text-secondary)',
+                }}
+              >
+                <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>Ends in</span>
+                <span
+                  style={{
+                    background: 'rgba(239, 68, 68, 0.08)',
+                    border: '1px solid rgba(239, 68, 68, 0.25)',
+                    color: '#DC2626',
+                    fontWeight: 800,
+                    fontSize: '0.825rem',
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    fontFamily: 'monospace',
+                  }}
+                >
+                  {String(dealTimeLeft.hours).padStart(2, '0')}
+                </span>
+                <span>h :</span>
+                <span
+                  style={{
+                    background: 'rgba(239, 68, 68, 0.08)',
+                    border: '1px solid rgba(239, 68, 68, 0.25)',
+                    color: '#DC2626',
+                    fontWeight: 800,
+                    fontSize: '0.825rem',
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    fontFamily: 'monospace',
+                  }}
+                >
+                  {String(dealTimeLeft.minutes).padStart(2, '0')}
+                </span>
+                <span>m :</span>
+                <span
+                  style={{
+                    background: 'rgba(239, 68, 68, 0.08)',
+                    border: '1px solid rgba(239, 68, 68, 0.25)',
+                    color: '#DC2626',
+                    fontWeight: 800,
+                    fontSize: '0.825rem',
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    fontFamily: 'monospace',
+                  }}
+                >
+                  {String(dealTimeLeft.seconds).padStart(2, '0')}
+                </span>
+                <span>s</span>
+              </div>
+            </div>
+          )}
 
           {/* ── Special price label ── */}
-          <div
-            style={{
-              color: '#008444',
-              fontWeight: 700,
-              fontSize: '0.85rem',
-              marginBottom: '2px',
-            }}
-          >
-            Special price
-          </div>
+          {fomoDealOfDayEnabled && (
+            <div
+              style={{
+                color: '#008444',
+                fontWeight: 700,
+                fontSize: '0.85rem',
+                marginBottom: '2px',
+              }}
+            >
+              Special price
+            </div>
+          )}
 
           {/* ── Flipkart Exact Price Layout: ₹1,999  ₹6,999  71% off  ⓘ ── */}
           <div
@@ -946,31 +952,33 @@ export default function ProductPage() {
           </div>
 
           {/* ── Flipkart Reference Scarcity: 🔴 Hurry, only 2 left in stock! ── */}
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '7px',
-              color: '#DC2626',
-              fontWeight: 800,
-              fontSize: '0.92rem',
-              marginBottom: '12px',
-            }}
-          >
-            <span
+          {fomoDealOfDayEnabled && (
+            <div
               style={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                background: '#DC2626',
-                display: 'inline-block',
-                boxShadow: '0 0 8px rgba(220, 38, 38, 0.7)',
-                animation: 'fomoPulseLive 1.5s ease-in-out infinite',
-                flexShrink: 0,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '7px',
+                color: '#DC2626',
+                fontWeight: 800,
+                fontSize: '0.92rem',
+                marginBottom: '12px',
               }}
-            />
-            <span>Hurry, only {stockLeft} left in stock!</span>
-          </div>
+            >
+              <span
+                style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  background: '#DC2626',
+                  display: 'inline-block',
+                  boxShadow: '0 0 8px rgba(220, 38, 38, 0.7)',
+                  animation: 'fomoPulseLive 1.5s ease-in-out infinite',
+                  flexShrink: 0,
+                }}
+              />
+              <span>Hurry, only {stockLeft} left in stock!</span>
+            </div>
+          )}
 
           {/* Discount Pill (Reference Image 1: % ₹21 off applied for you) */}
           <div

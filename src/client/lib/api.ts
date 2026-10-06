@@ -202,6 +202,7 @@ export const api = {
       fomo_loot_deal_enabled?: boolean
       fomo_social_proof_enabled?: boolean
       fomo_slots_total?: number
+      fomo_deal_of_day_enabled?: boolean
     }>('/settings/public'),
   },
 

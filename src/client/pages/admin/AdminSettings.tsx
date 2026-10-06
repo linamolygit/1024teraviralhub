@@ -48,6 +48,7 @@ export default function AdminSettings() {
     fomo_loot_deal_enabled: true,
     fomo_social_proof_enabled: true,
     fomo_slots_total: 200,
+    fomo_deal_of_day_enabled: true,
     // Google Services & Monetization Suite
     gsc_enabled: true,
     gsc_verification_tag: '',
@@ -1335,6 +1336,40 @@ export default function AdminSettings() {
                   onChange={e => setSettings(s => ({ ...s, fomo_social_proof_enabled: e.target.checked }))}
                 />
                 <span className="toggle-slider" style={{ accentColor: '#3B82F6' }} />
+              </label>
+            </div>
+
+            {/* Toggle 3: Flipkart "Deal of the Day" & Stock Scarcity Urgency */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '14px 16px',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--bg-border)',
+                gap: 16,
+              }}
+            >
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span>⚡ Flipkart "Deal of the Day" & Stock Urgency</span>
+                  <span style={{ fontSize: '0.7rem', color: '#8B5CF6', background: 'rgba(139, 92, 246, 0.1)', padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>
+                    Sale Boost
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                  Displays "🔥 1.2K+ bought in past month", purple "⚡ Deal of the Day" badge, countdown timer, "Special price", and "🔴 Hurry, only 2 left in stock!" on product pages. Turn OFF when sale ends.
+                </div>
+              </div>
+              <label className="toggle-switch" onClick={e => e.stopPropagation()}>
+                <input
+                  type="checkbox"
+                  checked={settings.fomo_deal_of_day_enabled}
+                  onChange={e => setSettings(s => ({ ...s, fomo_deal_of_day_enabled: e.target.checked }))}
+                />
+                <span className="toggle-slider" style={{ accentColor: '#8B5CF6' }} />
               </label>
             </div>
 

@@ -26,6 +26,7 @@ export interface SiteConfig {
   fomoLootDealEnabled: boolean
   fomoSocialProofEnabled: boolean
   fomoSlotsTotal: number
+  fomoDealOfDayEnabled: boolean
 }
 
 /**
@@ -61,6 +62,7 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
   fomoLootDealEnabled: true,
   fomoSocialProofEnabled: true,
   fomoSlotsTotal: 200,
+  fomoDealOfDayEnabled: true,
   legalPages: {
     privacyPolicy: true,
     termsConditions: true,
@@ -94,6 +96,7 @@ export function useSiteConfig(): SiteConfig {
     fomoLootDealEnabled: (publicSettings as any).fomo_loot_deal_enabled ?? true,
     fomoSocialProofEnabled: (publicSettings as any).fomo_social_proof_enabled ?? true,
     fomoSlotsTotal: Number((publicSettings as any).fomo_slots_total) || 200,
+    fomoDealOfDayEnabled: (publicSettings as any).fomo_deal_of_day_enabled ?? true,
     legalPages: {
       privacyPolicy: (publicSettings as any).page_privacy_policy_enabled ?? true,
       termsConditions: (publicSettings as any).page_terms_conditions_enabled ?? true,
