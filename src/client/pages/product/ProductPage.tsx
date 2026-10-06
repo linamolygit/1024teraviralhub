@@ -1,12 +1,12 @@
 // src/client/pages/product/ProductPage.tsx — Production High-Conversion Product Detail Page
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import {
   Download, Clock, Package, Sparkles, Heart, Star,
   RefreshCw, ShieldCheck, Mail, ChevronDown, Check, Zap,
-  FolderDown, Lock
+  FolderDown, Lock, Info, Flame
 } from 'lucide-react'
 import { api, type Product, type ProductDetail } from '../../lib/api'
 import { formatPrice, discountPercent, formatFileSize, trackPixelEvent, getSavedUtmParams, getSanitizedCustomerPhone } from '../../lib/utils'
@@ -243,6 +243,58 @@ export default function ProductPage() {
       : Math.round((effectivePrice || 99) * 2.4)
   const calcDiscountPct = hasDiscount ? discountPct : Math.round(((originalPrice - effectivePrice) / originalPrice) * 100)
   const discountAmount = originalPrice - effectivePrice > 0 ? originalPrice - effectivePrice : 21
+
+  // Flipkart Deal of the Day Countdown Timer (persisted in sessionStorage)
+  const [dealTimeLeft, setDealTimeLeft] = useState<{ hours: number; minutes: number; seconds: number }>({
+    hours: 0,
+    minutes: 14,
+    seconds: 57,
+  })
+  const [showPriceInfoTooltip, setShowPriceInfoTooltip] = useState(false)
+
+  useEffect(() => {
+    const storageKey = `fk_deal_timer_${product?.id || 'default'}`
+    let targetEnd = Number(sessionStorage.getItem(storageKey))
+    const now = Date.now()
+
+    if (!targetEnd || targetEnd <= now) {
+      targetEnd = now + (14 * 60 + 57) * 1000
+      sessionStorage.setItem(storageKey, String(targetEnd))
+    }
+
+    const updateCountdown = () => {
+      const remainingMs = Math.max(0, targetEnd - Date.now())
+      if (remainingMs <= 0) {
+        const nextTarget = Date.now() + (18 * 60 + 45) * 1000
+        sessionStorage.setItem(storageKey, String(nextTarget))
+        return
+      }
+
+      const totalSec = Math.floor(remainingMs / 1000)
+      const hours = Math.floor(totalSec / 3600)
+      const minutes = Math.floor((totalSec % 3600) / 60)
+      const seconds = totalSec % 60
+
+      setDealTimeLeft({ hours, minutes, seconds })
+    }
+
+    updateCountdown()
+    const timer = setInterval(updateCountdown, 1000)
+    return () => clearInterval(timer)
+  }, [product?.id])
+
+  const boughtPastMonth = useMemo(() => {
+    if (!product?.id) return '1.2K+'
+    const seed = typeof product.id === 'number' ? product.id : String(product.id).split('').reduce((a, c) => a + c.charCodeAt(0), 0)
+    const thousands = ((seed % 14) + 8) / 10
+    return `${thousands.toFixed(1)}K+`
+  }, [product?.id])
+
+  const stockLeft = useMemo(() => {
+    if (!product?.id) return 2
+    const seed = typeof product.id === 'number' ? product.id : String(product.id).split('').reduce((a, c) => a + c.charCodeAt(0), 0)
+    return 2 + (seed % 3)
+  }, [product?.id])
 
   // Action CTA Customization
   const rawBtnText = product?.button_text?.trim() || 'Buy'
@@ -685,51 +737,152 @@ export default function ProductPage() {
             {product.title}
           </h1>
 
-          {/* Hot Deal Badge (Reference Image 1 & 2) */}
-          <div style={{ marginBottom: '12px' }}>
-            <span
-              style={{
-                background: '#008444',
-                color: '#FFFFFF',
-                fontWeight: 700,
-                fontSize: '0.825rem',
-                padding: '4px 12px',
-                borderRadius: '6px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                letterSpacing: '0.01em',
-              }}
-            >
-              Hot Deal
-            </span>
+          {/* ── Flipkart Reference Feature: 🔥 1.2K+ bought in past month ── */}
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              color: 'var(--text-secondary)',
+              marginBottom: '8px',
+            }}
+          >
+            <span style={{ fontSize: '0.95rem' }}>🔥</span>
+            <span>{boughtPastMonth} bought in past month</span>
           </div>
 
-          {/* Price Block (Reference Image 1: ↓84% 649 ₹107) */}
+          {/* ── Flipkart Deal of the Day & Live Countdown Timer ── */}
           <div
             style={{
               display: 'flex',
-              alignItems: 'baseline',
+              alignItems: 'center',
               gap: '12px',
               flexWrap: 'wrap',
               marginBottom: '10px',
             }}
           >
+            {/* Purple Pill: ⚡ Deal of the Day */}
             <span
               style={{
-                color: '#008444',
-                fontSize: '1.85rem',
+                background: '#5B21B6',
+                color: '#FFFFFF',
                 fontWeight: 800,
+                fontSize: '0.8125rem',
+                padding: '4px 10px',
+                borderRadius: '6px',
                 display: 'inline-flex',
                 alignItems: 'center',
+                gap: '5px',
+                letterSpacing: '0.01em',
+                boxShadow: '0 2px 6px rgba(91, 33, 182, 0.35)',
+              }}
+            >
+              <Zap size={13} fill="#FFD200" color="#FFD200" />
+              <span>Deal of the Day</span>
+            </span>
+
+            {/* Timer: Ends in 00 h : 14 m : 57 s */}
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                fontSize: '0.825rem',
+                fontWeight: 600,
+                color: 'var(--text-secondary)',
+              }}
+            >
+              <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>Ends in</span>
+              <span
+                style={{
+                  background: 'rgba(239, 68, 68, 0.08)',
+                  border: '1px solid rgba(239, 68, 68, 0.25)',
+                  color: '#DC2626',
+                  fontWeight: 800,
+                  fontSize: '0.825rem',
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  fontFamily: 'monospace',
+                }}
+              >
+                {String(dealTimeLeft.hours).padStart(2, '0')}
+              </span>
+              <span>h :</span>
+              <span
+                style={{
+                  background: 'rgba(239, 68, 68, 0.08)',
+                  border: '1px solid rgba(239, 68, 68, 0.25)',
+                  color: '#DC2626',
+                  fontWeight: 800,
+                  fontSize: '0.825rem',
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  fontFamily: 'monospace',
+                }}
+              >
+                {String(dealTimeLeft.minutes).padStart(2, '0')}
+              </span>
+              <span>m :</span>
+              <span
+                style={{
+                  background: 'rgba(239, 68, 68, 0.08)',
+                  border: '1px solid rgba(239, 68, 68, 0.25)',
+                  color: '#DC2626',
+                  fontWeight: 800,
+                  fontSize: '0.825rem',
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  fontFamily: 'monospace',
+                }}
+              >
+                {String(dealTimeLeft.seconds).padStart(2, '0')}
+              </span>
+              <span>s</span>
+            </div>
+          </div>
+
+          {/* ── Special price label ── */}
+          <div
+            style={{
+              color: '#008444',
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              marginBottom: '2px',
+            }}
+          >
+            Special price
+          </div>
+
+          {/* ── Flipkart Exact Price Layout: ₹1,999  ₹6,999  71% off  ⓘ ── */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'baseline',
+              gap: '10px',
+              flexWrap: 'wrap',
+              marginBottom: '6px',
+              position: 'relative',
+            }}
+          >
+            {/* Effective Price */}
+            <span
+              style={{
+                color: 'var(--text-primary)',
+                fontSize: '1.95rem',
+                fontWeight: 900,
                 lineHeight: 1,
               }}
             >
-              ↓{calcDiscountPct}%
+              {formatPrice(effectivePrice)}
             </span>
+
+            {/* MRP Strike-through */}
             <span
               style={{
-                color: '#6B7280',
-                fontSize: '1.35rem',
+                color: 'var(--text-muted)',
+                fontSize: '1.25rem',
                 textDecoration: 'line-through',
                 fontWeight: 500,
                 lineHeight: 1,
@@ -737,16 +890,86 @@ export default function ProductPage() {
             >
               {formatPrice(originalPrice)}
             </span>
+
+            {/* Discount Percentage */}
             <span
               style={{
-                color: '#111827',
-                fontSize: '1.85rem',
-                fontWeight: 900,
+                color: '#008444',
+                fontSize: '1.25rem',
+                fontWeight: 700,
                 lineHeight: 1,
               }}
             >
-              {formatPrice(effectivePrice)}
+              {calcDiscountPct}% off
             </span>
+
+            {/* Info Circle Icon with Popover Tooltip */}
+            <button
+              type="button"
+              onClick={() => setShowPriceInfoTooltip(prev => !prev)}
+              aria-label="Price Details"
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: '2px',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                color: 'var(--text-muted)',
+                transition: 'color 0.15s ease',
+              }}
+            >
+              <Info size={15} />
+            </button>
+
+            {showPriceInfoTooltip && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  zIndex: 20,
+                  marginTop: '4px',
+                  background: 'var(--bg-elevated)',
+                  border: '1px solid var(--bg-border)',
+                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.25)',
+                  borderRadius: '8px',
+                  padding: '8px 12px',
+                  fontSize: '0.75rem',
+                  color: 'var(--text-primary)',
+                  maxWidth: '280px',
+                }}
+              >
+                Special Price: Extra limited-time instant discount applied directly on MRP.
+              </div>
+            )}
+          </div>
+
+          {/* ── Flipkart Reference Scarcity: 🔴 Hurry, only 2 left in stock! ── */}
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '7px',
+              color: '#DC2626',
+              fontWeight: 800,
+              fontSize: '0.92rem',
+              marginBottom: '12px',
+            }}
+          >
+            <span
+              style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                background: '#DC2626',
+                display: 'inline-block',
+                boxShadow: '0 0 8px rgba(220, 38, 38, 0.7)',
+                animation: 'fomoPulseLive 1.5s ease-in-out infinite',
+                flexShrink: 0,
+              }}
+            />
+            <span>Hurry, only {stockLeft} left in stock!</span>
           </div>
 
           {/* Discount Pill (Reference Image 1: % ₹21 off applied for you) */}
