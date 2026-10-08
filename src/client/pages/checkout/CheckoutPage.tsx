@@ -11,7 +11,7 @@ import { api, type Product } from '../../lib/api'
 import { formatPrice, getSavedUtmParams, trackPixelEvent, getSanitizedCustomerPhone } from '../../lib/utils'
 import { getUpiAppIcon, UpiGenericIcon, RuPayIcon } from '../../components/ui/UpiIcons'
 import { useSiteConfig } from '../../lib/site-config'
-import { detectInAppBrowser, triggerChromeBreakout, attemptAutoChromeBreakout } from '../../lib/inAppBrowser'
+import { detectInAppBrowser, triggerChromeBreakout } from '../../lib/inAppBrowser'
 import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
 import GatewayBadge from '../../components/ui/GatewayBadge'
 import { saveOrderSession } from '../../lib/orderSession'
@@ -92,9 +92,6 @@ export default function CheckoutPage() {
       rzpScript.src = 'https://checkout.razorpay.com/v1/checkout.js'
       document.head.appendChild(rzpScript)
     }
-
-    // Auto Chrome breakout on Android when opened inside Facebook / Instagram In-App Browser
-    attemptAutoChromeBreakout()
   }, [])
 
   // 🔄 ACTIVE ORDER RESUME & AUTOMATIC PAYMENT DETECTION:

@@ -23,7 +23,7 @@ import ProductLootScarcityBanner from '../../components/product/ProductLootScarc
 import RecentPurchasesPopup from '../../components/product/RecentPurchasesPopup'
 import ReviewGateModal from '../../components/product/ReviewGateModal'
 import AdPlacement from '../../components/ads/AdPlacement'
-import { detectInAppBrowser, triggerChromeBreakout, attemptAutoChromeBreakout } from '../../lib/inAppBrowser'
+import { detectInAppBrowser, triggerChromeBreakout } from '../../lib/inAppBrowser'
 import { trackPageView, trackUserClick, sendAnalyticsEvent } from '../../lib/analytics-tracker'
 import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
 import { saveOrderSession, getSavedOrders, type SavedOrderSession } from '../../lib/orderSession'
@@ -73,9 +73,6 @@ export default function ProductPage() {
       rzpScript.src = 'https://checkout.razorpay.com/v1/checkout.js'
       document.head.appendChild(rzpScript)
     }
-
-    // Flipkart-style Auto Chrome Breakout from Facebook / Instagram In-App Browser on Android
-    attemptAutoChromeBreakout()
   }, [])
 
   // Fetch Product Data
