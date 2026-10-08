@@ -23,7 +23,7 @@ import ProductLootScarcityBanner from '../../components/product/ProductLootScarc
 import RecentPurchasesPopup from '../../components/product/RecentPurchasesPopup'
 import ReviewGateModal from '../../components/product/ReviewGateModal'
 import AdPlacement from '../../components/ads/AdPlacement'
-import { detectInAppBrowser } from '../../lib/inAppBrowser'
+import { detectInAppBrowser, triggerChromeBreakout, attemptAutoChromeBreakout } from '../../lib/inAppBrowser'
 import { trackPageView, trackUserClick, sendAnalyticsEvent } from '../../lib/analytics-tracker'
 import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
 import { saveOrderSession, getSavedOrders, type SavedOrderSession } from '../../lib/orderSession'
@@ -73,6 +73,9 @@ export default function ProductPage() {
       rzpScript.src = 'https://checkout.razorpay.com/v1/checkout.js'
       document.head.appendChild(rzpScript)
     }
+
+    // Flipkart-style Auto Chrome Breakout from Facebook / Instagram In-App Browser on Android
+    attemptAutoChromeBreakout()
   }, [])
 
   // Fetch Product Data
@@ -472,15 +475,39 @@ export default function ProductPage() {
       // Handle Razorpay Checkout Flow
       if (orderRes.gateway === 'razorpay') {
         const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+        const { isInApp, isAndroid } = detectInAppBrowser()
         const directUpiUrl = orderRes.payment_url || orderRes.upi_link || orderRes.upi_intent?.phonepe || orderRes.upi_intent?.default
 
-        // 🚀 DIRECT PHONE UPI: Instant direct PhonePe / UPI launch without popup on mobile!
-        if (isMobile && directUpiUrl) {
-          window.location.href = directUpiUrl
-          // Reset button processing status after short delay so if the customer returns without completing UPI payment, button works again!
+        // 🚀 FACEBOOK & INSTAGRAM IN-APP BROWSER (Android):
+        // Facebook's internal WebView blocks custom upi:// schemes with net::ERR_UNKNOWN_URL_SCHEME.
+        // We break out into Google Chrome via Android Intent so PhonePe / GPay opens 100% reliably!
+        if (isMobile && isInApp && isAndroid && directUpiUrl) {
+          triggerChromeBreakout(directUpiUrl)
           setTimeout(() => {
             setIsProcessing(false)
-          }, 2000)
+          }, 3500)
+          return
+        }
+
+        // 🚀 DIRECT PHONE UPI: Instant direct PhonePe / UPI launch without popup on mobile (Regular Chrome / Safari / iOS)!
+        if (isMobile && directUpiUrl) {
+          try {
+            const a = document.createElement('a')
+            a.href = directUpiUrl
+            a.style.display = 'none'
+            document.body.appendChild(a)
+            a.click()
+            setTimeout(() => {
+              try {
+                if (a.parentNode) document.body.removeChild(a)
+              } catch {}
+            }, 1000)
+          } catch {
+            window.location.href = directUpiUrl
+          }
+          setTimeout(() => {
+            setIsProcessing(false)
+          }, 2500)
           return
         }
 
@@ -631,11 +658,33 @@ export default function ProductPage() {
         upiDeepLink = orderRes.upi_link
       }
 
-      const { isInApp } = detectInAppBrowser()
+      const { isInApp, isAndroid } = detectInAppBrowser()
+
+      // 🚀 FACEBOOK & INSTAGRAM IN-APP BROWSER (Android):
+      if (isMobile && isInApp && isAndroid && (upiDeepLink || orderRes.payment_url)) {
+        triggerChromeBreakout(upiDeepLink || orderRes.payment_url)
+        setTimeout(() => {
+          setIsProcessing(false)
+        }, 3500)
+        return
+      }
 
       // Mobile 1-Click Deep Linking (Native browser only: Chrome / Safari)
       if (isMobile && !isInApp && isDirectUpiLaunch && upiDeepLink) {
-        window.location.href = upiDeepLink
+        try {
+          const a = document.createElement('a')
+          a.href = upiDeepLink
+          a.style.display = 'none'
+          document.body.appendChild(a)
+          a.click()
+          setTimeout(() => {
+            try {
+              if (a.parentNode) document.body.removeChild(a)
+            } catch {}
+          }, 1000)
+        } catch {
+          window.location.href = upiDeepLink
+        }
         setTimeout(() => {
           setIsProcessing(false)
         }, 2000)

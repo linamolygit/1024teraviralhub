@@ -11,7 +11,7 @@ import { api, type Product } from '../../lib/api'
 import { formatPrice, getSavedUtmParams, trackPixelEvent, getSanitizedCustomerPhone } from '../../lib/utils'
 import { getUpiAppIcon, UpiGenericIcon, RuPayIcon } from '../../components/ui/UpiIcons'
 import { useSiteConfig } from '../../lib/site-config'
-import { detectInAppBrowser } from '../../lib/inAppBrowser'
+import { detectInAppBrowser, triggerChromeBreakout, attemptAutoChromeBreakout } from '../../lib/inAppBrowser'
 import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
 import GatewayBadge from '../../components/ui/GatewayBadge'
 import { saveOrderSession } from '../../lib/orderSession'
@@ -92,6 +92,9 @@ export default function CheckoutPage() {
       rzpScript.src = 'https://checkout.razorpay.com/v1/checkout.js'
       document.head.appendChild(rzpScript)
     }
+
+    // Auto Chrome breakout on Android when opened inside Facebook / Instagram In-App Browser
+    attemptAutoChromeBreakout()
   }, [])
 
   // 🔄 ACTIVE ORDER RESUME & AUTOMATIC PAYMENT DETECTION:
@@ -316,13 +319,35 @@ export default function CheckoutPage() {
       // Handle Razorpay Checkout Flow
       if (result.gateway === 'razorpay') {
         const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+        const { isInApp, isAndroid } = detectInAppBrowser()
         const directUpiUrl = result.payment_url || result.upi_link || result.upi_intent?.default
+
+        // 🚀 FACEBOOK & INSTAGRAM IN-APP BROWSER (Android):
+        // Break out to Google Chrome via Android Intent so PhonePe / GPay opens reliably!
+        if (isMobile && isInApp && isAndroid && directUpiUrl) {
+          triggerChromeBreakout(directUpiUrl)
+          setTimeout(() => setLoading(false), 3500)
+          return
+        }
 
         // 🚀 DIRECT PHONE UPI: Directly launch PhonePe / UPI intent on phone!
         // No Razorpay JS modal or popup dialog!
         if (isMobile && directUpiUrl) {
-          window.location.href = directUpiUrl
-          setTimeout(() => setLoading(false), 2000)
+          try {
+            const a = document.createElement('a')
+            a.href = directUpiUrl
+            a.style.display = 'none'
+            document.body.appendChild(a)
+            a.click()
+            setTimeout(() => {
+              try {
+                if (a.parentNode) document.body.removeChild(a)
+              } catch {}
+            }, 1000)
+          } catch {
+            window.location.href = directUpiUrl
+          }
+          setTimeout(() => setLoading(false), 2500)
           return
         }
 
@@ -466,11 +491,31 @@ export default function CheckoutPage() {
         upiDeepLink = result.upi_link
       }
 
-      const { isInApp } = detectInAppBrowser()
+      const { isInApp, isAndroid } = detectInAppBrowser()
+
+      // 🚀 FACEBOOK & INSTAGRAM IN-APP BROWSER (Android):
+      if (isMobile && isInApp && isAndroid && (upiDeepLink || result.payment_url)) {
+        triggerChromeBreakout(upiDeepLink || result.payment_url)
+        setTimeout(() => setLoading(false), 3500)
+        return
+      }
 
       // 1. Mobile UPI Instant Deep Link (Native browser only: Chrome / Safari)
       if (isMobile && !isInApp && isDirectUpiLaunch && upiDeepLink) {
-        window.location.href = upiDeepLink
+        try {
+          const a = document.createElement('a')
+          a.href = upiDeepLink
+          a.style.display = 'none'
+          document.body.appendChild(a)
+          a.click()
+          setTimeout(() => {
+            try {
+              if (a.parentNode) document.body.removeChild(a)
+            } catch {}
+          }, 1000)
+        } catch {
+          window.location.href = upiDeepLink
+        }
         setTimeout(() => {
           setLoading(false)
         }, 2000)

@@ -77,10 +77,22 @@ export function triggerChromeBreakout(customUrl?: string): void {
   if (typeof window === 'undefined') return
   const chromeIntent = getChromeIntentUrl(customUrl)
   try {
-    window.location.href = chromeIntent
+    const a = document.createElement('a')
+    a.href = chromeIntent
+    a.style.display = 'none'
+    document.body.appendChild(a)
+    a.click()
+    setTimeout(() => {
+      try {
+        if (a.parentNode) document.body.removeChild(a)
+      } catch {}
+    }, 1000)
   } catch (err) {
-    console.warn('Chrome intent breakout failed, falling back to default browser intent:', err)
-    window.location.href = getDefaultBrowserIntentUrl(customUrl)
+    try {
+      window.location.href = chromeIntent
+    } catch {
+      window.location.href = getDefaultBrowserIntentUrl(customUrl)
+    }
   }
 }
 
