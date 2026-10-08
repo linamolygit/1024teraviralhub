@@ -144,14 +144,22 @@ export default function ProductPage() {
     checkActiveOrder()
 
     // Check when user returns to browser tab from PhonePe / UPI app
+    const handleReturnToTab = async () => {
+      await checkActiveOrder()
+      // If user came back to the browser tab (from UPI app) and payment was not completed yet,
+      // unlock the buy button so they can click it again!
+      setIsProcessing(false)
+    }
+
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
-        checkActiveOrder()
+        handleReturnToTab()
       }
     }
 
     window.addEventListener('visibilitychange', handleVisibility)
-    window.addEventListener('focus', checkActiveOrder)
+    window.addEventListener('focus', handleReturnToTab)
+    window.addEventListener('pageshow', handleReturnToTab)
 
     // Periodic poll every 2.5s if an order is active or processing
     poller = setInterval(() => {
@@ -163,7 +171,8 @@ export default function ProductPage() {
 
     return () => {
       window.removeEventListener('visibilitychange', handleVisibility)
-      window.removeEventListener('focus', checkActiveOrder)
+      window.removeEventListener('focus', handleReturnToTab)
+      window.removeEventListener('pageshow', handleReturnToTab)
       if (poller) clearInterval(poller)
     }
   }, [navigate, product, isProcessing])
@@ -383,6 +392,10 @@ export default function ProductPage() {
 
     setIsProcessing(true)
     setErrorMessage('')
+    // Safety auto-unlock: If processing takes longer than 6 seconds without redirecting, unlock button
+    setTimeout(() => {
+      setIsProcessing(false)
+    }, 6000)
     try {
       sessionStorage.setItem('tvh_buy_clicked', 'true')
     } catch {
@@ -464,6 +477,10 @@ export default function ProductPage() {
         // 🚀 DIRECT PHONE UPI: Instant direct PhonePe / UPI launch without popup on mobile!
         if (isMobile && directUpiUrl) {
           window.location.href = directUpiUrl
+          // Reset button processing status after short delay so if the customer returns without completing UPI payment, button works again!
+          setTimeout(() => {
+            setIsProcessing(false)
+          }, 2000)
           return
         }
 
@@ -584,9 +601,14 @@ export default function ProductPage() {
 
         const rzp = new (window as any).Razorpay(options)
         rzp.on('payment.failed', function (resp: any) {
+          setIsProcessing(false)
           navigate(`/payment/failed?order=${encodeURIComponent(orderRes.order_number)}&reason=${encodeURIComponent(resp.error?.description || 'Payment Failed')}`)
         })
         rzp.open()
+        // Once modal opens, release processing lock after 1.5s
+        setTimeout(() => {
+          setIsProcessing(false)
+        }, 1500)
         return
       }
 
@@ -612,12 +634,10 @@ export default function ProductPage() {
       const { isInApp } = detectInAppBrowser()
 
       // Mobile 1-Click Deep Linking (Native browser only: Chrome / Safari)
-      // Note: Facebook/Instagram WebViews block direct upi:// schemes, resulting in ERR_UNKNOWN_URL_SCHEME.
-      // In Facebook In-App Browser, we safely use Cashfree with redirectTarget: '_self'.
       if (isMobile && !isInApp && isDirectUpiLaunch && upiDeepLink) {
         window.location.href = upiDeepLink
         setTimeout(() => {
-          navigate(`/payment/processing?order=${orderRes.order_number}`)
+          setIsProcessing(false)
         }, 2000)
         return
       }
@@ -631,6 +651,9 @@ export default function ProductPage() {
           returnUrl: `${window.location.origin}/payment/processing?order=${orderRes.order_number}`,
           redirectTarget: (isMobile || isInApp) ? '_self' : '_modal',
         })
+        setTimeout(() => {
+          setIsProcessing(false)
+        }, 1500)
       } else {
         navigate(`/payment/processing?order=${orderRes.order_number}`)
       }

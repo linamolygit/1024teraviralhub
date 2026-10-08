@@ -134,14 +134,20 @@ export default function CheckoutPage() {
 
     checkActiveOrder()
 
+    const handleReturnToTab = async () => {
+      await checkActiveOrder()
+      setLoading(false)
+    }
+
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
-        checkActiveOrder()
+        handleReturnToTab()
       }
     }
 
     window.addEventListener('visibilitychange', handleVisibility)
-    window.addEventListener('focus', checkActiveOrder)
+    window.addEventListener('focus', handleReturnToTab)
+    window.addEventListener('pageshow', handleReturnToTab)
 
     poller = setInterval(() => {
       const raw = localStorage.getItem('tvh_active_order') || sessionStorage.getItem('tvh_active_order')
@@ -152,7 +158,8 @@ export default function CheckoutPage() {
 
     return () => {
       window.removeEventListener('visibilitychange', handleVisibility)
-      window.removeEventListener('focus', checkActiveOrder)
+      window.removeEventListener('focus', handleReturnToTab)
+      window.removeEventListener('pageshow', handleReturnToTab)
       if (poller) clearInterval(poller)
     }
   }, [navigate, loading])
@@ -249,6 +256,10 @@ export default function CheckoutPage() {
 
     setLoading(true)
     setErrorMessage('')
+    // Safety auto-unlock: If processing takes longer than 6 seconds without redirecting, unlock button
+    setTimeout(() => {
+      setLoading(false)
+    }, 6000)
 
     const utm = getSavedUtmParams()
 
@@ -311,6 +322,7 @@ export default function CheckoutPage() {
         // No Razorpay JS modal or popup dialog!
         if (isMobile && directUpiUrl) {
           window.location.href = directUpiUrl
+          setTimeout(() => setLoading(false), 2000)
           return
         }
 
@@ -425,9 +437,11 @@ export default function CheckoutPage() {
 
         const rzp = new (window as any).Razorpay(options)
         rzp.on('payment.failed', function (resp: any) {
+          setLoading(false)
           navigate(`/payment/failed?order=${encodeURIComponent(result.order_number)}&reason=${encodeURIComponent(resp.error?.description || 'Payment Failed')}`)
         })
         rzp.open()
+        setTimeout(() => setLoading(false), 1500)
         return
       }
 
@@ -455,12 +469,10 @@ export default function CheckoutPage() {
       const { isInApp } = detectInAppBrowser()
 
       // 1. Mobile UPI Instant Deep Link (Native browser only: Chrome / Safari)
-      // Note: Facebook/Instagram WebViews block raw upi:// schemes.
-      // In Facebook In-App Browser, we safely use Cashfree with redirectTarget: '_self'.
       if (isMobile && !isInApp && isDirectUpiLaunch && upiDeepLink) {
         window.location.href = upiDeepLink
         setTimeout(() => {
-          navigate(`/payment/processing?order=${result.order_number}`)
+          setLoading(false)
         }, 2000)
         return
       }
@@ -474,6 +486,7 @@ export default function CheckoutPage() {
           returnUrl: `${window.location.origin}/payment/processing?order=${result.order_number}`,
           redirectTarget: (isMobile || isInApp) ? '_self' : '_modal',
         })
+        setTimeout(() => setLoading(false), 1500)
       } else {
         navigate(`/payment/processing?order=${result.order_number}`)
       }
