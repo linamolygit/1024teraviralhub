@@ -49,7 +49,6 @@ export default function ProductPage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [reviewModal, setReviewModal] = useState<'gate' | 'success' | null>(null)
-  const [verifyingOrderNumber, setVerifyingOrderNumber] = useState<string | null>(null)
   const [existingPaidOrder, setExistingPaidOrder] = useState<SavedOrderSession | null>(null)
 
   // Optional Contact Form (User can optionally type email for backup)
@@ -60,13 +59,19 @@ export default function ProductPage() {
 
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlistStore()
 
-  // Load Cashfree JS SDK on mount
+  // Preload Cashfree & Razorpay JS SDKs on mount for instant Buy Now modal launch
   useEffect(() => {
     if (!document.getElementById('cashfree-js')) {
       const script = document.createElement('script')
       script.id = 'cashfree-js'
       script.src = 'https://sdk.cashfree.com/js/v3/cashfree.js'
       document.head.appendChild(script)
+    }
+    if (!document.getElementById('razorpay-checkout-js')) {
+      const rzpScript = document.createElement('script')
+      rzpScript.id = 'razorpay-checkout-js'
+      rzpScript.src = 'https://checkout.razorpay.com/v1/checkout.js'
+      document.head.appendChild(rzpScript)
     }
   }, [])
 
@@ -112,8 +117,6 @@ export default function ProductPage() {
         if (!active?.order_number || Date.now() - (active.timestamp || 0) > 3600000) {
           return
         }
-
-        setVerifyingOrderNumber(active.order_number)
 
         const res = await api.checkout.verify(active.order_number)
         if (res?.success && res.status === 'PAID' && res.download_token) {
@@ -1508,44 +1511,7 @@ export default function ProductPage() {
         </div>
       </div>
 
-      {/* Floating Payment Verification Toast */}
-      {verifyingOrderNumber && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: '80px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 9999,
-            background: 'rgba(17, 24, 39, 0.95)',
-            backdropFilter: 'blur(16px)',
-            border: '1px solid rgba(16, 185, 129, 0.4)',
-            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(16, 185, 129, 0.25)',
-            borderRadius: '16px',
-            padding: '12px 22px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            color: '#FFFFFF',
-            fontWeight: 700,
-            fontSize: '0.88rem',
-            maxWidth: '92%',
-          }}
-        >
-          <div
-            style={{
-              width: '18px',
-              height: '18px',
-              borderRadius: '50%',
-              border: '2.5px solid rgba(255,255,255,0.2)',
-              borderTopColor: '#10B981',
-              animation: 'spin 0.8s linear infinite',
-              flexShrink: 0,
-            }}
-          />
-          <span>Confirming payment... Redirecting to download...</span>
-        </div>
-      )}
+
 
       {/* 🚀 Real-time Floating Social Proof Activity Notification */}
       {fomoSocialProofEnabled && (

@@ -107,13 +107,14 @@ export async function createOrder(db: D1Database, data: {
   utm_campaign?: string
   referrer_url?: string
   ip_address?: string
+  notes?: string
 }) {
   const result = await db.prepare(`
     INSERT INTO orders (
       order_number, product_id, customer_name, customer_email, customer_phone,
       amount, cashfree_order_id, payment_session_id,
-      utm_source, utm_medium, utm_campaign, referrer_url, ip_address, status
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')
+      utm_source, utm_medium, utm_campaign, referrer_url, ip_address, status, notes
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)
   `).bind(
     data.order_number,
     data.product_id,
@@ -128,6 +129,7 @@ export async function createOrder(db: D1Database, data: {
     data.utm_campaign ?? null,
     data.referrer_url ?? null,
     data.ip_address ?? null,
+    data.notes ?? null,
   ).run()
 
   return result.meta.last_row_id as number

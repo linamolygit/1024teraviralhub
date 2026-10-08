@@ -78,13 +78,19 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
 
-  // Load Cashfree JS SDK
+  // Load Cashfree & Razorpay JS SDKs on mount for zero checkout lag
   useEffect(() => {
     if (!document.getElementById('cashfree-js')) {
       const script = document.createElement('script')
       script.id = 'cashfree-js'
       script.src = 'https://sdk.cashfree.com/js/v3/cashfree.js'
       document.head.appendChild(script)
+    }
+    if (!document.getElementById('razorpay-checkout-js')) {
+      const rzpScript = document.createElement('script')
+      rzpScript.id = 'razorpay-checkout-js'
+      rzpScript.src = 'https://checkout.razorpay.com/v1/checkout.js'
+      document.head.appendChild(rzpScript)
     }
   }, [])
 

@@ -18,36 +18,42 @@ import {
 const app = new Hono<{ Bindings: Env }>()
 
 export async function getPaymentConfig(db: D1Database, env: Env) {
-  const [
-    activeGateway,
-    defaultDualGateway,
-    cfAppId, cfSecretKey, cfApiUrl, cfEnabled,
-    rzpKeyId, rzpKeySecret, rzpEnabled
-  ] = await Promise.all([
-    getSetting<string>(db, 'active_payment_gateway', 'cashfree'),
-    getSetting<string>(db, 'default_dual_gateway', 'cashfree'),
-    getSetting<string>(db, 'cashfree_app_id', env.CASHFREE_APP_ID || ''),
-    getSetting<string>(db, 'cashfree_secret_key', env.CASHFREE_SECRET_KEY || ''),
-    getSetting<string>(db, 'cashfree_api_url', env.CASHFREE_API_URL || 'https://sandbox.cashfree.com/pg'),
-    getSetting<boolean>(db, 'cashfree_enabled', true),
-    getSetting<string>(db, 'razorpay_key_id', ''),
-    getSetting<string>(db, 'razorpay_key_secret', ''),
-    getSetting<boolean>(db, 'razorpay_enabled', false),
-  ])
+  const rows = await db.prepare(
+    `SELECT key, value FROM website_settings WHERE key IN (
+      'active_payment_gateway', 'default_dual_gateway',
+      'cashfree_app_id', 'cashfree_secret_key', 'cashfree_api_url', 'cashfree_enabled',
+      'razorpay_key_id', 'razorpay_key_secret', 'razorpay_enabled'
+    )`
+  ).all()
+
+  const s: Record<string, any> = {}
+  for (const r of (rows.results || []) as { key: string; value: string }[]) {
+    try { s[r.key] = JSON.parse(r.value) } catch { s[r.key] = r.value }
+  }
+
+  const activeGateway = (s.active_payment_gateway || 'cashfree').toLowerCase()
+  const defaultDualGateway = (s.default_dual_gateway || 'cashfree').toLowerCase()
+  const cfAppId = s.cashfree_app_id || env.CASHFREE_APP_ID || ''
+  const cfSecretKey = s.cashfree_secret_key || env.CASHFREE_SECRET_KEY || ''
+  const cfApiUrl = s.cashfree_api_url || env.CASHFREE_API_URL || 'https://sandbox.cashfree.com/pg'
+  const cfEnabled = s.cashfree_enabled !== false
+  const rzpKeyId = s.razorpay_key_id || ''
+  const rzpKeySecret = s.razorpay_key_secret || ''
+  const rzpEnabled = s.razorpay_enabled ?? false
 
   return {
-    activeGateway: (activeGateway || 'cashfree').toLowerCase(),
-    defaultDualGateway: (defaultDualGateway || 'cashfree').toLowerCase(),
+    activeGateway,
+    defaultDualGateway,
     cashfree: {
-      appId: cfAppId || env.CASHFREE_APP_ID || '',
-      secretKey: cfSecretKey || env.CASHFREE_SECRET_KEY || '',
-      apiUrl: cfApiUrl || env.CASHFREE_API_URL || 'https://sandbox.cashfree.com/pg',
-      enabled: cfEnabled ?? true,
+      appId: cfAppId,
+      secretKey: cfSecretKey,
+      apiUrl: cfApiUrl,
+      enabled: cfEnabled,
     },
     razorpay: {
-      keyId: rzpKeyId || '',
-      keySecret: rzpKeySecret || '',
-      enabled: rzpEnabled ?? false,
+      keyId: rzpKeyId,
+      keySecret: rzpKeySecret,
+      enabled: rzpEnabled,
     },
   }
 }
@@ -78,8 +84,12 @@ app.post('/create', async (c) => {
 
   const data = parsed.data
 
-  // Fetch product to get authoritative price (never trust client-side price)
-  const product = await getProductById(c.env.DB, data.product_id)
+  // 🚀 CONCURRENT PRE-FETCH: Fetch product and payment gateway settings in parallel
+  const [product, config] = await Promise.all([
+    getProductById(c.env.DB, data.product_id),
+    getPaymentConfig(c.env.DB, c.env),
+  ])
+
   if (!product) return c.json({ error: 'Product not found' }, 404)
   if (!product.is_published) return c.json({ error: 'Product not available' }, 404)
 
@@ -96,7 +106,6 @@ app.post('/create', async (c) => {
   // 📱 AUTO-FILL MOBILE NUMBER: Realistic valid Indian mobile number if not provided
   const customerPhone = getSanitizedCustomerPhone(data.customer_phone, orderNumber)
 
-  const config = await getPaymentConfig(c.env.DB, c.env)
   const siteUrl = c.env.SITE_URL || new URL(c.req.url).origin
   const ip = c.req.header('CF-Connecting-IP') ?? c.req.header('X-Forwarded-For')
 
@@ -131,30 +140,22 @@ app.post('/create', async (c) => {
     const rzpCustomerPhone = customerPhone
     const rzpCustomerName = customerName !== 'Guest Customer' ? customerName : 'Verified Digital Buyer'
 
-    let rzpOrder
-    try {
-      rzpOrder = await razorpay.createOrder({
+    // ⚡ CONCURRENT ZERO-LATENCY EXECUTION:
+    // Run order creation and UPI payment link generation in parallel to cut processing time in half!
+    const [orderSettled, linkSettled] = await Promise.allSettled([
+      razorpay.createOrder({
         orderId: orderNumber,
         amount,
         currency: 'INR',
         receipt: orderNumber,
-        // 🛡️ Zero sensitive keywords, zero customer PII in Razorpay's database!
         notes: {
           asset_type: 'digital_media_license',
           bundle_code: 'TVH_VIP_DOWNLOAD',
           merchant_channel: 'direct_web',
           order_ref: orderNumber,
         },
-      })
-    } catch (err: any) {
-      console.error('Razorpay order creation error:', err)
-      return c.json({ error: 'Payment gateway error. Please try again.' }, 502)
-    }
-
-    // 🚀 Native Direct Mobile UPI (100% Popup-Free Instant PhonePe/UPI Launch)
-    let rzpPaymentLink: RazorpayPaymentLink | null = null
-    try {
-      rzpPaymentLink = await razorpay.createPaymentLink({
+      }),
+      razorpay.createPaymentLink({
         amount,
         referenceId: orderNumber,
         description: `Digital Media License #${orderNumber}`,
@@ -166,16 +167,22 @@ app.post('/create', async (c) => {
         notes: {
           order_number: orderNumber,
         },
-      })
-    } catch (linkErr) {
-      console.warn('[Razorpay] Direct UPI link warning, fallback active:', linkErr)
+      }),
+    ])
+
+    if (orderSettled.status !== 'fulfilled') {
+      console.error('Razorpay order creation error:', orderSettled.reason)
+      return c.json({ error: 'Payment gateway error. Please try again.' }, 502)
     }
+
+    const rzpOrder = orderSettled.value
+    const rzpPaymentLink = linkSettled.status === 'fulfilled' ? linkSettled.value : null
 
     const providerOrderId = rzpPaymentLink?.order_id || rzpOrder.id
     const sessionId = rzpPaymentLink?.id || rzpOrder.id
     const directUrl = rzpPaymentLink?.short_url || null
 
-    // Save order in our DB with REAL customer details for internal fulfillment
+    // Save order in our DB with REAL customer details for internal fulfillment in a single query
     await createOrder(c.env.DB, {
       order_number: orderNumber,
       product_id: data.product_id,
@@ -190,13 +197,11 @@ app.post('/create', async (c) => {
       utm_campaign: data.utm_campaign,
       referrer_url: data.referrer_url,
       ip_address: ip,
+      notes: `gateway:razorpay;order_id:${rzpOrder.id};link_id:${rzpPaymentLink?.id || ''}`,
     })
 
-    // Store gateway indicator and IDs
-    await c.env.DB.prepare('UPDATE orders SET notes = ? WHERE order_number = ?')
-      .bind(`gateway:razorpay;order_id:${rzpOrder.id};link_id:${rzpPaymentLink?.id || ''}`, orderNumber).run().catch(() => {})
-
-    await logAnalyticsEvent(c.env.DB, {
+    // Non-blocking background analytics logging
+    logAnalyticsEvent(c.env.DB, {
       event_type: 'checkout_start',
       product_id: data.product_id,
       ip_address: ip,
@@ -204,7 +209,7 @@ app.post('/create', async (c) => {
       utm_medium: data.utm_medium,
       utm_campaign: data.utm_campaign,
       metadata: { gateway: 'razorpay', order_id: providerOrderId },
-    })
+    }).catch(() => {})
 
     c.header('Set-Cookie', `tvh_last_order=${encodeURIComponent(orderNumber)}; Path=/; Max-Age=31536000; SameSite=Lax`, { append: true })
 
@@ -264,7 +269,7 @@ app.post('/create', async (c) => {
   // Attempt to create UPI Intent / Deeplink session
   const upiSession = await cashfree.createUpiPaymentSession(cfOrder.payment_session_id, 'link')
 
-  // Create order in our DB
+  // Create order in our DB in a single INSERT
   await createOrder(c.env.DB, {
     order_number: orderNumber,
     product_id: data.product_id,
@@ -279,13 +284,11 @@ app.post('/create', async (c) => {
     utm_campaign: data.utm_campaign,
     referrer_url: data.referrer_url,
     ip_address: ip,
+    notes: 'gateway:cashfree',
   })
 
-  await c.env.DB.prepare('UPDATE orders SET notes = ? WHERE order_number = ?')
-    .bind('gateway:cashfree', orderNumber).run().catch(() => {})
-
-  // Log analytics event
-  await logAnalyticsEvent(c.env.DB, {
+  // Non-blocking background analytics logging
+  logAnalyticsEvent(c.env.DB, {
     event_type: 'checkout_start',
     product_id: data.product_id,
     ip_address: ip,
@@ -293,7 +296,7 @@ app.post('/create', async (c) => {
     utm_medium: data.utm_medium,
     utm_campaign: data.utm_campaign,
     metadata: { gateway: 'cashfree', order_id: cfOrder.cf_order_id },
-  })
+  }).catch(() => {})
 
   c.header('Set-Cookie', `tvh_last_order=${encodeURIComponent(orderNumber)}; Path=/; Max-Age=31536000; SameSite=Lax`, { append: true })
 
