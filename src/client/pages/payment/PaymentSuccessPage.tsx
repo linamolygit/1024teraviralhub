@@ -7,8 +7,63 @@ import {
   Package, Check, ExternalLink, Sparkles, Gift
 } from 'lucide-react'
 import { trackPixelEvent } from '../../lib/utils'
-import { saveOrderSession } from '../../lib/orderSession'
+import { saveOrderSession, getSavedOrders } from '../../lib/orderSession'
 import { api } from '../../lib/api'
+
+// Helper to fire Meta Pixel & GA4 Purchase conversion event with full ecommerce parameters
+function firePurchaseTracking(data: {
+  orderNumber: string
+  amount: number
+  productTitle?: string
+  productId?: number | string
+}) {
+  if (!data.orderNumber) return
+
+  // Deduplication guard: Prevent duplicate Purchase event on page refresh
+  const dedupeKey = `tvh_purchase_tracked_${data.orderNumber}`
+  if (typeof window !== 'undefined' && sessionStorage.getItem(dedupeKey)) {
+    return
+  }
+
+  try {
+    sessionStorage.setItem(dedupeKey, '1')
+  } catch {}
+
+  const purchasePayload = {
+    value: Number(data.amount) || 0,
+    currency: 'INR',
+    content_name: data.productTitle || 'Digital Product',
+    content_type: 'product',
+    content_ids: [String(data.productId || data.orderNumber)],
+    num_items: 1,
+    order_id: data.orderNumber,
+  }
+
+  // 1. Fire Meta Pixel Purchase event
+  trackPixelEvent('Purchase', purchasePayload)
+
+  // 2. Fire Google Analytics 4 (GA4) Purchase event if gtag is active
+  try {
+    const win = window as any
+    if (typeof win.gtag === 'function') {
+      win.gtag('event', 'purchase', {
+        transaction_id: data.orderNumber,
+        value: Number(data.amount) || 0,
+        currency: 'INR',
+        items: [
+          {
+            item_id: String(data.productId || data.orderNumber),
+            item_name: data.productTitle || 'Digital Product',
+            price: Number(data.amount) || 0,
+            quantity: 1,
+          },
+        ],
+      })
+    }
+  } catch {}
+
+  console.log('[Analytics] ✅ Purchase conversion event triggered:', purchasePayload)
+}
 
 // ── Golden Lightning Coin SVG (PhonePe/Zepto/Blinkit Style) ──
 function LightningCoin({ size = 42 }: { size?: number }) {
@@ -96,10 +151,9 @@ export default function PaymentSuccessPage() {
   const [animStage, setAnimStage] = useState<'burst' | 'settled'>('burst')
 
   useEffect(() => {
-    // 1. Fire Meta Pixel Purchase event
-    trackPixelEvent('Purchase', { order_id: orderNumber, currency: 'INR' })
+    if (!orderNumber) return
 
-    // 2. Auto-save order to browser cookie and localStorage session
+    // 1. Auto-save order to browser cookie and localStorage session
     if (orderNumber || downloadToken) {
       saveOrderSession({
         orderNumber: orderNumber || '',
@@ -108,25 +162,73 @@ export default function PaymentSuccessPage() {
       })
     }
 
-    // 3. Try to lookup real order details for dynamic savings calculation
-    if (orderNumber) {
-      api.orderLookup(orderNumber).then((res) => {
-        if (res?.amount) {
-          const original = res.original_price || res.amount
-          const realSaved = original > res.amount ? (original - res.amount) : 0
-          if (realSaved > 0) {
-            setSavings(realSaved)
-            setHasSavings(true)
-          } else {
-            setSavings(0)
-            setHasSavings(false)
+    // 2. IMMEDIATE Meta Pixel & GA4 Purchase Trigger from Local Session Snapshot
+    let foundCached = false
+    try {
+      const rawActive = sessionStorage.getItem('tvh_active_order') || localStorage.getItem('tvh_active_order')
+      if (rawActive) {
+        const parsed = JSON.parse(rawActive)
+        if (parsed && (parsed.order_number === orderNumber || !parsed.order_number)) {
+          foundCached = true
+          firePurchaseTracking({
+            orderNumber,
+            amount: Number(parsed.amount) || 0,
+            productTitle: parsed.title,
+            productId: parsed.product_id,
+          })
+        }
+      }
+    } catch {}
+
+    if (!foundCached) {
+      const savedList = getSavedOrders()
+      const match = savedList.find((o) => o.orderNumber === orderNumber)
+      if (match && match.amount) {
+        foundCached = true
+        firePurchaseTracking({
+          orderNumber,
+          amount: Number(match.amount) || 0,
+          productTitle: match.productTitle,
+        })
+      }
+    }
+
+    // 3. Authoritative Order Lookup from Backend API (Confirms & Updates Tracking + Dynamic Savings)
+    api.orderLookup(orderNumber)
+      .then((res) => {
+        if (res) {
+          // Fire Purchase with authoritative API data (deduplication prevents double count)
+          firePurchaseTracking({
+            orderNumber,
+            amount: Number(res.amount) || 0,
+            productTitle: res.product || (res as any).product_title,
+            productId: (res as any).product_id || orderNumber,
+          })
+
+          if (res.amount) {
+            const original = res.original_price || res.amount
+            const realSaved = original > res.amount ? original - res.amount : 0
+            if (realSaved > 0) {
+              setSavings(realSaved)
+              setHasSavings(true)
+            } else {
+              setSavings(0)
+              setHasSavings(false)
+            }
           }
         }
-      }).catch(() => {
+      })
+      .catch(() => {
+        // Fallback: If network lookup failed and no cached order found, fire basic Purchase event
+        if (!foundCached) {
+          firePurchaseTracking({
+            orderNumber,
+            amount: 0,
+          })
+        }
         setSavings(0)
         setHasSavings(false)
       })
-    }
 
     // 4. Trigger stage transition: Green burst ripples -> settles into clean card after 1.5s
     const timer = setTimeout(() => {

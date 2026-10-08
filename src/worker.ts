@@ -346,7 +346,7 @@ function injectSeoTags(html: string, meta: SeoMetaParams): string {
 async function injectGoogleSuite(html: string, db: D1Database): Promise<string> {
   try {
     const rows = await db.prepare(
-      `SELECT key, value FROM website_settings WHERE key IN ('gsc_enabled', 'gsc_verification_tag', 'ga4_enabled', 'ga4_measurement_id', 'adsense_enabled', 'adsense_publisher_id', 'adsense_head_code', 'adx_enabled', 'adx_head_code')`
+      `SELECT key, value FROM website_settings WHERE key IN ('gsc_enabled', 'gsc_verification_tag', 'ga4_enabled', 'ga4_measurement_id', 'adsense_enabled', 'adsense_publisher_id', 'adsense_head_code', 'adx_enabled', 'adx_head_code', 'meta_pixel_id', 'meta_pixel_enabled')`
     ).all()
 
     const settings: Record<string, any> = {}
@@ -404,6 +404,14 @@ async function injectGoogleSuite(html: string, db: D1Database): Promise<string> 
       headTags += `\n    <!-- Google Ad Manager / AdX -->\n    <script async src="https://securepubads.g.doubleclick.net/tag/js/gpt.js" crossorigin="anonymous"></script>`
       if (settings.adx_head_code) {
         headTags += `\n    ${settings.adx_head_code}`
+      }
+    }
+
+    // 5. Meta Pixel (Facebook Pixel) SSR Tag
+    if (settings.meta_pixel_enabled !== false && settings.meta_pixel_id) {
+      const pixelId = String(settings.meta_pixel_id).trim()
+      if (pixelId && pixelId !== 'YOUR_PIXEL_ID') {
+        headTags += `\n    <!-- Meta Pixel Code -->\n    <script>\n      !function(f,b,e,v,n,t,s)\n      {if(f.fbq)return;n=f.fbq=function(){n.callMethod?\n      n.callMethod.apply(n,arguments):n.queue.push(arguments)};\n      if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';\n      n.queue=[];t=b.createElement(e);t.async=!0;\n      t.src=v;s=b.getElementsByTagName(e)[0];\n      s.parentNode.insertBefore(t,s)}(window, document,'script',\n      'https://connect.facebook.net/en_US/fbevents.js');\n      fbq('init', '${pixelId}');\n      fbq('track', 'PageView');\n    </script>\n    <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=${pixelId}&ev=PageView&noscript=1"/></noscript>`
       }
     }
 

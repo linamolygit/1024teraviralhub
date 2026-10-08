@@ -203,6 +203,9 @@ export const api = {
       fomo_social_proof_enabled?: boolean
       fomo_slots_total?: number
       fomo_deal_of_day_enabled?: boolean
+      // Meta Pixel & Ad Tracking
+      meta_pixel_id?: string
+      meta_pixel_enabled?: boolean
     }>('/settings/public'),
   },
 

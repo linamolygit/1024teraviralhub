@@ -32,6 +32,7 @@ export default function AdminSettings() {
     default_download_limit: 3,
     default_access_hours: 12,
     meta_pixel_id: '',
+    meta_pixel_enabled: true,
     announcement_text: '',
     upi_direct_launch: true,
     preferred_upi_app: 'phonepe',
@@ -1423,12 +1424,134 @@ export default function AdminSettings() {
           </div>
         </div>
 
-        {/* ── Tracking & Pixel ── */}
-        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--bg-border)', borderRadius: 'var(--radius-lg)', padding: 24 }}>
-          <h3 style={{ fontWeight: 700, marginBottom: 16 }}>Meta Pixel & Tracking</h3>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>Meta Pixel ID</label>
-            <input className="input-field" placeholder="e.g. 123456789012345" value={settings.meta_pixel_id} onChange={e => setSettings(s => ({ ...s, meta_pixel_id: e.target.value }))} />
+        {/* ── Meta Pixel & 1-Click UPI Full-Funnel Tracking Card ── */}
+        <div
+          style={{
+            background: 'linear-gradient(135deg, rgba(24, 119, 242, 0.07) 0%, rgba(24, 119, 242, 0.02) 100%), var(--bg-surface)',
+            border: '1px solid rgba(24, 119, 242, 0.3)',
+            borderRadius: 'var(--radius-lg)',
+            padding: 24,
+            boxShadow: '0 4px 20px rgba(24, 119, 242, 0.05)',
+            position: 'relative',
+          }}
+        >
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 18, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 10,
+                  background: 'linear-gradient(135deg, #1877F2 0%, #0D65D9 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#FFFFFF',
+                  boxShadow: '0 4px 12px rgba(24, 119, 242, 0.35)',
+                  flexShrink: 0,
+                  fontWeight: 900,
+                  fontSize: '1.25rem',
+                }}
+              >
+                f
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <h3 style={{ fontWeight: 800, fontSize: '1.05rem', margin: 0, color: 'var(--text-primary)' }}>
+                    Meta Pixel (Facebook Ads Tracking)
+                  </h3>
+                  <span
+                    style={{
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: 12,
+                      background: settings.meta_pixel_enabled && settings.meta_pixel_id ? 'rgba(16, 185, 129, 0.15)' : 'rgba(156, 163, 175, 0.15)',
+                      color: settings.meta_pixel_enabled && settings.meta_pixel_id ? '#10B981' : 'var(--text-muted)',
+                      border: `1px solid ${settings.meta_pixel_enabled && settings.meta_pixel_id ? 'rgba(16, 185, 129, 0.3)' : 'rgba(156, 163, 175, 0.3)'}`,
+                    }}
+                  >
+                    {settings.meta_pixel_enabled && settings.meta_pixel_id ? '● Tracking Active (Full Funnel)' : '● Inactive'}
+                  </span>
+                </div>
+                <p style={{ margin: '3px 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  Automated 1-Click UPI Ad Optimization: Fires PageView, ViewContent, InitiateCheckout &amp; Purchase events with dynamic order values (₹).
+                </p>
+              </div>
+            </div>
+
+            {/* Enable/Disable Toggle */}
+            <label className="toggle-switch" onClick={e => e.stopPropagation()}>
+              <input
+                type="checkbox"
+                checked={settings.meta_pixel_enabled !== false}
+                onChange={e => setSettings(s => ({ ...s, meta_pixel_enabled: e.target.checked }))}
+              />
+              <span className="toggle-slider" style={{ accentColor: '#1877F2' }} />
+            </label>
+          </div>
+
+          {/* Configuration Input */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
+                Meta Pixel ID
+              </label>
+              <input
+                className="input-field"
+                placeholder="e.g. 123456789012345"
+                value={settings.meta_pixel_id || ''}
+                onChange={e => setSettings(s => ({ ...s, meta_pixel_id: e.target.value.trim() }))}
+                disabled={settings.meta_pixel_enabled === false}
+                style={{
+                  fontFamily: 'monospace',
+                  letterSpacing: '0.04em',
+                  background: 'var(--bg-elevated)',
+                  borderColor: 'rgba(24, 119, 242, 0.3)',
+                }}
+              />
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                Find your 15–16 digit Pixel ID in Meta Events Manager &gt; Data Sources &gt; Settings.
+              </div>
+            </div>
+
+            {/* 1-Click UPI Funnel Tracking Breakdown */}
+            <div
+              style={{
+                background: 'var(--bg-elevated)',
+                border: '1px solid rgba(24, 119, 242, 0.2)',
+                borderRadius: 'var(--radius-md)',
+                padding: '12px 16px',
+                fontSize: '0.78rem',
+                color: 'var(--text-secondary)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6,
+              }}
+            >
+              <div style={{ fontWeight: 700, color: '#1877F2', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span>🎯 Automated 1-Click UPI Funnel Events:</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 8, marginTop: 4 }}>
+                <div style={{ background: 'var(--bg-surface)', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--bg-border)' }}>
+                  <strong style={{ color: 'var(--text-primary)' }}>1. PageView:</strong>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Fires across all storefront &amp; blog pages.</div>
+                </div>
+                <div style={{ background: 'var(--bg-surface)', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--bg-border)' }}>
+                  <strong style={{ color: 'var(--text-primary)' }}>2. ViewContent:</strong>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Fires on product view with price &amp; product title.</div>
+                </div>
+                <div style={{ background: 'var(--bg-surface)', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--bg-border)' }}>
+                  <strong style={{ color: 'var(--text-primary)' }}>3. InitiateCheckout:</strong>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Fires when buyer taps 1-Click UPI Buy button.</div>
+                </div>
+                <div style={{ background: 'rgba(16, 185, 129, 0.08)', padding: '8px 10px', borderRadius: 6, border: '1px solid rgba(16, 185, 129, 0.25)' }}>
+                  <strong style={{ color: '#10B981' }}>4. Purchase (Success):</strong>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Fires instantly on Order Confirmation (/payment/success) with exact order amount (₹), order ID, and deduplication guard!</div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 

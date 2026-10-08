@@ -217,18 +217,44 @@ export default function ProductPage() {
     }
   }, [product, siteName])
 
-  // Track Product View Event & Pageview
+  // Track Product View Event, Meta Pixel ViewContent & Pageview
   useEffect(() => {
     if (product?.id) {
+      const currentPrice = product.sale_price ?? product.price
       trackPageView(window.location.pathname, product.id)
       sendAnalyticsEvent({
         event_type: 'product_view',
         product_id: product.id,
         metadata: {
           title: product.title,
-          price: product.sale_price ?? product.price,
+          price: currentPrice,
         },
       })
+      // Meta Pixel ViewContent event (Essential for dynamic product ads & retargeting)
+      trackPixelEvent('ViewContent', {
+        content_name: product.title,
+        content_ids: [product.id],
+        content_type: 'product',
+        value: currentPrice,
+        currency: 'INR',
+      })
+      // GA4 view_item event
+      try {
+        const win = window as any
+        if (typeof win.gtag === 'function') {
+          win.gtag('event', 'view_item', {
+            currency: 'INR',
+            value: currentPrice,
+            items: [
+              {
+                item_id: String(product.id),
+                item_name: product.title,
+                price: currentPrice,
+              },
+            ],
+          })
+        }
+      } catch {}
     }
   }, [product?.id])
 

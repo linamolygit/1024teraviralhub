@@ -19,7 +19,9 @@ app.get('/public', async (c) => {
     pagePrivacyPolicyEnabled, pageTermsConditionsEnabled, pageRefundPolicyEnabled,
     pageDisclaimerEnabled, pageCookiePolicyEnabled, pageAboutEnabled, pageContactEnabled,
     // Big Billion FOMO & Scarcity
-    fomoLootDealEnabled, fomoSocialProofEnabled, fomoSlotsTotal, fomoDealOfDayEnabled
+    fomoLootDealEnabled, fomoSocialProofEnabled, fomoSlotsTotal, fomoDealOfDayEnabled,
+    // Meta Pixel & Ad Conversion Tracking
+    metaPixelId, metaPixelEnabled
   ] = await Promise.all([
     getSetting<boolean>(c.env.DB, 'upi_direct_launch', true),
     getSetting<string>(c.env.DB, 'preferred_upi_app', 'phonepe'),
@@ -67,6 +69,9 @@ app.get('/public', async (c) => {
     getSetting<boolean>(c.env.DB, 'fomo_social_proof_enabled', true),
     getSetting<number>(c.env.DB, 'fomo_slots_total', 200),
     getSetting<boolean>(c.env.DB, 'fomo_deal_of_day_enabled', true),
+    // Meta Pixel & Ad Tracking
+    getSetting<string>(c.env.DB, 'meta_pixel_id', ''),
+    getSetting<boolean>(c.env.DB, 'meta_pixel_enabled', true),
   ])
 
   return c.json({
@@ -113,6 +118,9 @@ app.get('/public', async (c) => {
     fomo_social_proof_enabled: fomoSocialProofEnabled ?? true,
     fomo_slots_total: fomoSlotsTotal ?? 200,
     fomo_deal_of_day_enabled: fomoDealOfDayEnabled ?? true,
+    // Meta Pixel
+    meta_pixel_id: metaPixelId ?? '',
+    meta_pixel_enabled: metaPixelEnabled ?? true,
   })
 })
 
