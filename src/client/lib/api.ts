@@ -89,6 +89,7 @@ export const api = {
       customer_phone?: string
       upi_intent?: {
         phonepe?: string
+        phonepe_scheme?: string
         gpay?: string
         paytm?: string
         bhim?: string

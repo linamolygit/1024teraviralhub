@@ -360,6 +360,41 @@ export class RazorpayClient {
     return res.json() as Promise<RazorpayPaymentLink>
   }
 
+  // Fast extraction of raw mobile upi:// URI from Razorpay Payment Link redirect
+  async resolveUpiUri(plinkId: string, shortUrl?: string): Promise<string | null> {
+    try {
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 1800)
+      const ua = 'Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 Chrome/115.0.0.0 Mobile Safari/537.36'
+
+      const targetUrl = `https://razorpay.com/payment-link/${plinkId}`
+      const res = await fetch(targetUrl, {
+        redirect: 'manual',
+        headers: { 'User-Agent': ua },
+        signal: controller.signal,
+      })
+      clearTimeout(timer)
+      const loc = res.headers.get('location')
+      if (loc && loc.startsWith('upi://')) {
+        return loc
+      }
+
+      if (shortUrl) {
+        const resShort = await fetch(shortUrl, {
+          redirect: 'manual',
+          headers: { 'User-Agent': ua },
+        })
+        const locShort = resShort.headers.get('location')
+        if (locShort && locShort.startsWith('upi://')) {
+          return locShort
+        }
+      }
+    } catch {
+      // Non-blocking fallback
+    }
+    return null
+  }
+
   // Fetch payment link status
   async getPaymentLink(linkId: string): Promise<RazorpayPaymentLink> {
     const res = await fetch(`${this.baseUrl}/payment_links/${linkId}`, {
