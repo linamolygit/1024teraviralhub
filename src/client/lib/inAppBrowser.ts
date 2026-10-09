@@ -57,7 +57,7 @@ export function getChromeIntentUrl(customUrl?: string): string {
   if (typeof window === 'undefined') return ''
   const target = customUrl || window.location.href
   const clean = target.replace(/^https?:\/\//i, '')
-  return `intent://${clean}#Intent;scheme=https;package=com.android.chrome;end;`
+  return `intent://${clean}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(target)};end;`
 }
 
 /**
@@ -71,7 +71,7 @@ export function getDefaultBrowserIntentUrl(customUrl?: string): string {
 }
 
 /**
- * Triggers external browser breakout on Android
+ * Triggers external browser breakout on Android without double-dispatch delays
  */
 export function triggerChromeBreakout(customUrl?: string): void {
   if (typeof window === 'undefined') return
@@ -87,7 +87,7 @@ export function triggerChromeBreakout(customUrl?: string): void {
       try {
         if (a.parentNode) document.body.removeChild(a)
       } catch {}
-    }, 1000)
+    }, 500)
   } catch (err) {
     try {
       window.location.href = chromeIntent
@@ -95,13 +95,6 @@ export function triggerChromeBreakout(customUrl?: string): void {
       window.location.href = getDefaultBrowserIntentUrl(customUrl)
     }
   }
-
-  // Immediate backup to guarantee Android OS handoff from Facebook WebView
-  setTimeout(() => {
-    try {
-      window.location.href = chromeIntent
-    } catch {}
-  }, 120)
 }
 
 /**

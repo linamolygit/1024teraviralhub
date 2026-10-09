@@ -473,7 +473,10 @@ export default function ProductPage() {
       if (orderRes.gateway === 'razorpay') {
         const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
         const { isInApp, isAndroid } = detectInAppBrowser()
-        const directUpiUrl = orderRes.payment_url || orderRes.upi_link || orderRes.upi_intent?.phonepe || orderRes.upi_intent?.default
+        const canonicalPlinkUrl = orderRes.razorpay_payment_link_id
+          ? `https://razorpay.com/payment-link/${orderRes.razorpay_payment_link_id}`
+          : null
+        const directUpiUrl = canonicalPlinkUrl || orderRes.payment_url || orderRes.upi_link || orderRes.upi_intent?.phonepe || orderRes.upi_intent?.default
 
         // 🚀 FACEBOOK & INSTAGRAM IN-APP BROWSER (Android):
         // Facebook's internal WebView blocks custom upi:// schemes with net::ERR_UNKNOWN_URL_SCHEME.
@@ -489,6 +492,8 @@ export default function ProductPage() {
         // 🚀 DIRECT PHONE UPI: Instant direct PhonePe / UPI launch without popup on regular mobile (Chrome / Safari / iOS)!
         if (isMobile && directUpiUrl) {
           try {
+            window.location.href = directUpiUrl
+          } catch {
             const a = document.createElement('a')
             a.href = directUpiUrl
             a.style.display = 'none'
@@ -498,9 +503,7 @@ export default function ProductPage() {
               try {
                 if (a.parentNode) document.body.removeChild(a)
               } catch {}
-            }, 1000)
-          } catch {
-            window.location.href = directUpiUrl
+            }, 500)
           }
           setTimeout(() => {
             setIsProcessing(false)
@@ -1214,7 +1217,7 @@ export default function ProductPage() {
           >
             {isProcessing ? (
               <span style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', fontSize: '1.1rem', fontWeight: 800, color: '#000000' }}>
-                <RefreshCw size={18} className="spin" color="#000000" /> Connecting {upiAppName}...
+                <RefreshCw size={18} className="spin" color="#000000" /> ⚡ Opening {upiAppName}...
               </span>
             ) : (
               <>

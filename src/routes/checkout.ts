@@ -180,7 +180,10 @@ app.post('/create', async (c) => {
 
     const providerOrderId = rzpPaymentLink?.order_id || rzpOrder.id
     const sessionId = rzpPaymentLink?.id || rzpOrder.id
-    const directUrl = rzpPaymentLink?.short_url || null
+    // ⚡ ZERO-HOP CANONICAL URL: Use direct razorpay.com/payment-link/plink_xxx to eliminate rzp.io 10-second DNS/redirect latency!
+    const directUrl = rzpPaymentLink?.id
+      ? `https://razorpay.com/payment-link/${rzpPaymentLink.id}`
+      : (rzpPaymentLink?.short_url || null)
 
     // Save order in our DB with REAL customer details for internal fulfillment in a single query
     await createOrder(c.env.DB, {

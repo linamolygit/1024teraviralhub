@@ -317,7 +317,10 @@ export default function CheckoutPage() {
       if (result.gateway === 'razorpay') {
         const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
         const { isInApp, isAndroid } = detectInAppBrowser()
-        const directUpiUrl = result.payment_url || result.upi_link || result.upi_intent?.default
+        const canonicalPlinkUrl = result.razorpay_payment_link_id
+          ? `https://razorpay.com/payment-link/${result.razorpay_payment_link_id}`
+          : null
+        const directUpiUrl = canonicalPlinkUrl || result.payment_url || result.upi_link || result.upi_intent?.default
 
         // 🚀 FACEBOOK & INSTAGRAM IN-APP BROWSER (Android):
         // Break out to Google Chrome via Android Intent so PhonePe / GPay opens reliably!
@@ -331,6 +334,8 @@ export default function CheckoutPage() {
         // No Razorpay JS modal or popup dialog!
         if (isMobile && directUpiUrl) {
           try {
+            window.location.href = directUpiUrl
+          } catch {
             const a = document.createElement('a')
             a.href = directUpiUrl
             a.style.display = 'none'
@@ -340,11 +345,9 @@ export default function CheckoutPage() {
               try {
                 if (a.parentNode) document.body.removeChild(a)
               } catch {}
-            }, 1000)
-          } catch {
-            window.location.href = directUpiUrl
+            }, 500)
           }
-          setTimeout(() => setLoading(false), 2500)
+          setTimeout(() => setLoading(false), 2000)
           return
         }
 

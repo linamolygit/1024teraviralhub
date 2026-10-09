@@ -378,7 +378,9 @@ app.post('/create-order', async (c) => {
       })
     }
 
-    const paymentUrl = plink?.short_url || `${siteUrl}/payment/external-pay?order=${encodeURIComponent(orderNumber)}`
+    const paymentUrl = plink?.id
+      ? `https://razorpay.com/payment-link/${plink.id}`
+      : (plink?.short_url || `${siteUrl}/payment/external-pay?order=${encodeURIComponent(orderNumber)}`)
     const providerOrderId = plink?.order_id || rzpOrder?.id || plink?.id || orderNumber
     const sessionId = plink?.id || rzpOrder?.id || orderNumber
 
