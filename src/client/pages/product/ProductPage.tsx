@@ -22,6 +22,7 @@ import { useSiteConfig } from '../../lib/site-config'
 import ProductLootScarcityBanner from '../../components/product/ProductLootScarcityBanner'
 import RecentPurchasesPopup from '../../components/product/RecentPurchasesPopup'
 import ReviewGateModal from '../../components/product/ReviewGateModal'
+import FlipkartReviewsSection from '../../components/product/FlipkartReviewsSection'
 import AdPlacement from '../../components/ads/AdPlacement'
 import { detectInAppBrowser, triggerChromeBreakout } from '../../lib/inAppBrowser'
 import { trackPageView, trackUserClick, sendAnalyticsEvent } from '../../lib/analytics-tracker'
@@ -1355,117 +1356,15 @@ export default function ProductPage() {
           </div>
         </div>
 
-        {/* ── 7. Customer Reviews & Moderated Ratings ── */}
-        <div
-          className="glass-card"
-          style={{
-            padding: '28px 24px',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--bg-border)',
-            marginBottom: '28px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '8px' }}>
-            <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-              Customer Reviews ({reviewsData?.total ?? 0})
-            </h3>
-            <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>Verified Customer Feedback</span>
-          </div>
-
-          {reviewsData?.reviews && reviewsData.reviews.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '24px' }}>
-              {reviewsData.reviews.map((rev) => (
-                <div key={rev.id} style={{ paddingBottom: '14px', borderBottom: '1px solid var(--bg-border)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                    <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{rev.customer_name}</span>
-                    <span style={{ color: 'var(--brand-amber)', display: 'flex', gap: '2px' }}>
-                      {Array.from({ length: rev.rating }).map((_, i) => (
-                        <Star key={i} size={13} fill="currentColor" />
-                      ))}
-                    </span>
-                  </div>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0, lineHeight: 1.5 }}>
-                    "{rev.comment}"
-                  </p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '20px' }}>
-              No customer reviews yet. Be the first verified customer to share your thoughts!
-            </p>
-          )}
-
-          {/* Review Submission Form */}
-          <form
-            onSubmit={handleReviewSubmit}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '10px',
-              background: 'var(--bg-elevated)',
-              padding: '16px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--bg-border)',
-            }}
-          >
-            <div style={{ fontWeight: 700, fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Star size={15} color="var(--brand-amber)" fill="var(--brand-amber)" />
-              Write a Review
-            </div>
-            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: -4 }}>
-              <Lock size={11} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-              Only verified buyers can submit reviews. Enter the email used at checkout.
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
-              <input
-                className="input-field"
-                placeholder="Your Name"
-                value={reviewForm.name}
-                onChange={(e) => setReviewForm((r) => ({ ...r, name: e.target.value }))}
-                style={{ fontSize: '0.85rem' }}
-                required
-              />
-              <input
-                type="email"
-                className="input-field"
-                placeholder="Email used at checkout (required)"
-                value={reviewForm.email}
-                onChange={(e) => setReviewForm((r) => ({ ...r, email: e.target.value }))}
-                style={{ fontSize: '0.85rem' }}
-                required
-              />
-              <select
-                className="input-field"
-                value={reviewForm.rating}
-                onChange={(e) => setReviewForm((r) => ({ ...r, rating: parseInt(e.target.value) }))}
-                style={{ fontSize: '0.85rem' }}
-              >
-                <option value={5}>⭐⭐⭐⭐⭐ (5 Stars)</option>
-                <option value={4}>⭐⭐⭐⭐ (4 Stars)</option>
-                <option value={3}>⭐⭐⭐ (3 Stars)</option>
-                <option value={2}>⭐⭐ (2 Stars)</option>
-                <option value={1}>⭐ (1 Star)</option>
-              </select>
-            </div>
-            <textarea
-              className="input-field"
-              rows={2}
-              placeholder="How did you like this digital download?"
-              value={reviewForm.comment}
-              onChange={(e) => setReviewForm((r) => ({ ...r, comment: e.target.value }))}
-              style={{ fontSize: '0.85rem' }}
-              required
-            />
-            <button
-              type="submit"
-              className="btn-primary"
-              style={{ padding: '9px 18px', fontSize: '0.8125rem', alignSelf: 'flex-start' }}
-            >
-              <Star size={14} /> Submit Review
-            </button>
-          </form>
-        </div>
+        {/* ── 7. Flipkart-Style Ratings & Reviews System with Customer Photos & Fullscreen Viewer ── */}
+        {product && (
+          <FlipkartReviewsSection
+            productId={product.id}
+            productTitle={product.title}
+            reviewsData={reviewsData as any}
+            onRefetchReviews={refetchReviews}
+          />
+        )}
 
         {/* Review Gate Modal */}
         {reviewModal && (

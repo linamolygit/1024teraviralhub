@@ -227,11 +227,38 @@ export const api = {
 
   reviews: {
     getByProduct: (productId: number) =>
-      req<{ reviews: Review[]; total: number; average_rating: number }>(`/reviews/product/${productId}`),
-    submit: (data: { product_id: number; customer_name: string; rating: number; comment: string; order_number?: string }) =>
+      req<{
+        reviews: Review[]
+        total: number
+        average_rating: number
+        rating_label?: string
+        customer_photos: CustomerReviewPhoto[]
+        product_review_images: string[]
+        aspect_ratings: {
+          quality: number
+          design: number
+          look_and_feel: number
+          value_for_money: number
+          service: number
+        }
+      }>(`/reviews/product/${productId}`),
+    submit: (data: {
+      product_id: number
+      customer_name: string
+      rating: number
+      title?: string
+      comment: string
+      image_url?: string
+      order_number?: string
+    }) =>
       req<{ success: boolean; id: number; is_verified_purchase: boolean }>('/reviews', {
         method: 'POST',
         body: JSON.stringify(data),
+      }),
+    vote: (id: number, type: 'up' | 'down') =>
+      req<{ success: boolean; updated: { id: number; helpful_count: number; unhelpful_count: number } }>(`/reviews/${id}/vote`, {
+        method: 'POST',
+        body: JSON.stringify({ type }),
       }),
   },
 
@@ -565,10 +592,32 @@ export const adminApi = {
 
   reviews: {
     list: (token: string) => adminReq<{ reviews: Review[] }>('/admin/reviews', token),
+    create: (token: string, data: Partial<Review>) =>
+      adminReq<{ success: boolean; id: number }>('/admin/reviews', token, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    update: (token: string, id: number, data: Partial<Review>) =>
+      adminReq<{ success: boolean }>(`/admin/reviews/${id}`, token, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
     approve: (token: string, id: number) =>
       adminReq<{ success: boolean }>(`/admin/reviews/${id}/approve`, token, { method: 'PUT' }),
     delete: (token: string, id: number) =>
       adminReq<{ success: boolean }>(`/admin/reviews/${id}`, token, { method: 'DELETE' }),
+    getProductImages: (token: string, productId: number) =>
+      adminReq<{
+        product_id: number
+        product_title: string
+        review_images: string[]
+        review_photos: { id: number; customer_name: string; rating: number; title: string; image_url: string }[]
+      }>(`/admin/reviews/product/${productId}/images`, token),
+    updateProductImages: (token: string, productId: number, images: string[]) =>
+      adminReq<{ success: boolean; count: number }>(`/admin/reviews/product/${productId}/images`, token, {
+        method: 'PUT',
+        body: JSON.stringify({ images }),
+      }),
   },
 
   users: {
@@ -860,6 +909,18 @@ export interface Coupon {
   created_at: string
 }
 
+export interface CustomerReviewPhoto {
+  url: string
+  review_id?: number
+  customer_name: string
+  rating: number
+  title: string
+  comment: string
+  created_at: string
+  helpful_count: number
+  unhelpful_count: number
+}
+
 export interface Review {
   id: number
   product_id: number
@@ -867,9 +928,14 @@ export interface Review {
   product_slug?: string
   customer_name: string
   rating: number
+  title?: string
   comment: string
+  image_url?: string | null
+  helpful_count?: number
+  unhelpful_count?: number
   is_verified_purchase: number
   is_approved: number
+  is_seed?: number
   created_at: string
 }
 
