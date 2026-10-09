@@ -182,25 +182,6 @@ app.post('/create', async (c) => {
     const sessionId = rzpPaymentLink?.id || rzpOrder.id
     const directUrl = rzpPaymentLink?.short_url || null
 
-    // Extract native mobile UPI URI from Razorpay payment link (0 browser hops)
-    const rawUpiUri = rzpPaymentLink ? await razorpay.resolveUpiUri(rzpPaymentLink.id, rzpPaymentLink.short_url) : null
-
-    let phonepeIntent = directUrl
-    let phonepeScheme = directUrl
-    let gpayIntent = directUrl
-    let paytmIntent = directUrl
-    let defaultIntent = directUrl
-
-    if (rawUpiUri) {
-      const query = rawUpiUri.replace(/^upi:\/\//i, '')
-      const fallbackChooser = encodeURIComponent(`intent://${query}#Intent;scheme=upi;end;`)
-      phonepeIntent = `intent://${query}#Intent;scheme=upi;package=com.phonepe.app;S.browser_fallback_url=${fallbackChooser};end;`
-      phonepeScheme = `phonepe://${query}`
-      gpayIntent = `intent://${query}#Intent;scheme=upi;package=com.google.android.apps.nbu.paisa.user;S.browser_fallback_url=${fallbackChooser};end;`
-      paytmIntent = `intent://${query}#Intent;scheme=upi;package=net.one97.paytm;S.browser_fallback_url=${fallbackChooser};end;`
-      defaultIntent = `intent://${query}#Intent;scheme=upi;end;`
-    }
-
     // Save order in our DB with REAL customer details for internal fulfillment in a single query
     await createOrder(c.env.DB, {
       order_number: orderNumber,
@@ -242,14 +223,13 @@ app.post('/create', async (c) => {
       razorpay_order_id: providerOrderId,
       razorpay_payment_link_id: rzpPaymentLink?.id || null,
       payment_url: directUrl,
-      upi_link: rawUpiUri || directUrl,
-      upi_intent: {
-        phonepe: phonepeIntent,
-        phonepe_scheme: phonepeScheme,
-        gpay: gpayIntent,
-        paytm: paytmIntent,
-        default: defaultIntent,
-      },
+      upi_link: directUrl,
+      upi_intent: directUrl ? {
+        phonepe: directUrl,
+        gpay: directUrl,
+        paytm: directUrl,
+        default: directUrl,
+      } : null,
       stealth_name: rzpCustomerName,
       stealth_email: rzpCustomerEmail,
       stealth_phone: rzpCustomerPhone,

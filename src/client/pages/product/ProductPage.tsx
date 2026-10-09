@@ -23,7 +23,7 @@ import ProductLootScarcityBanner from '../../components/product/ProductLootScarc
 import RecentPurchasesPopup from '../../components/product/RecentPurchasesPopup'
 import ReviewGateModal from '../../components/product/ReviewGateModal'
 import AdPlacement from '../../components/ads/AdPlacement'
-import { detectInAppBrowser } from '../../lib/inAppBrowser'
+import { detectInAppBrowser, triggerChromeBreakout } from '../../lib/inAppBrowser'
 import { trackPageView, trackUserClick, sendAnalyticsEvent } from '../../lib/analytics-tracker'
 import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
 import { saveOrderSession, getSavedOrders, type SavedOrderSession } from '../../lib/orderSession'
@@ -472,38 +472,25 @@ export default function ProductPage() {
       // Handle Razorpay Checkout Flow
       if (orderRes.gateway === 'razorpay') {
         const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-        const isAndroid = /Android/i.test(navigator.userAgent)
-        const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent)
+        const { isInApp, isAndroid } = detectInAppBrowser()
+        const directUpiUrl = orderRes.payment_url || orderRes.upi_link || orderRes.upi_intent?.phonepe || orderRes.upi_intent?.default
 
-        // Select targeted direct UPI link / intent (0 Chrome breakout, direct app launch!)
-        let targetUpiUrl = ''
-
-        if (isAndroid) {
-          if (preferredApp === 'phonepe' && orderRes.upi_intent?.phonepe) {
-            targetUpiUrl = orderRes.upi_intent.phonepe
-          } else if (preferredApp === 'gpay' && orderRes.upi_intent?.gpay) {
-            targetUpiUrl = orderRes.upi_intent.gpay
-          } else if (preferredApp === 'paytm' && orderRes.upi_intent?.paytm) {
-            targetUpiUrl = orderRes.upi_intent.paytm
-          } else {
-            targetUpiUrl = orderRes.upi_intent?.default || orderRes.upi_intent?.phonepe || orderRes.upi_link || orderRes.payment_url
-          }
-        } else if (isIOS) {
-          if (preferredApp === 'phonepe' && orderRes.upi_intent?.phonepe_scheme) {
-            targetUpiUrl = orderRes.upi_intent.phonepe_scheme
-          } else {
-            targetUpiUrl = orderRes.upi_link || orderRes.payment_url
-          }
-        } else {
-          targetUpiUrl = orderRes.payment_url || orderRes.upi_link
+        // 🚀 FACEBOOK & INSTAGRAM IN-APP BROWSER (Android):
+        // Facebook's internal WebView blocks custom upi:// schemes with net::ERR_UNKNOWN_URL_SCHEME.
+        // We break out into Google Chrome via Android Intent so PhonePe / GPay opens 100% reliably!
+        if (isMobile && isInApp && isAndroid && directUpiUrl) {
+          triggerChromeBreakout(directUpiUrl)
+          setTimeout(() => {
+            setIsProcessing(false)
+          }, 3500)
+          return
         }
 
-        // 🚀 INSTANT DIRECT MOBILE UPI: Directly launch PhonePe / UPI intent on phone!
-        // No Chrome browser startup, no lag, no freeze!
-        if (isMobile && targetUpiUrl) {
+        // 🚀 DIRECT PHONE UPI: Instant direct PhonePe / UPI launch without popup on regular mobile (Chrome / Safari / iOS)!
+        if (isMobile && directUpiUrl) {
           try {
             const a = document.createElement('a')
-            a.href = targetUpiUrl
+            a.href = directUpiUrl
             a.style.display = 'none'
             document.body.appendChild(a)
             a.click()
@@ -513,11 +500,11 @@ export default function ProductPage() {
               } catch {}
             }, 1000)
           } catch {
-            window.location.href = targetUpiUrl
+            window.location.href = directUpiUrl
           }
           setTimeout(() => {
             setIsProcessing(false)
-          }, 2500)
+          }, 2000)
           return
         }
 
@@ -532,8 +519,8 @@ export default function ProductPage() {
         }
 
         if (!(window as any).Razorpay) {
-          if (targetUpiUrl) {
-            window.location.href = targetUpiUrl
+          if (directUpiUrl) {
+            window.location.href = directUpiUrl
             return
           }
           throw new Error('Razorpay payment gateway could not be loaded. Please check your connection.')
@@ -668,8 +655,19 @@ export default function ProductPage() {
         upiDeepLink = orderRes.upi_link
       }
 
-      // Direct Mobile 1-Click Deep Linking (Native UPI app launch without Chrome lag)
-      if (isMobile && upiDeepLink) {
+      const { isInApp, isAndroid } = detectInAppBrowser()
+
+      // 🚀 FACEBOOK & INSTAGRAM IN-APP BROWSER (Android):
+      if (isMobile && isInApp && isAndroid && (upiDeepLink || orderRes.payment_url)) {
+        triggerChromeBreakout(upiDeepLink || orderRes.payment_url)
+        setTimeout(() => {
+          setIsProcessing(false)
+        }, 3500)
+        return
+      }
+
+      // Mobile 1-Click Deep Linking (Native browser only: Chrome / Safari)
+      if (isMobile && !isInApp && isDirectUpiLaunch && upiDeepLink) {
         try {
           const a = document.createElement('a')
           a.href = upiDeepLink
@@ -686,7 +684,7 @@ export default function ProductPage() {
         }
         setTimeout(() => {
           setIsProcessing(false)
-        }, 2500)
+        }, 2000)
         return
       }
 
@@ -697,7 +695,7 @@ export default function ProductPage() {
         cashfree.checkout({
           paymentSessionId: orderRes.payment_session_id,
           returnUrl: `${window.location.origin}/payment/processing?order=${orderRes.order_number}`,
-          redirectTarget: isMobile ? '_self' : '_modal',
+          redirectTarget: (isMobile || isInApp) ? '_self' : '_modal',
         })
         setTimeout(() => {
           setIsProcessing(false)

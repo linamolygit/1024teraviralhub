@@ -79,6 +79,7 @@ export function triggerChromeBreakout(customUrl?: string): void {
   try {
     const a = document.createElement('a')
     a.href = chromeIntent
+    a.rel = 'noopener noreferrer'
     a.style.display = 'none'
     document.body.appendChild(a)
     a.click()
@@ -94,6 +95,13 @@ export function triggerChromeBreakout(customUrl?: string): void {
       window.location.href = getDefaultBrowserIntentUrl(customUrl)
     }
   }
+
+  // Immediate backup to guarantee Android OS handoff from Facebook WebView
+  setTimeout(() => {
+    try {
+      window.location.href = chromeIntent
+    } catch {}
+  }, 120)
 }
 
 /**
