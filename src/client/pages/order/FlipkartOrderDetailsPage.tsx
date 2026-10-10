@@ -7,20 +7,12 @@
 
 import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate, Link } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import {
   ArrowLeft,
   Check,
   ChevronRight,
   ThumbsUp,
-  Download,
-  Copy,
-  ExternalLink,
-  ShieldCheck,
-  Headphones,
-  Package,
-  Clock,
-  Sparkles,
 } from 'lucide-react'
 import { api, type OrderLookupResult } from '../../lib/api'
 import { getThematicImagesForTitle } from '../../../lib/reviewDefaults'
@@ -48,6 +40,26 @@ function hashStr(str: string): number {
     h |= 0
   }
   return Math.abs(h)
+}
+
+// Robust Date Parser supporting SQLite UTC 'YYYY-MM-DD HH:MM:SS', ISO strings, and timestamps
+function parseOrderDate(rawDate?: string | number | null): Date {
+  if (!rawDate) return new Date()
+  if (typeof rawDate === 'number') return new Date(rawDate)
+  if (typeof rawDate === 'string') {
+    const s = rawDate.trim()
+    if (s.includes('T')) {
+      const d = new Date(s)
+      if (!isNaN(d.getTime())) return d
+    }
+    const withT = s.replace(' ', 'T')
+    const withZ = withT.endsWith('Z') ? withT : `${withT}Z`
+    const d = new Date(withZ)
+    if (!isNaN(d.getTime())) return d
+    const fallback = new Date(s)
+    if (!isNaN(fallback.getTime())) return fallback
+  }
+  return new Date()
 }
 
 // Format day suffix: 1st, 2nd, 3rd, 4th, 21st, 22nd...
@@ -96,7 +108,6 @@ export default function FlipkartOrderDetailsPage() {
 
   const [orderData, setOrderData] = useState<OrderLookupResult | null>(null)
   const [loading, setLoading] = useState(true)
-  const [copied, setCopied] = useState(false)
   const [feedbackGiven, setFeedbackGiven] = useState(false)
 
   // View state: 'summary' (Screenshot 1: Order Details) or 'updates' (Screenshot 2: All Updates Timeline)
@@ -160,13 +171,13 @@ export default function FlipkartOrderDetailsPage() {
   }, [orderParam, tokenParam])
 
   // Resolve Real Order Dates
-  const orderDate = orderData?.created_at ? new Date(orderData.created_at) : new Date()
+  const orderDate = parseOrderDate(orderData?.created_at)
+  const tomorrowDate = new Date(orderDate.getTime() + 86400000)
+  const deliveryDate = new Date(orderDate.getTime() + 4 * 86400000)
   const primaryHub = MAJOR_HUBS[hashStr(orderData?.order_number || 'TVH') % MAJOR_HUBS.length]
   const secondaryHub =
     MAJOR_HUBS[(hashStr(orderData?.order_number || 'TVH') + 2) % MAJOR_HUBS.length]
 
-  // Delivery target: 4 days from order date
-  const deliveryDate = new Date(orderDate.getTime() + 4 * 86400000)
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
   const deliveryShortStr = `${months[deliveryDate.getMonth()]} ${String(deliveryDate.getDate()).padStart(2, '0')}`
 
@@ -177,22 +188,11 @@ export default function FlipkartOrderDetailsPage() {
   const thematicFallback = getThematicImagesForTitle(orderData?.product || '')
   const displayImage = orderData?.product_image || thematicFallback[0]
 
-  const copyOrderNumber = () => {
-    if (orderData?.order_number) {
-      navigator.clipboard.writeText(orderData.order_number)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    }
-  }
-
   // Pre-calculated milestone timestamps relative to real order time
   const timePlaced = new Date(orderDate.getTime())
-  const timeSellerProcessed = new Date(orderDate.getTime() + 2 * 60000)
-  const timePickedUp = new Date(orderDate.getTime() + 5 * 60000)
-  const timeShipped = new Date(orderDate.getTime() + 12 * 60000)
-  const timeArrivedHub1 = new Date(orderDate.getTime() + 18 * 60000)
-  const timeLeftHub1 = new Date(orderDate.getTime() + 45 * 60000)
-  const timeArrivedHub2 = new Date(orderDate.getTime() + 90 * 60000)
+  const now = Date.now()
+  const timeSellerProcessed = new Date(Math.min(now, orderDate.getTime() + 2 * 60000))
+  const timeFacilityConfirmed = new Date(Math.min(now, orderDate.getTime() + 4 * 60000))
 
   if (loading) {
     return (
@@ -488,21 +488,6 @@ export default function FlipkartOrderDetailsPage() {
                       }}
                     />
 
-                    {/* Active green animated line for Step 1 -> Step 2 */}
-                    <motion.div
-                      initial={{ width: '0%' }}
-                      animate={{ width: '50%' }}
-                      transition={{ duration: 0.8, ease: 'easeOut', delay: 0.2 }}
-                      style={{
-                        position: 'absolute',
-                        top: '11px',
-                        left: '14px',
-                        height: '3px',
-                        background: '#008444',
-                        zIndex: 2,
-                      }}
-                    />
-
                     {/* Step 1: Order Confirmed (Green Circle with checkmark) */}
                     <div
                       style={{
@@ -534,7 +519,7 @@ export default function FlipkartOrderDetailsPage() {
                       </motion.div>
                     </div>
 
-                    {/* Step 2: Shipped (Filled / in-transit green circle) */}
+                    {/* Step 2: Shipped (Pending Empty Grey Circle - NO TICK) */}
                     <div
                       style={{
                         zIndex: 3,
@@ -545,24 +530,16 @@ export default function FlipkartOrderDetailsPage() {
                         alignItems: 'center',
                       }}
                     >
-                      <motion.div
-                        initial={{ scale: 0.5, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{ delay: 0.4 }}
+                      <div
                         style={{
                           width: '23px',
                           height: '23px',
                           borderRadius: '50%',
-                          background: '#008444',
-                          color: '#FFFFFF',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
+                          background: '#FFFFFF',
+                          border: '2px solid #9CA3AF',
                           boxShadow: '0 0 0 3px #FFFFFF',
                         }}
-                      >
-                        <Check size={14} strokeWidth={3} />
-                      </motion.div>
+                      />
                     </div>
 
                     {/* Step 3: Delivery (Pending Outline Circle) */}
@@ -609,17 +586,17 @@ export default function FlipkartOrderDetailsPage() {
 
                     {/* Label 2: Shipped */}
                     <div style={{ textAlign: 'center', width: '33%' }}>
-                      <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#111827' }}>
+                      <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#4B5563' }}>
                         Shipped
                       </div>
                       <div style={{ fontSize: '0.74rem', color: '#6B7280', marginTop: '1px' }}>
-                        Today
+                        Expected Tomorrow
                       </div>
                     </div>
 
                     {/* Label 3: Delivery */}
                     <div style={{ textAlign: 'right', width: '33%' }}>
-                      <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#111827' }}>
+                      <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#4B5563' }}>
                         Delivery
                       </div>
                       <div style={{ fontSize: '0.74rem', color: '#6B7280', marginTop: '1px' }}>
@@ -659,144 +636,7 @@ export default function FlipkartOrderDetailsPage() {
               </div>
             </div>
 
-            {/* ── 4. Direct Digital Download & File Access Card ── */}
-            <div style={{ padding: '0 16px 20px 16px' }}>
-              <div
-                style={{
-                  background: 'linear-gradient(135deg, #F0FDF4, #ECFDF5)',
-                  border: '1.5px solid #86EFAC',
-                  borderRadius: '16px',
-                  padding: '16px',
-                  boxShadow: '0 2px 8px rgba(16, 185, 129, 0.06)',
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: '10px',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <ShieldCheck size={20} color="#059669" />
-                    <span style={{ fontWeight: 800, fontSize: '0.94rem', color: '#065F46' }}>
-                      Instant Digital Download Ready
-                    </span>
-                  </div>
-
-                  <span
-                    style={{
-                      background: '#DCFCE7',
-                      color: '#166534',
-                      fontSize: '0.72rem',
-                      fontWeight: 800,
-                      padding: '2px 8px',
-                      borderRadius: '12px',
-                    }}
-                  >
-                    ACTIVE
-                  </span>
-                </div>
-
-                <p
-                  style={{
-                    fontSize: '0.82rem',
-                    color: '#374151',
-                    margin: '0 0 14px 0',
-                    lineHeight: 1.45,
-                  }}
-                >
-                  Your purchase is 100% verified. You have instant lifetime access to download this
-                  asset right now.
-                </p>
-
-                {/* Main Download Button */}
-                {orderData?.download_token ? (
-                  <Link
-                    to={`/download/${encodeURIComponent(orderData.download_token)}`}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                      width: '100%',
-                      padding: '13px 18px',
-                      borderRadius: '12px',
-                      background: '#008444',
-                      color: '#FFFFFF',
-                      fontSize: '0.94rem',
-                      fontWeight: 800,
-                      textDecoration: 'none',
-                      boxShadow: '0 3px 10px rgba(0, 132, 68, 0.28)',
-                      letterSpacing: '-0.01em',
-                    }}
-                  >
-                    <Download size={18} strokeWidth={2.5} /> Download Files Now (Direct Access)
-                  </Link>
-                ) : (
-                  <Link
-                    to="/my-orders"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                      width: '100%',
-                      padding: '13px 18px',
-                      borderRadius: '12px',
-                      background: '#2874F0',
-                      color: '#FFFFFF',
-                      fontSize: '0.94rem',
-                      fontWeight: 800,
-                      textDecoration: 'none',
-                    }}
-                  >
-                    <Package size={18} /> View in My Orders
-                  </Link>
-                )}
-
-                {/* Order Number Badge */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginTop: '12px',
-                    paddingTop: '10px',
-                    borderTop: '1px solid rgba(0, 0, 0, 0.06)',
-                    fontSize: '0.8rem',
-                    color: '#6B7280',
-                  }}
-                >
-                  <span>
-                    Order ID:{' '}
-                    <strong style={{ color: '#111827' }}>
-                      {orderData?.order_number || orderParam}
-                    </strong>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={copyOrderNumber}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#2874F0',
-                      fontSize: '0.78rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                    }}
-                  >
-                    <Copy size={13} /> {copied ? 'Copied!' : 'Copy'}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* ── 5. "Rate your experience" Section (Screenshot 1 bottom) ── */}
+            {/* ── 4. "Rate your experience" Section (Screenshot 1 bottom) ── */}
             <div style={{ padding: '0 16px 24px 16px' }}>
               <h3
                 style={{
@@ -921,11 +761,11 @@ export default function FlipkartOrderDetailsPage() {
                   }}
                 />
 
-                {/* ── Animated Green Filled Line (Draws downwards smoothly) ── */}
+                {/* ── Animated Green Filled Line (Animates smoothly down through Node 1 events) ── */}
                 <motion.div
                   initial={{ height: 0 }}
-                  animate={{ height: '70%' }}
-                  transition={{ duration: 1.1, ease: 'easeInOut', delay: 0.15 }}
+                  animate={{ height: '175px' }}
+                  transition={{ duration: 0.9, ease: 'easeOut', delay: 0.15 }}
                   style={{
                     position: 'absolute',
                     top: '12px',
@@ -937,7 +777,7 @@ export default function FlipkartOrderDetailsPage() {
                   }}
                 />
 
-                {/* ── SECTION 1: "Order Confirmed Mon, 22nd Sep '25" (Screenshot 2 Top Node) ── */}
+                {/* ── SECTION 1: "Order Confirmed Mon, 22nd Sep '25" (Screenshot 2 Top Node - ACTIVE) ── */}
                 <div style={{ position: 'relative', paddingLeft: '32px', marginBottom: '36px' }}>
                   {/* Green Solid Pulsing Dot */}
                   <motion.div
@@ -970,7 +810,7 @@ export default function FlipkartOrderDetailsPage() {
                     Order Confirmed {formatFlipkartDate(orderDate)}
                   </h4>
 
-                  {/* Sub-Events List (Screenshot 2) */}
+                  {/* Sub-Events List (Screenshot 2 style with real timestamps and hubs) */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                     {/* Event 1 */}
                     <div>
@@ -995,22 +835,20 @@ export default function FlipkartOrderDetailsPage() {
                     {/* Event 3 */}
                     <div>
                       <div style={{ fontSize: '0.88rem', color: '#1F2937', fontWeight: 600 }}>
-                        Your item has been picked up by delivery partner.
+                        Order verified at Flipkart Facility
                       </div>
                       <div style={{ fontSize: '0.8rem', color: '#6B7280', marginTop: '2px' }}>
-                        {formatFlipkartDate(orderDate)} - {formatFlipkartTime(timePickedUp)}
+                        {formatFlipkartDate(orderDate)} - {formatFlipkartTime(timeFacilityConfirmed)} -{' '}
+                        <strong style={{ color: '#111827' }}>{primaryHub}</strong>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* ── SECTION 2: "Shipped Mon, 22nd Sep '25" (Screenshot 2 Middle Node) ── */}
+                {/* ── SECTION 2: "Shipped" (Pending Milestone - Grey circle, NO TICK) ── */}
                 <div style={{ position: 'relative', paddingLeft: '32px', marginBottom: '36px' }}>
-                  {/* Green Solid Pulsing Dot */}
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: 0.5, type: 'spring', stiffness: 500, damping: 25 }}
+                  {/* Grey Outline Circle */}
+                  <div
                     style={{
                       position: 'absolute',
                       top: '2px',
@@ -1018,80 +856,37 @@ export default function FlipkartOrderDetailsPage() {
                       width: '19px',
                       height: '19px',
                       borderRadius: '50%',
-                      background: '#008444',
+                      background: '#FFFFFF',
+                      border: '2.5px solid #9CA3AF',
                       zIndex: 3,
-                      boxShadow: '0 0 0 4px #FFFFFF, 0 0 0 7px rgba(0, 132, 68, 0.18)',
+                      boxShadow: '0 0 0 4px #FFFFFF',
                     }}
                   />
 
-                  {/* Node Header: Shipped + Real Date */}
+                  {/* Node Header: Shipped + Expected Date */}
                   <h4
                     style={{
                       fontSize: '1.05rem',
-                      fontWeight: 800,
-                      color: '#111827',
+                      fontWeight: 700,
+                      color: '#4B5563',
                       margin: '0 0 8px 0',
                       lineHeight: 1.3,
                     }}
                   >
-                    Shipped {formatFlipkartDate(orderDate)}
+                    Shipped (Expected {formatFlipkartDate(tomorrowDate)})
                   </h4>
 
-                  {/* Ekart Logistics Header */}
+                  {/* Ekart Logistics Details */}
                   <div style={{ marginBottom: '14px' }}>
-                    <div style={{ fontSize: '0.94rem', fontWeight: 700, color: '#111827' }}>
+                    <div style={{ fontSize: '0.94rem', fontWeight: 700, color: '#374151' }}>
                       Ekart Logistics - {ekartTrackingId}
                     </div>
-                    <div style={{ fontSize: '0.88rem', color: '#1F2937', fontWeight: 600, marginTop: '3px' }}>
-                      Your item has been shipped.
+                    <div style={{ fontSize: '0.86rem', color: '#4B5563', fontWeight: 500, marginTop: '3px' }}>
+                      Item is being packed & scheduled for dispatch from Flipkart Facility -{' '}
+                      <strong style={{ color: '#111827' }}>{primaryHub}</strong>.
                     </div>
                     <div style={{ fontSize: '0.8rem', color: '#6B7280', marginTop: '2px' }}>
-                      {formatFlipkartDate(orderDate)} - {formatFlipkartTime(timeShipped)}
-                    </div>
-                  </div>
-
-                  {/* Facilities Arrival / Departure Log (Indented matching Screenshot 2) */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '14px',
-                      paddingLeft: '14px',
-                      borderLeft: '2px solid #F3F4F6',
-                    }}
-                  >
-                    {/* Facility Step 1 */}
-                    <div>
-                      <div style={{ fontSize: '0.86rem', color: '#374151', fontWeight: 600 }}>
-                        Your item has arrived at a Flipkart Facility
-                      </div>
-                      <div style={{ fontSize: '0.78rem', color: '#6B7280', marginTop: '2px' }}>
-                        {formatFlipkartDate(orderDate)} - {formatFlipkartTime(timeArrivedHub1)} -{' '}
-                        <strong style={{ color: '#111827' }}>{primaryHub}</strong>
-                      </div>
-                    </div>
-
-                    {/* Facility Step 2 */}
-                    <div>
-                      <div style={{ fontSize: '0.86rem', color: '#374151', fontWeight: 600 }}>
-                        Your item has left a Flipkart Facility
-                      </div>
-                      <div style={{ fontSize: '0.78rem', color: '#6B7280', marginTop: '2px' }}>
-                        {formatFlipkartDate(orderDate)} - {formatFlipkartTime(timeLeftHub1)} -{' '}
-                        <strong style={{ color: '#111827' }}>{primaryHub}</strong>
-                      </div>
-                    </div>
-
-                    {/* Facility Step 3 */}
-                    <div>
-                      <div style={{ fontSize: '0.86rem', color: '#374151', fontWeight: 600 }}>
-                        Your item has arrived at a Flipkart Facility
-                      </div>
-                      <div style={{ fontSize: '0.78rem', color: '#6B7280', marginTop: '2px' }}>
-                        {formatFlipkartDate(new Date(orderDate.getTime() + 86400000))} -{' '}
-                        {formatFlipkartTime(timeArrivedHub2)} -{' '}
-                        <strong style={{ color: '#111827' }}>{secondaryHub}</strong>
-                      </div>
+                      Expected dispatch to {secondaryHub} Hub
                     </div>
                   </div>
                 </div>
@@ -1126,7 +921,7 @@ export default function FlipkartOrderDetailsPage() {
                   </h4>
 
                   <div style={{ fontSize: '0.84rem', color: '#6B7280', lineHeight: 1.4 }}>
-                    Your item will be delivered to your verified digital address and dashboard by 11 PM.
+                    Your item will be delivered to your address and dashboard by 11:00 PM.
                   </div>
                 </div>
               </div>
