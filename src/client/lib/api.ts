@@ -1137,6 +1137,9 @@ export interface OrderLookupResult {
   original_price?: number
   sale_price?: number
   product: string
+  product_slug?: string
+  product_id?: number
+  product_image?: string | null
   created_at: string
   download_token: string | null
   download_expired: boolean

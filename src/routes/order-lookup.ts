@@ -74,6 +74,13 @@ app.get('/', async (c) => {
   let download_token = verification.download_token || null
   const finalStatus = verification.isPaid ? 'PAID' : (verification.status || order.status)
 
+  // Fetch product thumbnail image if available
+  const thumb = await c.env.DB.prepare(
+    `SELECT r2_key FROM product_images WHERE product_id = ? ORDER BY is_thumbnail DESC, sort_order ASC, id ASC LIMIT 1`
+  ).bind(order.product_id).first<{ r2_key: string }>()
+
+  const productImage = thumb ? `/api/images/${encodeURIComponent(thumb.r2_key)}` : null
+
   return c.json({
     order_number: order.order_number,
     status: finalStatus,
@@ -82,6 +89,8 @@ app.get('/', async (c) => {
     sale_price: order.sale_price ?? order.amount,
     product: order.product_title,
     product_slug: order.product_slug,
+    product_id: order.product_id,
+    product_image: productImage,
     created_at: order.created_at,
     download_token,
     download_expired: finalStatus === 'PAID' && !download_token,

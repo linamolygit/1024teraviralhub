@@ -28,6 +28,7 @@ const PaymentProcessingPage = lazyWithRetry(() => import('./client/pages/payment
 const PaymentSuccessPage = lazyWithRetry(() => import('./client/pages/payment/PaymentSuccessPage'))
 const PaymentFailedPage = lazyWithRetry(() => import('./client/pages/payment/PaymentFailedPage'))
 const DownloadPage = lazyWithRetry(() => import('./client/pages/download/DownloadPage'))
+const FlipkartOrderDetailsPage = lazyWithRetry(() => import('./client/pages/order/FlipkartOrderDetailsPage'))
 const DownloadsPage = lazyWithRetry(() => import('./client/pages/downloads/DownloadsPage'))
 const MyOrdersPage = lazyWithRetry(() => import('./client/pages/orders/MyOrdersPage'))
 const OrderLookupPage = lazyWithRetry(() => import('./client/pages/order-lookup/OrderLookupPage'))
@@ -197,6 +198,8 @@ export default function App() {
               <Route path="/payment/processing" element={<PaymentProcessingPage />} />
               <Route path="/payment/success" element={<PaymentSuccessPage />} />
               <Route path="/payment/failed" element={<PaymentFailedPage />} />
+              <Route path="/order/details" element={<FlipkartOrderDetailsPage />} />
+              <Route path="/orders/details" element={<FlipkartOrderDetailsPage />} />
               <Route path="/download/:token" element={<DownloadPage />} />
               <Route path="/share/:uid" element={<ShareBridgePage />} />
             </Route>

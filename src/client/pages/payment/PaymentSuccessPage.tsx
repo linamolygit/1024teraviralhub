@@ -1,10 +1,10 @@
 // src/client/pages/payment/PaymentSuccessPage.tsx — Premium Blinkit/PhonePe Order Placed Celebration
 import { useState, useEffect } from 'react'
-import { useSearchParams, Link } from 'react-router-dom'
+import { useSearchParams, Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Download, Clock, Copy, ShieldCheck, Headphones,
-  Package, Check, ExternalLink, Sparkles, Gift
+  Package, Check, ExternalLink, Sparkles, Gift, ArrowRight
 } from 'lucide-react'
 import { trackPixelEvent } from '../../lib/utils'
 import { saveOrderSession, getSavedOrders } from '../../lib/orderSession'
@@ -140,12 +140,14 @@ function ScratchTicketIcon() {
 
 export default function PaymentSuccessPage() {
   const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
   const orderNumber = searchParams.get('order')
   const downloadToken = searchParams.get('token')
   const [copied, setCopied] = useState(false)
   const [savings, setSavings] = useState(0)
   const [hasSavings, setHasSavings] = useState(false)
   const [scratched, setScratched] = useState(false)
+  const [redirectCountdown, setRedirectCountdown] = useState(3)
 
   // Animation phase: 'burst' (full green splash) -> 'settled' (clean white card)
   const [animStage, setAnimStage] = useState<'burst' | 'settled'>('burst')
@@ -235,8 +237,24 @@ export default function PaymentSuccessPage() {
       setAnimStage('settled')
     }, 1500)
 
-    return () => clearTimeout(timer)
-  }, [orderNumber, downloadToken])
+    // 5. Automatic redirect to Flipkart Order Details & Tracking page after 3 seconds
+    const redirectTimer = setTimeout(() => {
+      navigate(
+        `/order/details?order=${encodeURIComponent(orderNumber || '')}&token=${encodeURIComponent(downloadToken || '')}`,
+        { replace: true }
+      )
+    }, 3000)
+
+    const interval = setInterval(() => {
+      setRedirectCountdown((prev) => (prev > 1 ? prev - 1 : 1))
+    }, 1000)
+
+    return () => {
+      clearTimeout(timer)
+      clearTimeout(redirectTimer)
+      clearInterval(interval)
+    }
+  }, [orderNumber, downloadToken, navigate])
 
   const copyOrder = () => {
     if (orderNumber) {
@@ -381,6 +399,36 @@ export default function PaymentSuccessPage() {
           zIndex: 5,
         }}
       >
+        {/* ── Direct Link / Auto-Redirect Pill to Flipkart Order Details ── */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.25 }}
+          onClick={() =>
+            navigate(
+              `/order/details?order=${encodeURIComponent(orderNumber || '')}&token=${encodeURIComponent(downloadToken || '')}`,
+              { replace: true }
+            )
+          }
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            background: 'linear-gradient(135deg, #2874F0, #1E50D8)',
+            color: '#FFFFFF',
+            padding: '7px 18px',
+            borderRadius: '24px',
+            fontSize: '0.82rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            marginBottom: '16px',
+            boxShadow: '0 3px 12px rgba(40, 116, 240, 0.3)',
+          }}
+        >
+          <span>Opening Flipkart Order Details in {redirectCountdown}s...</span>
+          <ArrowRight size={14} />
+        </motion.div>
+
         {/* ── The Center Green Checkmark with Mint Halos & Sparkle Stars (Images 2 & 3) ── */}
         <div style={{ position: 'relative', width: 170, height: 170, margin: '0 auto 24px' }}>
           {/* Outer Mint Halo */}
