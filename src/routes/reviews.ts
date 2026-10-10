@@ -3,6 +3,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import type { Env } from '../worker'
 import { ensureBaselineReviews, getSetting } from '../lib/db'
+import { getProductReviewPhotos } from '../lib/reviewDefaults'
 
 const app = new Hono<{ Bindings: Env }>()
 
@@ -99,6 +100,17 @@ app.get('/product/:productId', async (c) => {
     avgRating = stats?.avg_rating ? parseFloat(stats.avg_rating.toFixed(1)) : 4.4
   }
 
+  // Fetch product's real uploaded photos from product_images
+  const uploadedImgsRes = await c.env.DB.prepare(`
+    SELECT r2_key FROM product_images WHERE product_id = ? ORDER BY is_thumbnail DESC, sort_order ASC, id ASC
+  `).bind(productId).all<{ r2_key: string }>()
+  const uploadedUrls = (uploadedImgsRes.results || []).map(
+    (u) => `/api/images/${encodeURIComponent(u.r2_key)}`
+  )
+
+  // Guaranteed at least 5 authentic product review photos (Admin Custom + Real Uploaded + Title-Matched)
+  const guaranteedPhotos = getProductReviewPhotos(productRow?.title || '', uploadedUrls, extraImages)
+
   // Compile customer review photos for the Flipkart collage
   const customerPhotos: {
     url: string
@@ -112,7 +124,7 @@ app.get('/product/:productId', async (c) => {
     unhelpful_count: number
   }[] = []
 
-  // 1. Gather all photos attached to reviews
+  // 1. Gather all photos already attached to reviews
   for (const r of reviewsList) {
     if (r.image_url && typeof r.image_url === 'string' && r.image_url.trim().length > 0) {
       customerPhotos.push({
@@ -120,8 +132,8 @@ app.get('/product/:productId', async (c) => {
         review_id: r.id,
         customer_name: r.customer_name || 'Verified Buyer',
         rating: r.rating || 5,
-        title: r.title || (r.rating === 5 ? 'Terrific' : r.rating === 4 ? 'Very Good' : 'Good'),
-        comment: r.comment || '',
+        title: r.title || (r.rating === 5 ? 'Terrific purchase' : r.rating === 4 ? 'Very Good' : 'Value-for-money'),
+        comment: r.comment || 'Good product. Totally value for money!',
         created_at: r.created_at,
         helpful_count: r.helpful_count || 0,
         unhelpful_count: r.unhelpful_count || 0,
@@ -129,21 +141,42 @@ app.get('/product/:productId', async (c) => {
     }
   }
 
-  // 2. Add extra product review images if provided
-  for (let idx = 0; idx < extraImages.length; idx++) {
-    const imgUrl = extraImages[idx]
-    if (!customerPhotos.some((p) => p.url === imgUrl)) {
-      const fallbackNames = ['Shiv Mohan', 'Aarav Sharma', 'Priya Patel', 'Vikram Malhotra', 'Sneha Verma']
+  // 2. Add extra guaranteed photos (uploaded product photos + title-matched photos)
+  const fallbackNames = ['Shiv Mohan', 'Hanuman Singh', 'Aarav Sharma', 'Priya Patel', 'Vikram Malhotra', 'Sneha Verma', 'Rohan Deshmukh']
+  const fallbackTitles = ['Terrific purchase', 'Value-for-money', 'Good product', 'Worth every penny', 'Just wow! Must buy']
+  const fallbackComments = [
+    'Good product. The quality is truly amazing and totally worth the price. Delivered instantly without any hassle!',
+    'Value for money! Best purchase in this budget. Everything is well organized and easy to use.',
+    'Good for daily use, simple and clean. Loved the experience, totally satisfied with the purchase.',
+    'Terrific purchase! Genuine product and very easy to access. 5 stars for the fast delivery!',
+    'Worth every penny. The finishing and quality exceeded my expectations. Full paisa vasool!',
+  ]
+
+  for (let idx = 0; idx < guaranteedPhotos.length; idx++) {
+    const photoUrl = guaranteedPhotos[idx]
+    if (!customerPhotos.some((p) => p.url === photoUrl)) {
       customerPhotos.push({
-        url: imgUrl,
+        url: photoUrl,
         customer_name: fallbackNames[idx % fallbackNames.length],
         rating: 5,
-        title: idx === 0 ? 'Terrific' : idx === 1 ? 'Perfect' : 'Mind-blowing purchase',
-        comment: 'Best quality product! Exactly as shown, totally satisfied with the purchase.',
+        title: fallbackTitles[idx % fallbackTitles.length],
+        comment: fallbackComments[idx % fallbackComments.length],
         created_at: new Date(Date.now() - (idx + 1) * 7 * 86400000).toISOString(),
         helpful_count: 2 + idx,
         unhelpful_count: 0,
       })
+    }
+  }
+
+  // 3. Ensure all reviews have proper Flipkart titles and top reviews have image_url
+  for (let i = 0; i < reviewsList.length; i++) {
+    const rev = reviewsList[i]
+    if (!rev.title || rev.title.trim().length === 0) {
+      rev.title = rev.rating === 5 ? 'Terrific purchase' : rev.rating === 4 ? 'Very Good' : 'Value-for-money'
+    }
+    // If top reviews don't have an image, attach one from guaranteed photos
+    if (!rev.image_url && i < guaranteedPhotos.length) {
+      rev.image_url = guaranteedPhotos[i]
     }
   }
 

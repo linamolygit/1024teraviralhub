@@ -18,6 +18,7 @@ import {
   Lock,
 } from 'lucide-react'
 import { api, type Review, type CustomerReviewPhoto } from '../../lib/api'
+import { getThematicImagesForTitle } from '../../../lib/reviewDefaults'
 
 interface FlipkartReviewsSectionProps {
   productId: number
@@ -84,54 +85,55 @@ export default function FlipkartReviewsSection({
   // Customer review photos (for the collage and fullscreen viewer)
   const photos = reviewsData?.customer_photos || []
 
-  // Fallback demo photos if product has no photos yet (watches / products theme so UI is never empty)
+  // Fallback demo photos dynamically derived from product title keywords so photos always match the product!
+  const thematicFallbackUrls = getThematicImagesForTitle(productTitle)
   const displayPhotos: CustomerReviewPhoto[] = photos.length > 0 ? photos : [
     {
-      url: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=600&auto=format&fit=crop&q=80',
+      url: thematicFallbackUrls[0],
       customer_name: 'Shiv Mohan',
       rating: 5,
-      title: 'Terrific',
-      comment: 'Best price product daily wear collection ⌚',
+      title: 'Terrific purchase',
+      comment: 'Good product. Very useful and totally worth the price. Delivered instantly without any hassle!',
       created_at: new Date(Date.now() - 60 * 86400000).toISOString(),
-      helpful_count: 2,
-      unhelpful_count: 0,
-    },
-    {
-      url: 'https://images.unsplash.com/photo-1524805444758-089113d48a6d?w=400&auto=format&fit=crop&q=80',
-      customer_name: 'Hanuman Singh',
-      rating: 5,
-      title: 'Perfect',
-      comment: 'Looking stunning! Super clear finish.',
-      created_at: new Date(Date.now() - 45 * 86400000).toISOString(),
-      helpful_count: 3,
-      unhelpful_count: 0,
-    },
-    {
-      url: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&auto=format&fit=crop&q=80',
-      customer_name: 'Rohan Deshmukh',
-      rating: 5,
-      title: 'Terrific',
-      comment: 'Solid build and crisp resolution. Value for money.',
-      created_at: new Date(Date.now() - 35 * 86400000).toISOString(),
       helpful_count: 5,
       unhelpful_count: 0,
     },
     {
-      url: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=400&auto=format&fit=crop&q=80',
-      customer_name: 'Aarav Sharma',
+      url: thematicFallbackUrls[1],
+      customer_name: 'Hanuman Singh',
       rating: 5,
-      title: 'Wonderful',
-      comment: 'Very happy with the prompt digital delivery.',
-      created_at: new Date(Date.now() - 25 * 86400000).toISOString(),
-      helpful_count: 1,
+      title: 'Value-for-money',
+      comment: 'Value for money! Best purchase in this budget. Everything is well organized and easy to use.',
+      created_at: new Date(Date.now() - 45 * 86400000).toISOString(),
+      helpful_count: 4,
       unhelpful_count: 0,
     },
     {
-      url: 'https://images.unsplash.com/photo-1542496658-e33a6d0d50f6?w=400&auto=format&fit=crop&q=80',
+      url: thematicFallbackUrls[2],
+      customer_name: 'Rohan Deshmukh',
+      rating: 5,
+      title: 'Worth every penny',
+      comment: 'Good for daily use, simple and clean. Loved the experience, totally satisfied with the purchase.',
+      created_at: new Date(Date.now() - 35 * 86400000).toISOString(),
+      helpful_count: 7,
+      unhelpful_count: 0,
+    },
+    {
+      url: thematicFallbackUrls[3],
+      customer_name: 'Aarav Sharma',
+      rating: 5,
+      title: 'Just wow! Must buy',
+      comment: 'Just wow! Exceeded my expectations. The quality is top notch and works like a charm. Very happy!',
+      created_at: new Date(Date.now() - 25 * 86400000).toISOString(),
+      helpful_count: 6,
+      unhelpful_count: 0,
+    },
+    {
+      url: thematicFallbackUrls[4],
       customer_name: 'Priya Patel',
       rating: 4,
-      title: 'Very Good',
-      comment: 'Matches the description perfectly.',
+      title: 'Good product',
+      comment: 'Good product, good for personal use. Smooth transaction via PhonePe and quick delivery.',
       created_at: new Date(Date.now() - 15 * 86400000).toISOString(),
       helpful_count: 4,
       unhelpful_count: 0,
@@ -396,8 +398,7 @@ export default function FlipkartReviewsSection({
                         }}
                         loading="lazy"
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src =
-                            'https://images.unsplash.com/photo-1524805444758-089113d48a6d?w=400&auto=format&fit=crop&q=80'
+                          (e.target as HTMLImageElement).src = thematicFallbackUrls[0]
                         }}
                       />
                       {isLastItem && remainingCount > 0 && (
@@ -472,8 +473,8 @@ export default function FlipkartReviewsSection({
             {(reviews.length > 0 ? reviews.slice(0, 8) : displayPhotos).map((rev: any, idx: number) => {
               const reviewId = rev.id || idx + 100
               const rating = rev.rating || 5
-              const title = rev.title || (rating === 5 ? 'Terrific' : rating === 4 ? 'Very Good' : 'Value for Money')
-              const comment = rev.comment || 'Best price product daily wear watches ⌚'
+              const title = rev.title || (rating === 5 ? 'Terrific purchase' : rating === 4 ? 'Very Good' : 'Value-for-money')
+              const comment = rev.comment || 'Good product. Value for money and totally worth the price. Delivered instantly!'
               const customerName = rev.customer_name || 'Shiv Mohan'
               const timeAgo = formatTimeAgo(rev.created_at || new Date(Date.now() - (idx + 1) * 30 * 86400000).toISOString())
               const baseHelpful = rev.helpful_count ?? (rating === 5 ? 2 + (idx % 3) : 1)

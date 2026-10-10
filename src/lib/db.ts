@@ -308,48 +308,70 @@ export async function logAdminAudit(db: D1Database, data: {
   ).run()
 }
 
-// ─── Product Reviews Baseline (15-25 Reviews, 4.0-4.8 Stars) ───
+// ─── Product Reviews Baseline (15-25 Reviews, 4.0-4.8 Stars, Generic Flipkart-Style) ───
+import { GENERIC_FLIPKART_REVIEWS, getProductReviewPhotos } from './reviewDefaults'
 
 export async function ensureBaselineReviews(db: D1Database, productId: number) {
   try {
     const existing = await db.prepare(
-      'SELECT COUNT(*) as c FROM product_reviews WHERE product_id = ?'
-    ).bind(productId).first<{ c: number }>()
+      'SELECT COUNT(*) as c, COUNT(title) as with_title FROM product_reviews WHERE product_id = ?'
+    ).bind(productId).first<{ c: number; with_title: number }>()
 
-    if (existing && existing.c >= 15) {
+    // If already has full Flipkart-style reviews with titles, skip
+    if (existing && existing.c >= 15 && existing.with_title >= 15) {
       return
     }
 
-    const seedReviews = [
-      { name: 'Aarav Sharma', rating: 5, comment: 'Bohot hi sundar aur HD quality wallpaper hai. Mobile aur PC dono pe crystal clear lagta hai.' },
-      { name: 'Priya Patel', rating: 5, comment: 'Instant download link mil gaya payment ke turant baad. Quality ekdum super!' },
-      { name: 'Vikram Malhotra', rating: 4, comment: 'Great quality artwork. Resolution is truly 4K and crisp. Highly recommended.' },
-      { name: 'Sneha Verma', rating: 5, comment: 'Mandir background ke liye print karwaya, colors bohot vibrant aur clear aaye hain.' },
-      { name: 'Rohan Deshmukh', rating: 5, comment: 'Value for money! UPI payment was smooth and fast download on PhonePe.' },
-      { name: 'Ananya Sen', rating: 4, comment: 'Bahut accha collection hai. Very high resolution digital file with great clarity.' },
-      { name: 'Kunal Joshi', rating: 5, comment: 'Har Har Mahadev! Best high definition pack I have purchased so far.' },
-      { name: 'Pooja Reddy', rating: 5, comment: 'Downloaded within seconds on my phone. Very happy with the purchase experience.' },
-      { name: 'Amitabh Gupta', rating: 4, comment: 'Finishing aur clarity top notch hai. Paisa vasool digital asset.' },
-      { name: 'Meera Iyer', rating: 5, comment: 'Divine and peaceful aesthetic. Looks stunning on lockscreen.' },
-      { name: 'Deepak Nair', rating: 5, comment: '100% genuine instant delivery. Direct Google Drive and fast direct links.' },
-      { name: 'Rajesh Tiwari', rating: 4, comment: 'Superb quality graphic assets. Highly recommended for devotional wallpapers.' },
-      { name: 'Shreya Ghosh', rating: 5, comment: 'So beautiful! My family loved it too. Highly recommended!' },
-      { name: 'Nikhil Agarwal', rating: 5, comment: 'Super clear details even when zoomed in. Excellent work and high dpi.' },
-      { name: 'Kavita Choudhary', rating: 4, comment: 'Very easy to download and set as wallpaper. 4.5/5 rating from me.' },
-      { name: 'Manish Bhatt', rating: 5, comment: 'Fast UPI payment via PhonePe and instant download. Awesome!' },
-      { name: 'Ritu Saxena', rating: 5, comment: 'Divine and beautiful collection. Definitely worth buying.' },
-      { name: 'Sanjay Kulkarni', rating: 4, comment: 'High quality file format and fast server download speed.' },
-      { name: 'Tarun Kapoor', rating: 5, comment: 'Brilliant colors and sacred aesthetic. Very satisfied!' },
-      { name: 'Sunita Dubey', rating: 5, comment: 'Great experience, no hassle at all. Smooth transaction.' },
-    ]
+    // Fetch product details and uploaded product images
+    const product = await db.prepare(
+      'SELECT id, title, review_images FROM products WHERE id = ?'
+    ).bind(productId).first<{ id: number; title: string; review_images: string | null }>()
 
-    for (let i = 0; i < seedReviews.length; i++) {
-      const r = seedReviews[i]
+    const uploaded = await db.prepare(
+      'SELECT r2_key FROM product_images WHERE product_id = ? ORDER BY is_thumbnail DESC, sort_order ASC, id ASC'
+    ).bind(productId).all<{ r2_key: string }>()
+
+    const uploadedUrls = (uploaded.results || []).map(u => `/api/images/${encodeURIComponent(u.r2_key)}`)
+
+    let adminExtra: string[] = []
+    if (product?.review_images) {
+      try {
+        const parsed = JSON.parse(product.review_images)
+        if (Array.isArray(parsed)) adminExtra = parsed.filter(s => typeof s === 'string' && s.trim())
+      } catch {
+        adminExtra = product.review_images.split('\n').map(s => s.trim()).filter(Boolean)
+      }
+    }
+
+    const reviewPhotos = getProductReviewPhotos(product?.title || '', uploadedUrls, adminExtra)
+
+    // If there were old seed reviews with no titles or old text, remove old seed reviews so we can insert clean generic ones
+    if (existing && existing.c > 0 && existing.with_title === 0) {
+      await db.prepare('DELETE FROM product_reviews WHERE product_id = ? AND is_seed = 1').bind(productId).run()
+    }
+
+    // Insert 20 generic Flipkart reviews
+    for (let i = 0; i < GENERIC_FLIPKART_REVIEWS.length; i++) {
+      const r = GENERIC_FLIPKART_REVIEWS[i]
       const daysAgo = (i % 25) + 1
+      // Attach product photos to the first 5 reviews
+      const photoUrl = i < reviewPhotos.length ? reviewPhotos[i] : null
+
       await db.prepare(`
-        INSERT INTO product_reviews (product_id, customer_name, rating, comment, is_verified_purchase, is_approved, is_seed, created_at)
-        VALUES (?, ?, ?, ?, 1, 1, 1, datetime('now', '-' || ? || ' days'))
-      `).bind(productId, r.name, r.rating, r.comment, daysAgo).run()
+        INSERT INTO product_reviews (
+          product_id, customer_name, rating, title, comment, image_url,
+          helpful_count, unhelpful_count, is_verified_purchase, is_approved, is_seed, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 1, 1, 1, datetime('now', '-' || ? || ' days'))
+      `).bind(
+        productId,
+        r.name,
+        r.rating,
+        r.title,
+        r.comment,
+        photoUrl,
+        r.helpful,
+        daysAgo
+      ).run()
     }
   } catch (err) {
     console.error('Error in ensureBaselineReviews:', err)
