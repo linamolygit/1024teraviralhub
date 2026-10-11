@@ -1,4 +1,4 @@
-// src/client/components/ads/NonBuyerAdTrigger.tsx — Non-Buyer Monetization Engine
+// src/client/components/ads/NonBuyerAdTrigger.tsx — Non-Buyer Monetization Engine (Product-Page Only Back Button Trap)
 import { useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -17,21 +17,22 @@ export default function NonBuyerAdTrigger() {
 
   const rules = data?.rules
 
-  // Helper to check if user has purchased recently (within 7 days)
+  // Helper to check if user has purchased (protect paying buyers from any ads)
   const isPayingBuyer = () => {
     try {
-      const isBuyer = localStorage.getItem('tvh_user_is_buyer') === 'true'
+      if (localStorage.getItem('tvh_user_is_buyer') === 'true') return true
+      if (sessionStorage.getItem('tvh_active_order') || localStorage.getItem('tvh_active_order')) return true
+      if (sessionStorage.getItem('tvh_active_order_number') || localStorage.getItem('tvh_active_order_number')) return true
+      if (typeof document !== 'undefined' && document.cookie.includes('tvh_customer_orders')) return true
       const lastPurchase = Number(localStorage.getItem('tvh_last_purchase_time') || '0')
-      if (isBuyer && Date.now() - lastPurchase < 7 * 24 * 60 * 60 * 1000) {
-        return true
-      }
+      if (lastPurchase && Date.now() - lastPurchase < 30 * 24 * 60 * 60 * 1000) return true
     } catch {
       // ignore
     }
     return false
   }
 
-  // 1. Inject Global Header / Body Ad Script (e.g. Monetag Multi-Tag or Popunder)
+  // 1. Inject Global Header / Body Ad Script if configured
   useEffect(() => {
     if (!rules?.global_header_script) return
 
@@ -51,148 +52,69 @@ export default function NonBuyerAdTrigger() {
     })
   }, [rules?.global_header_script])
 
-  // 2. Track Successful Buyers (to protect them from intrusive non-buyer ads)
+  // 2. Track Successful Buyers (to permanently protect them)
   useEffect(() => {
-    if (location.pathname.startsWith('/payment/success') || location.pathname.startsWith('/download/')) {
+    if (
+      location.pathname.startsWith('/payment/success') ||
+      location.pathname.startsWith('/download/') ||
+      location.pathname.startsWith('/order/details') ||
+      location.pathname.startsWith('/orders/details') ||
+      location.pathname.startsWith('/my-orders')
+    ) {
       try {
         localStorage.setItem('tvh_user_is_buyer', 'true')
         localStorage.setItem('tvh_last_purchase_time', String(Date.now()))
         sessionStorage.removeItem('tvh_buy_clicked')
+        sessionStorage.removeItem('tvh_checkout_abandoned')
       } catch {
         // ignore
       }
     }
   }, [location.pathname])
 
-  // 3. Track Checkout State to detect Checkout Abandonment
+  // 3. ⚡ STRICT ENGINE: Product Page Back-Button Direct Link Trigger ONLY
+  // Back-button ad MUST ONLY work on the product page (/product/:slug)
   useEffect(() => {
-    const prev = previousPathRef.current
-    const curr = location.pathname
-    previousPathRef.current = curr
+    const isProductPage = location.pathname.startsWith('/product/')
 
-    // If user was in checkout but navigated away without landing on success
-    if (
-      prev.startsWith('/checkout') &&
-      !curr.startsWith('/checkout') &&
-      !curr.startsWith('/payment/success')
-    ) {
-      sessionStorage.setItem('tvh_checkout_abandoned', 'true')
+    // If NOT on a product page, do absolutely nothing!
+    if (!isProductPage) {
+      return
     }
 
-    if (curr.startsWith('/checkout')) {
-      sessionStorage.setItem('tvh_in_checkout', 'true')
-    }
-  }, [location.pathname])
-
-  // 4. ⚡ SPECIAL ENGINE: Product Page Back-Button Trap & Direct Link Launcher
-  // When a visitor is on a product page and hits the back button without buying, instantly open the direct link
-  useEffect(() => {
     if (!rules?.non_buyer_ads_enabled || !rules?.non_buyer_direct_link_url) return
     if (rules.product_page_back_button_ad === false) return
     if (isPayingBuyer()) return
 
-    const isProductPage = location.pathname.startsWith('/product/')
-    if (!isProductPage) return
+    const directLink = rules.non_buyer_direct_link_url.trim()
+    if (!directLink) return
 
-    // Clean up buy click state when entering a new product page
+    // Clear navigation states on product page mount
     sessionStorage.removeItem('tvh_buy_clicked')
+    sessionStorage.removeItem('tvh_navigated_by_click')
 
-    const trapKey = `tvh_trap_installed_${location.pathname}`
+    const currentProductPath = location.pathname
+    const trapKey = `tvh_trap_installed_${currentProductPath}`
+
+    // Push duplicate state ONCE so browser back triggers popstate instead of leaving site
     if (!sessionStorage.getItem(trapKey)) {
       sessionStorage.setItem(trapKey, 'true')
       try {
-        // Push duplicate state so browser back triggers popstate instead of immediately leaving
-        window.history.pushState({ tvh_back_trap: true, path: location.pathname }, '', window.location.href)
+        window.history.pushState(
+          { tvh_product_page_trap: true, productPath: currentProductPath },
+          '',
+          window.location.href
+        )
       } catch {
         // ignore
       }
     }
 
-    const handlePopState = (e: PopStateEvent) => {
-      // If paying customer or clicked buy button, do not trigger ad
-      if (isPayingBuyer() || sessionStorage.getItem('tvh_buy_clicked') === 'true') {
-        return
-      }
-
-      const directLink = rules.non_buyer_direct_link_url.trim()
-      if (!directLink) return
-
-      try {
-        localStorage.setItem('tvh_last_non_buyer_ad', String(Date.now()))
-        sessionStorage.removeItem(trapKey)
-
-        // Attempt 1: Open direct link in a new tab
-        const win = window.open(directLink, '_blank')
-        if (!win || win.closed || typeof win.closed === 'undefined') {
-          // Attempt 2: If browser blocked new tab or mobile swipe back, redirect directly
-          window.location.href = directLink
-        } else {
-          // New tab opened! Proceed back in history so user goes back to store/homepage
-          window.history.back()
-        }
-      } catch {
-        window.location.href = directLink
-      }
-    }
-
-    window.addEventListener('popstate', handlePopState)
-    return () => {
-      window.removeEventListener('popstate', handlePopState)
-    }
-  }, [rules, location.pathname])
-
-  // 5. General Non-Buyer Ad Trigger Handler (Checkout Abandonment & Browse Clicks)
-  useEffect(() => {
-    if (!rules?.non_buyer_ads_enabled || !rules?.non_buyer_direct_link_url) return
-
-    // Never trigger on checkout or admin pages
-    if (location.pathname.startsWith('/checkout') || location.pathname.startsWith('/admin')) {
-      return
-    }
-
-    // Helper to check frequency cap
-    const canTriggerAd = () => {
-      try {
-        const lastTrigger = Number(localStorage.getItem('tvh_last_non_buyer_ad') || '0')
-        const intervalMs = (rules.non_buyer_frequency_minutes || 10) * 60 * 1000
-        return Date.now() - lastTrigger >= intervalMs
-      } catch {
-        return true
-      }
-    }
-
-    const fireNonBuyerAd = () => {
-      if (isPayingBuyer() || !canTriggerAd()) return
-
-      try {
-        localStorage.setItem('tvh_last_non_buyer_ad', String(Date.now()))
-        sessionStorage.removeItem('tvh_checkout_abandoned')
-
-        // Open direct monetization link in background / new tab
-        const win = window.open(rules.non_buyer_direct_link_url, '_blank')
-        if (win) {
-          win.focus()
-          window.focus()
-        }
-      } catch {
-        // popup blocked or storage error
-      }
-    }
-
-    // Trigger on Checkout Abandonment
-    if (sessionStorage.getItem('tvh_checkout_abandoned') === 'true') {
-      const timer = setTimeout(() => {
-        fireNonBuyerAd()
-      }, 800)
-      return () => clearTimeout(timer)
-    }
-
-    // Trigger on Non-Buyer Clicks (when user clicks anywhere outside buy buttons)
+    // Detect if user clicks Buy Now or any link/button to navigate away legitimately
     const handleDocumentClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null
       if (!target) return
 
-      // Don't trigger if user is clicking "Buy Now" or "Checkout"
       const isBuyAction =
         target.closest('button')?.textContent?.toLowerCase().includes('buy') ||
         target.closest('button')?.textContent?.toLowerCase().includes('pay') ||
@@ -204,16 +126,59 @@ export default function NonBuyerAdTrigger() {
         return
       }
 
-      // If user has browsed and isn't buying, trigger ad
-      if (rules.non_buyer_trigger_mode === 'all' || rules.non_buyer_trigger_mode === 'browse_interaction') {
-        fireNonBuyerAd()
+      // If user clicked any regular link or button to navigate
+      if (target.closest('a') || target.closest('button')) {
+        sessionStorage.setItem('tvh_navigated_by_click', 'true')
       }
     }
 
-    // Listen on document with passive mode
-    document.addEventListener('click', handleDocumentClick, { passive: true })
+    // Handle popstate: ONLY triggers if user hits Back from this product page
+    const handlePopState = (e: PopStateEvent) => {
+      // Must be leaving the product page
+      if (!currentProductPath.startsWith('/product/')) return
+
+      // If user is a buyer, clicked Buy Now, or navigated via a link click, abort!
+      if (
+        isPayingBuyer() ||
+        sessionStorage.getItem('tvh_buy_clicked') === 'true' ||
+        sessionStorage.getItem('tvh_navigated_by_click') === 'true'
+      ) {
+        return
+      }
+
+      // Frequency cap check
+      try {
+        const lastTrigger = Number(localStorage.getItem('tvh_last_non_buyer_ad') || '0')
+        const intervalMs = (rules.non_buyer_frequency_minutes || 10) * 60 * 1000
+        if (Date.now() - lastTrigger < intervalMs) {
+          return
+        }
+      } catch {}
+
+      try {
+        localStorage.setItem('tvh_last_non_buyer_ad', String(Date.now()))
+        sessionStorage.removeItem(trapKey)
+
+        // Attempt 1: Open direct link in a new tab
+        const win = window.open(directLink, '_blank')
+        if (!win || win.closed || typeof win.closed === 'undefined') {
+          // Attempt 2: If browser blocked new tab or mobile swipe back, redirect
+          window.location.href = directLink
+        } else {
+          // New tab opened! Proceed back in history so user goes back to store/previous page
+          window.history.back()
+        }
+      } catch {
+        window.location.href = directLink
+      }
+    }
+
+    window.addEventListener('click', handleDocumentClick, { capture: true, passive: true })
+    window.addEventListener('popstate', handlePopState)
+
     return () => {
-      document.removeEventListener('click', handleDocumentClick)
+      window.removeEventListener('click', handleDocumentClick, { capture: true })
+      window.removeEventListener('popstate', handlePopState)
     }
   }, [rules, location.pathname])
 
