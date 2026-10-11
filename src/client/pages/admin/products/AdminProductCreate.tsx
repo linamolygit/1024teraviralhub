@@ -341,7 +341,7 @@ export default function AdminProductCreate() {
       imageFiles.forEach((img, idx) => {
         stepsList.push({
           id: `step-gallery-${idx}`,
-          label: `Showcase Gallery Image ${idx + 1} of ${imageFiles.length}: "${img.file.name}"`,
+          label: `Showcase Gallery Image ${idx + 1} of ${imageFiles.length}: "${img.file?.name || img.name || 'Image'}"`,
           type: 'gallery',
           status: 'pending',
         })

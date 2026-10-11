@@ -350,14 +350,11 @@ export async function ensureBaselineReviews(db: D1Database, productId: number) {
       await db.prepare('DELETE FROM product_reviews WHERE product_id = ? AND is_seed = 1').bind(productId).run()
     }
 
-    // Insert 20 generic Flipkart reviews
-    for (let i = 0; i < GENERIC_FLIPKART_REVIEWS.length; i++) {
-      const r = GENERIC_FLIPKART_REVIEWS[i]
+    // Insert 20 generic Flipkart reviews using a single atomic batch
+    const insertStatements = GENERIC_FLIPKART_REVIEWS.map((r, i) => {
       const daysAgo = (i % 25) + 1
-      // Attach product photos to the first 5 reviews
       const photoUrl = i < reviewPhotos.length ? reviewPhotos[i] : null
-
-      await db.prepare(`
+      return db.prepare(`
         INSERT INTO product_reviews (
           product_id, customer_name, rating, title, comment, image_url,
           helpful_count, unhelpful_count, is_verified_purchase, is_approved, is_seed, created_at
@@ -371,8 +368,9 @@ export async function ensureBaselineReviews(db: D1Database, productId: number) {
         photoUrl,
         r.helpful,
         daysAgo
-      ).run()
-    }
+      )
+    })
+    await db.batch(insertStatements)
   } catch (err) {
     console.error('Error in ensureBaselineReviews:', err)
   }

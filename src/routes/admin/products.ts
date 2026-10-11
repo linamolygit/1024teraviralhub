@@ -73,6 +73,11 @@ async function ensureProductColumns(db: D1Database) {
   } catch {
     // Column already exists
   }
+  try {
+    await db.exec(`ALTER TABLE products ADD COLUMN review_images TEXT;`)
+  } catch {
+    // Column already exists
+  }
 }
 
 // Ensure media deduplication tables & columns exist in D1
@@ -259,92 +264,158 @@ app.get('/:id', async (c) => {
 
 // POST /api/admin/products
 app.post('/', async (c) => {
-  await ensureProductColumns(c.env.DB)
-  const body = await c.req.json()
-  const parsed = productSchema.safeParse(body)
-  if (!parsed.success) return c.json({ error: 'Validation failed', details: parsed.error.errors }, 400)
+  try {
+    await ensureProductColumns(c.env.DB)
+    const body = await c.req.json().catch(() => null)
+    if (!body) {
+      return c.json({ error: 'Invalid JSON request payload' }, 400)
+    }
 
-  const d = parsed.data
-  const result = await c.env.DB.prepare(`
-    INSERT INTO products (
-      slug, title, description, short_description, category_id, price, sale_price,
-      is_published, is_featured, tags, file_type, license_type, license_info,
-      usage_instructions, button_text, google_drive_link, video_url, meta_title, meta_description, download_limit, access_duration_hours
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).bind(
-    d.slug, d.title, d.description, d.short_description ?? null,
-    d.category_id ?? null, d.price, d.sale_price ?? null,
-    d.is_published ? 1 : 0, d.is_featured ? 1 : 0,
-    d.tags ? JSON.stringify(d.tags) : null,
-    d.file_type ?? null, d.license_type ?? 'personal', d.license_info ?? null,
-    d.usage_instructions ?? null, d.button_text ?? 'Buy', d.google_drive_link ?? null,
-    d.video_url ?? null,
-    d.meta_title ?? null, d.meta_description ?? null,
-    d.download_limit ?? 3, d.access_duration_hours ?? 12,
-  ).run()
+    const parsed = productSchema.safeParse(body)
+    if (!parsed.success) {
+      return c.json({ error: 'Validation failed', details: parsed.error.errors }, 400)
+    }
 
-  await logAdminAudit(c.env.DB, {
-    admin_uid: c.get('adminUid'),
-    admin_email: c.get('adminEmail'),
-    action: 'CREATE',
-    resource_type: 'product',
-    resource_id: result.meta.last_row_id?.toString(),
-  })
+    const d = parsed.data
 
-  if (result.meta.last_row_id) {
-    await ensureBaselineReviews(c.env.DB, result.meta.last_row_id as number)
+    // Auto-resolve slug conflicts: If slug is already taken, append a unique suffix
+    let finalSlug = d.slug
+    const existingProductWithSlug = await c.env.DB.prepare(
+      'SELECT id FROM products WHERE slug = ?'
+    ).bind(finalSlug).first<{ id: number }>()
+
+    if (existingProductWithSlug) {
+      finalSlug = `${d.slug}-${Date.now().toString(36)}`
+    }
+
+    const result = await c.env.DB.prepare(`
+      INSERT INTO products (
+        slug, title, description, short_description, category_id, price, sale_price,
+        is_published, is_featured, tags, file_type, license_type, license_info,
+        usage_instructions, button_text, google_drive_link, video_url, meta_title, meta_description, download_limit, access_duration_hours
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      finalSlug, d.title, d.description, d.short_description ?? null,
+      d.category_id ?? null, d.price, d.sale_price ?? null,
+      d.is_published ? 1 : 0, d.is_featured ? 1 : 0,
+      d.tags ? JSON.stringify(d.tags) : null,
+      d.file_type ?? null, d.license_type ?? 'personal', d.license_info ?? null,
+      d.usage_instructions ?? null, d.button_text ?? 'Buy', d.google_drive_link ?? null,
+      d.video_url ?? null,
+      d.meta_title ?? null, d.meta_description ?? null,
+      d.download_limit ?? 3, d.access_duration_hours ?? 12,
+    ).run()
+
+    const metaId = (result.meta as any)?.last_row_id ?? (result.meta as any)?.lastRowId
+    let productId = typeof metaId === 'number' && metaId > 0 ? metaId : null
+
+    if (!productId) {
+      const fallbackRow = await c.env.DB.prepare(
+        'SELECT id FROM products WHERE slug = ?'
+      ).bind(finalSlug).first<{ id: number }>()
+      productId = fallbackRow?.id ?? null
+    }
+
+    if (!productId) {
+      throw new Error('Product inserted successfully but unable to retrieve new product ID')
+    }
+
+    try {
+      await logAdminAudit(c.env.DB, {
+        admin_uid: c.get('adminUid'),
+        admin_email: c.get('adminEmail'),
+        action: 'CREATE',
+        resource_type: 'product',
+        resource_id: productId.toString(),
+      })
+    } catch (auditErr) {
+      console.error('Non-critical: logAdminAudit failed:', auditErr)
+    }
+
+    try {
+      await ensureBaselineReviews(c.env.DB, productId)
+    } catch (reviewErr) {
+      console.error('Non-critical: ensureBaselineReviews failed:', reviewErr)
+    }
+
+    return c.json({ success: true, id: productId, slug: finalSlug })
+  } catch (err: any) {
+    console.error('CRITICAL: POST /api/admin/products failed:', err)
+    return c.json({
+      error: err.message || 'Internal Server Error',
+    }, 500)
   }
-
-  return c.json({ success: true, id: result.meta.last_row_id })
 })
 
 // PUT /api/admin/products/:id
 app.put('/:id', async (c) => {
-  await ensureProductColumns(c.env.DB)
-  const id = parseInt(c.req.param('id'))
-  const body = await c.req.json()
-  const parsed = productSchema.partial().safeParse(body)
-  if (!parsed.success) return c.json({ error: 'Validation failed' }, 400)
+  try {
+    await ensureProductColumns(c.env.DB)
+    const id = parseInt(c.req.param('id'))
+    const body = await c.req.json().catch(() => null)
+    if (!body) return c.json({ error: 'Invalid JSON payload' }, 400)
 
-  const d = parsed.data
-  const fields: string[] = []
-  const values: (string | number | null)[] = []
+    const parsed = productSchema.partial().safeParse(body)
+    if (!parsed.success) return c.json({ error: 'Validation failed', details: parsed.error.errors }, 400)
 
-  if (d.slug !== undefined) { fields.push('slug = ?'); values.push(d.slug) }
-  if (d.title !== undefined) { fields.push('title = ?'); values.push(d.title) }
-  if (d.description !== undefined) { fields.push('description = ?'); values.push(d.description) }
-  if (d.short_description !== undefined) { fields.push('short_description = ?'); values.push(d.short_description ?? null) }
-  if (d.category_id !== undefined) { fields.push('category_id = ?'); values.push(d.category_id ?? null) }
-  if (d.price !== undefined) { fields.push('price = ?'); values.push(d.price) }
-  if (d.sale_price !== undefined) { fields.push('sale_price = ?'); values.push(d.sale_price ?? null) }
-  if (d.is_published !== undefined) { fields.push('is_published = ?'); values.push(d.is_published ? 1 : 0) }
-  if (d.is_featured !== undefined) { fields.push('is_featured = ?'); values.push(d.is_featured ? 1 : 0) }
-  if (d.tags !== undefined) { fields.push('tags = ?'); values.push(JSON.stringify(d.tags)) }
-  if (d.button_text !== undefined) { fields.push('button_text = ?'); values.push(d.button_text ?? 'Buy') }
-  if (d.google_drive_link !== undefined) { fields.push('google_drive_link = ?'); values.push(d.google_drive_link ?? null) }
-  if (d.video_url !== undefined) { fields.push('video_url = ?'); values.push(d.video_url ?? null) }
-  if (d.license_info !== undefined) { fields.push('license_info = ?'); values.push(d.license_info ?? null) }
-  if (d.usage_instructions !== undefined) { fields.push('usage_instructions = ?'); values.push(d.usage_instructions ?? null) }
-  if (d.meta_title !== undefined) { fields.push('meta_title = ?'); values.push(d.meta_title ?? null) }
-  if (d.meta_description !== undefined) { fields.push('meta_description = ?'); values.push(d.meta_description ?? null) }
-  if (d.download_limit !== undefined) { fields.push('download_limit = ?'); values.push(d.download_limit!) }
-  if (d.access_duration_hours !== undefined) { fields.push('access_duration_hours = ?'); values.push(d.access_duration_hours!) }
+    const d = parsed.data
+    const fields: string[] = []
+    const values: (string | number | null)[] = []
 
-  if (!fields.length) return c.json({ error: 'No fields to update' }, 400)
+    if (d.slug !== undefined) {
+      // Check if slug belongs to another product
+      let finalSlug = d.slug
+      const existing = await c.env.DB.prepare(
+        'SELECT id FROM products WHERE slug = ? AND id != ?'
+      ).bind(finalSlug, id).first<{ id: number }>()
 
-  fields.push("updated_at = datetime('now')")
-  values.push(id)
+      if (existing) {
+        finalSlug = `${d.slug}-${Date.now().toString(36)}`
+      }
+      fields.push('slug = ?')
+      values.push(finalSlug)
+    }
 
-  await c.env.DB.prepare(`UPDATE products SET ${fields.join(', ')} WHERE id = ?`).bind(...values).run()
+    if (d.title !== undefined) { fields.push('title = ?'); values.push(d.title) }
+    if (d.description !== undefined) { fields.push('description = ?'); values.push(d.description) }
+    if (d.short_description !== undefined) { fields.push('short_description = ?'); values.push(d.short_description ?? null) }
+    if (d.category_id !== undefined) { fields.push('category_id = ?'); values.push(d.category_id ?? null) }
+    if (d.price !== undefined) { fields.push('price = ?'); values.push(d.price) }
+    if (d.sale_price !== undefined) { fields.push('sale_price = ?'); values.push(d.sale_price ?? null) }
+    if (d.is_published !== undefined) { fields.push('is_published = ?'); values.push(d.is_published ? 1 : 0) }
+    if (d.is_featured !== undefined) { fields.push('is_featured = ?'); values.push(d.is_featured ? 1 : 0) }
+    if (d.tags !== undefined) { fields.push('tags = ?'); values.push(JSON.stringify(d.tags)) }
+    if (d.button_text !== undefined) { fields.push('button_text = ?'); values.push(d.button_text ?? 'Buy') }
+    if (d.google_drive_link !== undefined) { fields.push('google_drive_link = ?'); values.push(d.google_drive_link ?? null) }
+    if (d.video_url !== undefined) { fields.push('video_url = ?'); values.push(d.video_url ?? null) }
+    if (d.license_info !== undefined) { fields.push('license_info = ?'); values.push(d.license_info ?? null) }
+    if (d.usage_instructions !== undefined) { fields.push('usage_instructions = ?'); values.push(d.usage_instructions ?? null) }
+    if (d.meta_title !== undefined) { fields.push('meta_title = ?'); values.push(d.meta_title ?? null) }
+    if (d.meta_description !== undefined) { fields.push('meta_description = ?'); values.push(d.meta_description ?? null) }
+    if (d.download_limit !== undefined) { fields.push('download_limit = ?'); values.push(d.download_limit!) }
+    if (d.access_duration_hours !== undefined) { fields.push('access_duration_hours = ?'); values.push(d.access_duration_hours!) }
 
-  await logAdminAudit(c.env.DB, {
-    admin_uid: c.get('adminUid'),
-    action: 'UPDATE',
-    resource_type: 'product',
-    resource_id: id.toString(),
-  })
+    if (!fields.length) return c.json({ error: 'No fields to update' }, 400)
 
-  return c.json({ success: true })
+    fields.push("updated_at = datetime('now')")
+    values.push(id)
+
+    await c.env.DB.prepare(`UPDATE products SET ${fields.join(', ')} WHERE id = ?`).bind(...values).run()
+
+    try {
+      await logAdminAudit(c.env.DB, {
+        admin_uid: c.get('adminUid'),
+        action: 'UPDATE',
+        resource_type: 'product',
+        resource_id: id.toString(),
+      })
+    } catch {}
+
+    return c.json({ success: true })
+  } catch (err: any) {
+    console.error('CRITICAL: PUT /api/admin/products/:id failed:', err)
+    return c.json({ error: err.message || 'Internal Server Error' }, 500)
+  }
 })
 
 // DELETE /api/admin/products/:id
