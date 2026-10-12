@@ -3,6 +3,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import type { Env, AdminVars } from '../../worker'
 import { logAdminAudit } from '../../lib/db'
+import { syncProductReviewImagesFromGoogle, searchGoogleImages } from '../../lib/googleImageSearch'
 
 const app = new Hono<{ Bindings: Env; Variables: AdminVars }>()
 
@@ -211,6 +212,100 @@ app.put('/product/:productId/images', async (c) => {
   `).bind(JSON.stringify(imagesArray), productId).run()
 
   return c.json({ success: true, count: imagesArray.length })
+})
+
+// POST /api/admin/reviews/product/:productId/auto-sync-google — Auto-fetch images from Google, download to R2 and attach
+app.post('/product/:productId/auto-sync-google', async (c) => {
+  const productId = parseInt(c.req.param('productId'))
+  if (isNaN(productId) || productId <= 0) return c.json({ error: 'Invalid product ID' }, 400)
+
+  let body: any = {}
+  try {
+    body = await c.req.json()
+  } catch {}
+
+  const product = await c.env.DB.prepare(`
+    SELECT id, title, review_images FROM products WHERE id = ?
+  `).bind(productId).first<{ id: number; title: string; review_images: string | null }>()
+
+  if (!product) return c.json({ error: 'Product not found' }, 404)
+
+  const syncResult = await syncProductReviewImagesFromGoogle(
+    c.env.DB,
+    c.env.R2,
+    product.id,
+    product.title,
+    {
+      customQuery: body?.query,
+      forceOverwrite: body?.force ?? true,
+      maxImages: body?.count ?? 6,
+    }
+  )
+
+  await logAdminAudit(c.env.DB, {
+    admin_uid: c.get('adminUid'),
+    action: 'UPDATE',
+    resource_type: 'product_review_images',
+    resource_id: String(productId),
+    details: {
+      message: `Auto-synced ${syncResult.count} review photos from ${syncResult.source}`,
+      images_count: syncResult.count,
+    },
+  })
+
+  return c.json(syncResult)
+})
+
+// POST /api/admin/reviews/sync-all-google — Batch auto-sync all products
+app.post('/sync-all-google', async (c) => {
+  let body: any = {}
+  try {
+    body = await c.req.json()
+  } catch {}
+
+  const force = Boolean(body?.force)
+  const products = await c.env.DB.prepare(`
+    SELECT id, title, review_images FROM products WHERE is_published = 1 ORDER BY id ASC LIMIT 50
+  `).all<{ id: number; title: string; review_images: string | null }>()
+
+  const list = products.results || []
+  const results = []
+
+  for (const p of list) {
+    if (!force && p.review_images) {
+      try {
+        const arr = JSON.parse(p.review_images)
+        if (Array.isArray(arr) && arr.length >= 3) {
+          results.push({ id: p.id, title: p.title, status: 'skipped_cached', count: arr.length })
+          continue
+        }
+      } catch {}
+    }
+
+    const res = await syncProductReviewImagesFromGoogle(c.env.DB, c.env.R2, p.id, p.title, { forceOverwrite: force, maxImages: 5 })
+    results.push({ id: p.id, title: p.title, status: res.source, count: res.count, warning: res.warning })
+  }
+
+  return c.json({
+    success: true,
+    total_processed: list.length,
+    results,
+  })
+})
+
+// POST /api/admin/reviews/test-google-search — Test Google Custom Search API Key & CX connectivity
+app.post('/test-google-search', async (c) => {
+  let body: any = {}
+  try {
+    body = await c.req.json()
+  } catch {}
+
+  const query = body?.query || 'iphone'
+  const cx = body?.cx
+  const apiKey = body?.apiKey
+
+  const result = await searchGoogleImages(query, cx, apiKey, 3)
+  return c.json(result)
 })
 
 export default app

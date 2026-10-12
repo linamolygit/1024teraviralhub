@@ -23,7 +23,9 @@ app.get('/public', async (c) => {
     // Meta Pixel & Ad Conversion Tracking
     metaPixelId, metaPixelEnabled,
     // Flipkart 3-Step Checkout Flow A/B Test
-    flipkartCheckoutEnabled
+    flipkartCheckoutEnabled,
+    // Google Programmable Search (CSE)
+    googleCseId, googleAutoReviewPhotosEnabled
   ] = await Promise.all([
     getSetting<boolean>(c.env.DB, 'upi_direct_launch', true),
     getSetting<string>(c.env.DB, 'preferred_upi_app', 'phonepe'),
@@ -76,6 +78,9 @@ app.get('/public', async (c) => {
     getSetting<boolean>(c.env.DB, 'meta_pixel_enabled', true),
     // Flipkart 3-Step Checkout Flow
     getSetting<boolean>(c.env.DB, 'flipkart_checkout_enabled', true),
+    // Google Programmable Search (CSE)
+    getSetting<string>(c.env.DB, 'google_cse_id', '83b5a1a30d4014e75'),
+    getSetting<boolean>(c.env.DB, 'google_auto_review_photos_enabled', true),
   ])
 
   return c.json({
@@ -127,6 +132,9 @@ app.get('/public', async (c) => {
     meta_pixel_enabled: metaPixelEnabled ?? true,
     // Flipkart 3-Step Checkout Flow
     flipkart_checkout_enabled: flipkartCheckoutEnabled ?? true,
+    // Google Programmable Search (CSE)
+    google_cse_id: googleCseId ?? '83b5a1a30d4014e75',
+    google_auto_review_photos_enabled: googleAutoReviewPhotosEnabled ?? true,
   })
 })
 

@@ -4,6 +4,7 @@ import { z } from 'zod'
 import type { Env } from '../worker'
 import { ensureBaselineReviews, getSetting } from '../lib/db'
 import { getProductReviewPhotos } from '../lib/reviewDefaults'
+import { syncProductReviewImagesFromGoogle } from '../lib/googleImageSearch'
 
 const app = new Hono<{ Bindings: Env }>()
 
@@ -44,6 +45,15 @@ app.get('/product/:productId', async (c) => {
         .map((s) => s.trim())
         .filter((s) => s.length > 0)
     }
+  }
+
+  // Auto-sync Google review images in background if not yet cached
+  if (extraImages.length === 0 && productRow?.title) {
+    c.executionCtx.waitUntil(
+      syncProductReviewImagesFromGoogle(c.env.DB, c.env.R2, productId, productRow.title).catch((err) => {
+        console.warn('[Auto Google Review Sync Background Error]', err)
+      })
+    )
   }
 
   const selectCols = `id, product_id, customer_name, rating, title, comment, image_url, helpful_count, unhelpful_count, is_verified_purchase, created_at`

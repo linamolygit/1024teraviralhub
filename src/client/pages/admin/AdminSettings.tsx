@@ -5,7 +5,7 @@ import {
   Save, Check, Zap, Smartphone, Shield, Globe, Moon, Sun, Palette,
   CheckCircle2, Sparkles, Key, AlertCircle, Loader2, Bot, Star, Copy, RefreshCw, ExternalLink,
   Eye, EyeOff, Scale, FileText, ShieldCheck, RotateCcw, Cookie, Info, Phone, Award,
-  Flame, Users, Clock
+  Flame, Users, Clock, Search
 } from 'lucide-react'
 import { adminApi } from '../../lib/api'
 import { useAuthStore } from '../../lib/auth-store'
@@ -23,6 +23,16 @@ export default function AdminSettings() {
   const [testingKey, setTestingKey] = useState(false)
   const [showGeminiKey, setShowGeminiKey] = useState(false)
   const [testResult, setTestResult] = useState<{ success?: boolean; message?: string; error?: string; details?: string } | null>(null)
+
+  // Google CSE Image Search Test State
+  const [testingGoogleSearch, setTestingGoogleSearch] = useState(false)
+  const [googleTestResult, setGoogleTestResult] = useState<{
+    success?: boolean
+    error?: string
+    reason?: string
+    enableUrl?: string
+    itemsCount?: number
+  } | null>(null)
 
   const [settings, setSettings] = useState({
     site_name: '1024TeraViralHub',
@@ -63,6 +73,10 @@ export default function AdminSettings() {
     adx_enabled: false,
     adx_network_code: '',
     adx_head_code: '',
+    // Google Programmable Search & Review Photos Auto-Sync
+    google_cse_id: '83b5a1a30d4014e75',
+    google_cse_api_key: 'AIzaSyDYAhmgnLa7o1Ibp235YEg0dhga_OQ2Tw0',
+    google_auto_review_photos_enabled: true,
     // Legal & Information Pages Visibility
     page_privacy_policy_enabled: true,
     page_terms_conditions_enabled: true,
@@ -134,6 +148,42 @@ export default function AdminSettings() {
       adminToast.error('Gemini Connection Error', err.message || 'Connection failed')
     } finally {
       setTestingKey(false)
+    }
+  }
+
+  const handleTestGoogleSearch = async () => {
+    setTestingGoogleSearch(true)
+    setGoogleTestResult(null)
+    try {
+      const token = await getToken()
+      const res = await adminApi.reviews.testGoogleSearch(token!, {
+        cx: settings.google_cse_id,
+        apiKey: settings.google_cse_api_key,
+        query: 'wallpaper',
+      })
+      if (res.success) {
+        setGoogleTestResult({
+          success: true,
+          itemsCount: res.items?.length || 0,
+        })
+        adminToast.success('Google API Working', `Successfully retrieved test images!`)
+      } else {
+        setGoogleTestResult({
+          success: false,
+          error: res.error,
+          reason: res.reason,
+          enableUrl: res.enableUrl,
+        })
+        adminToast.warning('Google API Notice', res.error || 'Custom Search API is not enabled')
+      }
+    } catch (err: any) {
+      setGoogleTestResult({
+        success: false,
+        error: err?.message || 'Failed to connect to Google API',
+      })
+      adminToast.error('Google Test Failed', err?.message)
+    } finally {
+      setTestingGoogleSearch(false)
     }
   }
 
@@ -1918,6 +1968,200 @@ export default function AdminSettings() {
                 }}
               >
                 <span>Open Search Console</span>
+                <ExternalLink size={12} />
+              </a>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Google Programmable Image Search (CSE) & Review Photos Auto-Sync Card ── */}
+        <div
+          style={{
+            background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(16, 185, 129, 0.04) 100%), var(--bg-surface)',
+            border: '1px solid rgba(37, 99, 235, 0.35)',
+            borderRadius: 'var(--radius-lg)',
+            padding: 24,
+            boxShadow: '0 4px 20px rgba(37, 99, 235, 0.06)',
+            position: 'relative',
+          }}
+        >
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 18, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 12,
+                  background: '#FFFFFF',
+                  padding: 8,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '1.5px solid rgba(37, 99, 235, 0.35)',
+                  boxShadow: '0 2px 10px rgba(37, 99, 235, 0.15)',
+                  flexShrink: 0,
+                }}
+              >
+                <Search size={24} color="#2563EB" />
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <h3 style={{ fontWeight: 800, fontSize: '1.05rem', margin: 0, color: 'var(--text-primary)' }}>
+                    Google Programmable Image Search (CSE &amp; R2 Sync)
+                  </h3>
+                  <span
+                    style={{
+                      fontSize: '0.7rem',
+                      padding: '2px 8px',
+                      borderRadius: 'var(--radius-full)',
+                      background: settings.google_auto_review_photos_enabled ? 'rgba(16, 185, 129, 0.16)' : 'rgba(107, 114, 128, 0.15)',
+                      color: settings.google_auto_review_photos_enabled ? '#10B981' : 'var(--text-muted)',
+                      border: '1px solid ' + (settings.google_auto_review_photos_enabled ? 'rgba(16, 185, 129, 0.4)' : 'rgba(107, 114, 128, 0.3)'),
+                      fontWeight: 700,
+                    }}
+                  >
+                    {settings.google_auto_review_photos_enabled ? '● Auto-Sync Active' : '● Disabled'}
+                  </span>
+                </div>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', margin: '3px 0 0 0' }}>
+                  Automatically searches Google Images by product name, downloads photos straight into Cloudflare R2, and links them to customer reviews!
+                </p>
+              </div>
+            </div>
+
+            {/* Toggle Switch */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: settings.google_auto_review_photos_enabled ? '#10B981' : 'var(--text-muted)' }}>
+                {settings.google_auto_review_photos_enabled ? 'Enabled' : 'Disabled'}
+              </span>
+              <label className="toggle-switch" onClick={e => e.stopPropagation()}>
+                <input
+                  type="checkbox"
+                  checked={settings.google_auto_review_photos_enabled}
+                  onChange={e => setSettings(s => ({ ...s, google_auto_review_photos_enabled: e.target.checked }))}
+                />
+                <span className="toggle-slider" style={{ accentColor: '#10B981' }} />
+              </label>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
+                  Search Engine ID (CX)
+                </label>
+                <input
+                  className="input-field"
+                  placeholder="83b5a1a30d4014e75"
+                  value={settings.google_cse_id}
+                  onChange={e => setSettings(s => ({ ...s, google_cse_id: e.target.value.trim() }))}
+                  style={{ fontFamily: 'monospace', fontSize: '0.825rem' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
+                  Google API Key (Custom Search)
+                </label>
+                <input
+                  className="input-field"
+                  placeholder="AIzaSy..."
+                  value={settings.google_cse_api_key}
+                  onChange={e => setSettings(s => ({ ...s, google_cse_api_key: e.target.value.trim() }))}
+                  style={{ fontFamily: 'monospace', fontSize: '0.825rem' }}
+                />
+              </div>
+            </div>
+
+            {/* Test Connection Button & Result */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={handleTestGoogleSearch}
+                disabled={testingGoogleSearch}
+                className="btn-secondary"
+                style={{
+                  padding: '8px 16px',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                {testingGoogleSearch ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} color="#3B82F6" />}
+                {testingGoogleSearch ? 'Testing Google Connection...' : 'Test Google Search API'}
+              </button>
+
+              {googleTestResult && (
+                <div style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {googleTestResult.success ? (
+                    <span style={{ color: '#10B981', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <CheckCircle2 size={15} /> Google API Connected! Found {googleTestResult.itemsCount} test results.
+                    </span>
+                  ) : (
+                    <span style={{ color: '#EF4444', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <AlertCircle size={15} /> {googleTestResult.error}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* If Permission Denied notice with direct link */}
+            {googleTestResult && !googleTestResult.success && googleTestResult.enableUrl && (
+              <div
+                style={{
+                  background: 'rgba(234, 179, 8, 0.1)',
+                  border: '1px solid rgba(234, 179, 8, 0.3)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '12px 14px',
+                  fontSize: '0.8rem',
+                  color: 'var(--text-primary)',
+                }}
+              >
+                <div style={{ fontWeight: 700, color: '#EAB308', marginBottom: 4 }}>
+                  ⚠️ Google Cloud Console me Custom Search API Enable karein:
+                </div>
+                <div>
+                  Aapke project me API key toh hai lekin "Custom Search API" service enable nahi hai.
+                  Niche link par click karke blue <strong>"ENABLE"</strong> button dabayein:
+                </div>
+                <div style={{ marginTop: 6 }}>
+                  <a
+                    href={googleTestResult.enableUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ color: '#3B82F6', fontWeight: 700, textDecoration: 'underline', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                  >
+                    Open Google Cloud API Library &gt; Click Enable <ExternalLink size={12} />
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {/* Quick Action Link to Google Programmable Search Engine */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 4, flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                💡 Google Custom Search gives 100 free queries per day. Images are downloaded directly into Cloudflare R2 bucket for permanent fast loading.
+              </div>
+              <a
+                href="https://programmablesearchengine.google.com/controlpanel/all"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  fontSize: '0.78rem',
+                  color: '#2563EB',
+                  fontWeight: 700,
+                  textDecoration: 'none',
+                }}
+              >
+                <span>Google CSE Control Panel</span>
                 <ExternalLink size={12} />
               </a>
             </div>

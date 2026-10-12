@@ -1,5 +1,5 @@
 // src/client/pages/admin/reviews/AdminReviews.tsx — Enhanced Admin Reviews & Google Photos Manager
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Star,
@@ -13,6 +13,11 @@ import {
   ThumbsUp,
   Camera,
   CheckCircle,
+  Sparkles,
+  Search,
+  Loader2,
+  AlertTriangle,
+  RefreshCw,
 } from 'lucide-react'
 import { adminApi, type Review, type Product } from '../../../lib/api'
 import { useAuthStore } from '../../../lib/auth-store'
@@ -30,6 +35,29 @@ export default function AdminReviews() {
   const [galleryProductId, setGalleryProductId] = useState<number | null>(null)
   const [galleryImagesText, setGalleryImagesText] = useState('')
   const [previewImageModal, setPreviewImageModal] = useState<string | null>(null)
+
+  // Google CSE Auto-Fetch State
+  const [googleSearchQuery, setGoogleSearchQuery] = useState('')
+  const [isGoogleSearching, setIsGoogleSearching] = useState(false)
+  const [isBatchSyncing, setIsBatchSyncing] = useState(false)
+  const [googleSyncNotice, setGoogleSyncNotice] = useState<{
+    count?: number
+    source?: string
+    warning?: string
+    enable_url?: string
+  } | null>(null)
+  const [showCseWidget, setShowCseWidget] = useState(false)
+
+  // Dynamically load Google CSE script when user toggles the CSE widget
+  useEffect(() => {
+    if (showCseWidget && !document.getElementById('google-cse-script')) {
+      const script = document.createElement('script')
+      script.id = 'google-cse-script'
+      script.src = 'https://cse.google.com/cse.js?cx=83b5a1a30d4014e75'
+      script.async = true
+      document.body.appendChild(script)
+    }
+  }, [showCseWidget])
 
   // Review Form state
   const [formProductId, setFormProductId] = useState<number | ''>('')
@@ -183,6 +211,9 @@ export default function AdminReviews() {
     const targetId = pId || products[0]?.id
     if (!targetId) return
     setGalleryProductId(targetId)
+    const prod = products.find((p) => p.id === targetId)
+    setGoogleSearchQuery(prod ? prod.title : '')
+    setGoogleSyncNotice(null)
 
     try {
       const token = await getToken()
@@ -197,6 +228,9 @@ export default function AdminReviews() {
 
   const handleGalleryProductChange = async (newId: number) => {
     setGalleryProductId(newId)
+    const prod = products.find((p) => p.id === newId)
+    setGoogleSearchQuery(prod ? prod.title : '')
+    setGoogleSyncNotice(null)
     try {
       const token = await getToken()
       const res = await adminApi.reviews.getProductImages(token!, newId)
@@ -206,12 +240,60 @@ export default function AdminReviews() {
     }
   }
 
+  // 1-Click Auto-Fetch from Google Image Search & R2 Download
+  const handleAutoFetchGoogle = async () => {
+    if (!galleryProductId) return
+    setIsGoogleSearching(true)
+    setGoogleSyncNotice(null)
+    try {
+      const token = await getToken()
+      const res = await adminApi.reviews.autoSyncGoogle(token!, galleryProductId, {
+        query: googleSearchQuery.trim() || undefined,
+        force: true,
+        count: 6,
+      })
+      setGalleryImagesText((res.images || []).join('\n'))
+      setGoogleSyncNotice({
+        count: res.count,
+        source: res.source,
+        warning: res.warning,
+        enable_url: res.enable_url,
+      })
+      qc.invalidateQueries({ queryKey: ['admin-reviews'] })
+      if (res.source === 'google') {
+        adminToast.success('Google Images Saved', `Downloaded & saved ${res.count} images from Google into R2!`)
+      } else {
+        adminToast.warning('Fallback Photos Used', res.warning || 'Assigned high-resolution review photos.')
+      }
+    } catch (err: any) {
+      adminToast.error('Google Fetch Failed', err?.message || 'Failed to auto-sync')
+    } finally {
+      setIsGoogleSearching(false)
+    }
+  }
+
+  // Batch Auto-Sync All Products from Google
+  const handleSyncAllProductsGoogle = async () => {
+    if (!confirm('Are you sure you want to auto-fetch & sync Google review photos for all products?')) return
+    setIsBatchSyncing(true)
+    try {
+      const token = await getToken()
+      const res = await adminApi.reviews.syncAllGoogle(token!, false)
+      qc.invalidateQueries({ queryKey: ['admin-reviews'] })
+      adminToast.success('Batch Sync Finished', `Processed review photos for ${res.total_processed} products!`)
+    } catch (err: any) {
+      adminToast.error('Batch Sync Failed', err?.message || 'Failed to sync all')
+    } finally {
+      setIsBatchSyncing(false)
+    }
+  }
+
   const handleSaveGalleryPhotos = () => {
     if (!galleryProductId) return
     const urls = galleryImagesText
       .split('\n')
       .map((s) => s.trim())
-      .filter((s) => s.startsWith('http://') || s.startsWith('https://'))
+      .filter((s) => s.startsWith('http://') || s.startsWith('https://') || s.startsWith('/api/images/'))
 
     updateGalleryMutation.mutate({ productId: galleryProductId, images: urls })
   }
@@ -246,6 +328,27 @@ export default function AdminReviews() {
         </div>
 
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <button
+            onClick={handleSyncAllProductsGoogle}
+            disabled={isBatchSyncing}
+            className="btn-secondary"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '10px 16px',
+              fontSize: '0.875rem',
+              fontWeight: 700,
+              background: 'rgba(59, 130, 246, 0.1)',
+              borderColor: 'rgba(59, 130, 246, 0.3)',
+              color: '#3B82F6',
+            }}
+            title="Auto-fetch Google images and save to R2 for all products without photos"
+          >
+            {isBatchSyncing ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+            {isBatchSyncing ? 'Syncing All Products...' : '⚡ Auto-Sync All from Google'}
+          </button>
+
           <button
             onClick={() => openGalleryManager()}
             className="btn-secondary"
@@ -706,6 +809,138 @@ export default function AdminReviews() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            {/* ── Google Auto-Fetch & Download to R2 Card ── */}
+            <div
+              style={{
+                marginBottom: '18px',
+                padding: '14px 16px',
+                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(16, 185, 129, 0.08) 100%)',
+                border: '1px solid rgba(59, 130, 246, 0.25)',
+                borderRadius: '12px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Sparkles size={16} color="#3B82F6" />
+                  <span style={{ fontSize: '0.875rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                    Google Image Search & Auto-Download (R2)
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCseWidget(!showCseWidget)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    fontSize: '0.75rem',
+                    color: '#3B82F6',
+                    cursor: 'pointer',
+                    textDecoration: 'underline',
+                  }}
+                >
+                  {showCseWidget ? 'Hide Search Widget' : 'Open CSE Search Widget'}
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ position: 'relative', flex: 1 }}>
+                  <Search size={14} color="var(--text-muted)" style={{ position: 'absolute', left: 10, top: 12 }} />
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={googleSearchQuery}
+                    onChange={(e) => setGoogleSearchQuery(e.target.value)}
+                    placeholder="Search keywords, e.g. Shiv Ji wallpaper review photo"
+                    style={{ paddingLeft: '32px', width: '100%', fontSize: '0.82rem' }}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAutoFetchGoogle}
+                  disabled={isGoogleSearching || !galleryProductId}
+                  className="btn-primary"
+                  style={{
+                    padding: '8px 16px',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: '#2563EB',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {isGoogleSearching ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+                  {isGoogleSearching ? 'Searching & Saving...' : 'Search & Save to R2'}
+                </button>
+              </div>
+
+              {/* Status or Permission Denied warning */}
+              {googleSyncNotice && (
+                <div style={{ marginTop: '10px' }}>
+                  {googleSyncNotice.source === 'google' ? (
+                    <div
+                      style={{
+                        background: 'rgba(16, 185, 129, 0.1)',
+                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                        borderRadius: '8px',
+                        padding: '8px 12px',
+                        fontSize: '0.78rem',
+                        color: '#10B981',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontWeight: 700,
+                      }}
+                    >
+                      <CheckCircle size={14} /> Downloaded & saved {googleSyncNotice.count} customer photos from Google Search straight into R2 storage!
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        background: 'rgba(245, 158, 11, 0.1)',
+                        border: '1px solid rgba(245, 158, 11, 0.3)',
+                        borderRadius: '8px',
+                        padding: '10px 12px',
+                        fontSize: '0.78rem',
+                        color: 'var(--text-primary)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#F59E0B', fontWeight: 700 }}>
+                        <AlertTriangle size={14} /> {googleSyncNotice.warning || 'Google Search API is not enabled yet.'}
+                      </div>
+                      {googleSyncNotice.enable_url && (
+                        <div style={{ marginTop: '6px', color: 'var(--text-secondary)' }}>
+                          👉 <strong>Google Cloud Console me "Custom Search API" enable karein:</strong>{' '}
+                          <a
+                            href={googleSyncNotice.enable_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ color: '#3B82F6', fontWeight: 700, textDecoration: 'underline' }}
+                          >
+                            Click to Enable in Google Console <ExternalLink size={10} style={{ display: 'inline', verticalAlign: 'middle' }} />
+                          </a>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '3px' }}>
+                            (Note: Free 100 queries daily. Tab tak product ke title ke hisab se high-res photos attach kar di gayi hain.)
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Optional Embedded Google CSE Search Widget */}
+              {showCseWidget && (
+                <div style={{ marginTop: '12px', background: 'var(--bg-elevated)', padding: '12px', borderRadius: '8px', border: '1px solid var(--bg-border)' }}>
+                  <div style={{ fontSize: '0.78rem', fontWeight: 700, marginBottom: '6px', color: 'var(--text-muted)' }}>
+                    Google Programmable Search Box (CSE ID: 83b5a1a30d4014e75):
+                  </div>
+                  <div className="gcse-search" />
+                </div>
+              )}
             </div>
 
             {/* Paste Multiple Image URLs */}

@@ -620,6 +620,41 @@ export const adminApi = {
         method: 'PUT',
         body: JSON.stringify({ images }),
       }),
+    autoSyncGoogle: (token: string, productId: number, opts?: { query?: string; force?: boolean; count?: number }) =>
+      adminReq<{
+        success: boolean
+        product_id: number
+        product_title: string
+        images: string[]
+        count: number
+        source: 'google' | 'fallback' | 'cached'
+        warning?: string
+        enable_url?: string
+      }>(`/admin/reviews/product/${productId}/auto-sync-google`, token, {
+        method: 'POST',
+        body: JSON.stringify(opts || {}),
+      }),
+    syncAllGoogle: (token: string, force = false) =>
+      adminReq<{
+        success: boolean
+        total_processed: number
+        results: Array<{ id: number; title: string; status: string; count: number; warning?: string }>
+      }>('/admin/reviews/sync-all-google', token, {
+        method: 'POST',
+        body: JSON.stringify({ force }),
+      }),
+    testGoogleSearch: (token: string, opts?: { query?: string; cx?: string; apiKey?: string }) =>
+      adminReq<{
+        success: boolean
+        items: any[]
+        query: string
+        error?: string
+        reason?: string
+        enableUrl?: string
+      }>('/admin/reviews/test-google-search', token, {
+        method: 'POST',
+        body: JSON.stringify(opts || {}),
+      }),
   },
 
   users: {
