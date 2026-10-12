@@ -394,8 +394,9 @@ export default function FlipkartCheckoutPage() {
       }
 
       // 4. Fallback payment URL redirect
-      if (orderRes.payment_url) {
-        window.location.href = orderRes.payment_url
+      const fallbackUrl = targetUpiUrl || orderRes.payment_url || orderRes.upi_link
+      if (fallbackUrl) {
+        window.location.href = fallbackUrl
         return
       }
 

@@ -233,12 +233,17 @@ export class CashfreeClient {
   }
 }
 
-// Generate a unique order number
+let orderSeqCounter = 0
+
+// Generate a unique, collision-proof order number
 export function generateOrderNumber(): string {
-  const date = new Date()
-  const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '')
-  const random = Math.floor(Math.random() * 9999).toString().padStart(4, '0')
-  return `TVH-${dateStr}-${random}`
+  const now = Date.now()
+  const dateStr = new Date(now).toISOString().slice(0, 10).replace(/-/g, '')
+  const timeSuffix = (now % 86400000).toString(36).toUpperCase().padStart(5, '0')
+  orderSeqCounter = (orderSeqCounter + 1) % 100000
+  const seqStr = orderSeqCounter.toString(36).toUpperCase().padStart(4, '0')
+  const random = Math.floor(1000 + Math.random() * 9000).toString()
+  return `TVH-${dateStr}-${timeSuffix}${seqStr}${random}`
 }
 
 // Validate phone number (Indian format)

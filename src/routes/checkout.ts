@@ -72,136 +72,248 @@ const checkoutSchema = z.object({
 
 // POST /api/checkout/create
 app.post('/create', async (c) => {
-  let body: unknown
-  try { body = await c.req.json() } catch {
-    return c.json({ error: 'Invalid JSON body' }, 400)
-  }
-
-  const parsed = checkoutSchema.safeParse(body)
-  if (!parsed.success) {
-    return c.json({ error: 'Validation failed', details: parsed.error.errors }, 400)
-  }
-
-  const data = parsed.data
-
-  // 🚀 CONCURRENT PRE-FETCH: Fetch product and payment gateway settings in parallel
-  const [product, config] = await Promise.all([
-    getProductById(c.env.DB, data.product_id),
-    getPaymentConfig(c.env.DB, c.env),
-  ])
-
-  if (!product) return c.json({ error: 'Product not found' }, 404)
-  if (!product.is_published) return c.json({ error: 'Product not available' }, 404)
-
-  const amount = product.sale_price ?? product.price
-  const orderNumber = generateOrderNumber()
-
-  // Sane fallbacks for frictionless 1-click guest purchase
-  const randId = Math.floor(1000 + Math.random() * 9000)
-  const hostDomain = c.req.header('host')?.replace(/:\d+$/, '') || 'store.local'
-  const customerName = data.customer_name?.trim() || 'Guest Customer'
-  const customerEmail = (data.customer_email && data.customer_email.trim().length > 0)
-    ? data.customer_email.trim().toLowerCase()
-    : `guest_${Date.now()}_${randId}@${hostDomain}`
-  // 📱 AUTO-FILL MOBILE NUMBER: Realistic valid Indian mobile number if not provided
-  const customerPhone = getSanitizedCustomerPhone(data.customer_phone, orderNumber)
-
-  const siteUrl = c.env.SITE_URL || new URL(c.req.url).origin
-  const ip = c.req.header('CF-Connecting-IP') ?? c.req.header('X-Forwarded-For')
-
-  // Offline maintenance check
-  if (config.activeGateway === 'offline') {
-    return c.json({ error: 'Payment checkout is temporarily offline for maintenance. Please check back shortly.' }, 503)
-  }
-
-  // ── 1. Razorpay Gateway Flow ──
-  const requestedGateway = data.preferred_gateway
-  const shouldUseRazorpay =
-    config.activeGateway === 'razorpay' ||
-    (config.activeGateway === 'both' && requestedGateway === 'razorpay') ||
-    (config.activeGateway === 'both' && !requestedGateway && config.defaultDualGateway === 'razorpay') ||
-    (config.activeGateway === 'both' && !requestedGateway && Boolean(config.razorpay.keyId && !config.cashfree.appId)) ||
-    (config.activeGateway === 'auto' && Boolean(config.razorpay.keyId && !config.cashfree.appId))
-
-  if (shouldUseRazorpay) {
-    if (!config.razorpay.keyId || !config.razorpay.keySecret) {
-      return c.json({ error: 'Razorpay is not fully configured in settings.' }, 500)
+  try {
+    let body: unknown
+    try { body = await c.req.json() } catch {
+      return c.json({ error: 'Invalid JSON body' }, 400)
     }
 
-    const razorpay = new RazorpayClient({
-      keyId: config.razorpay.keyId,
-      keySecret: config.razorpay.keySecret,
-    })
+    const parsed = checkoutSchema.safeParse(body)
+    if (!parsed.success) {
+      return c.json({ error: 'Validation failed', details: parsed.error.errors }, 400)
+    }
 
-    // 🛡️ RAZORPAY 100% STEALTH ISOLATION & MASKING:
-    // Real customer data and original product title remain 100% confidential in our internal database.
-    // Razorpay audit logs only receive clean, generic digital media license metadata!
-    const rzpCustomerEmail = `buyer_${orderNumber.toLowerCase().replace(/[^a-z0-9]/g, '_')}@1024teraviralhub.com`
-    const rzpCustomerPhone = customerPhone
-    const rzpCustomerName = customerName !== 'Guest Customer' ? customerName : 'Verified Digital Buyer'
+    const data = parsed.data
 
-    // ⚡ CONCURRENT ZERO-LATENCY EXECUTION:
-    // Run order creation and UPI payment link generation in parallel to cut processing time in half!
-    const [orderSettled, linkSettled] = await Promise.allSettled([
-      razorpay.createOrder({
-        orderId: orderNumber,
-        amount,
-        currency: 'INR',
-        receipt: orderNumber,
-        notes: {
-          asset_type: 'digital_media_license',
-          bundle_code: 'TVH_VIP_DOWNLOAD',
-          merchant_channel: 'direct_web',
-          order_ref: orderNumber,
-        },
-      }),
-      razorpay.createPaymentLink({
-        amount,
-        referenceId: orderNumber,
-        description: `Digital Media License #${orderNumber}`,
-        customerName: rzpCustomerName,
-        customerEmail: rzpCustomerEmail,
-        customerPhone: rzpCustomerPhone,
-        callbackUrl: `${siteUrl}/payment/processing?order=${orderNumber}`,
-        upiLink: true,
-        notes: {
-          order_number: orderNumber,
-        },
-      }),
+    // 🚀 CONCURRENT PRE-FETCH: Fetch product and payment gateway settings in parallel
+    const [product, config] = await Promise.all([
+      getProductById(c.env.DB, data.product_id),
+      getPaymentConfig(c.env.DB, c.env),
     ])
 
-    if (orderSettled.status !== 'fulfilled') {
-      console.error('Razorpay order creation error:', orderSettled.reason)
+    if (!product) return c.json({ error: 'Product not found' }, 404)
+    if (!product.is_published) return c.json({ error: 'Product not available' }, 404)
+
+    const amount = product.sale_price ?? product.price
+    const orderNumber = generateOrderNumber()
+
+    // Sane fallbacks for frictionless 1-click guest purchase
+    const randId = Math.floor(1000 + Math.random() * 9000)
+    const hostDomain = c.req.header('host')?.replace(/:\d+$/, '') || 'store.local'
+    const customerName = data.customer_name?.trim() || 'Guest Customer'
+    const customerEmail = (data.customer_email && data.customer_email.trim().length > 0)
+      ? data.customer_email.trim().toLowerCase()
+      : `guest_${Date.now()}_${randId}@${hostDomain}`
+    // 📱 AUTO-FILL MOBILE NUMBER: Realistic valid Indian mobile number if not provided
+    const customerPhone = getSanitizedCustomerPhone(data.customer_phone, orderNumber)
+
+    const siteUrl = c.env.SITE_URL || new URL(c.req.url).origin
+    const ip = c.req.header('CF-Connecting-IP') ?? c.req.header('X-Forwarded-For')
+
+    // Offline maintenance check
+    if (config.activeGateway === 'offline') {
+      return c.json({ error: 'Payment checkout is temporarily offline for maintenance. Please check back shortly.' }, 503)
+    }
+
+    // ── 1. Razorpay Gateway Flow ──
+    const requestedGateway = data.preferred_gateway
+    const shouldUseRazorpay =
+      config.activeGateway === 'razorpay' ||
+      (config.activeGateway === 'both' && requestedGateway === 'razorpay') ||
+      (config.activeGateway === 'both' && !requestedGateway && config.defaultDualGateway === 'razorpay') ||
+      (config.activeGateway === 'both' && !requestedGateway && Boolean(config.razorpay.keyId && !config.cashfree.appId)) ||
+      (config.activeGateway === 'auto' && Boolean(config.razorpay.keyId && !config.cashfree.appId))
+
+    if (shouldUseRazorpay) {
+      if (!config.razorpay.keyId || !config.razorpay.keySecret) {
+        return c.json({ error: 'Razorpay is not fully configured in settings.' }, 500)
+      }
+
+      const razorpay = new RazorpayClient({
+        keyId: config.razorpay.keyId,
+        keySecret: config.razorpay.keySecret,
+      })
+
+      // 🛡️ RAZORPAY 100% STEALTH ISOLATION & MASKING:
+      // Real customer data and original product title remain 100% confidential in our internal database.
+      // Razorpay audit logs only receive clean, generic digital media license metadata!
+      const rzpCustomerEmail = `buyer_${orderNumber.toLowerCase().replace(/[^a-z0-9]/g, '_')}@1024teraviralhub.com`
+      const rzpCustomerPhone = customerPhone
+      const rzpCustomerName = customerName !== 'Guest Customer' ? customerName : 'Verified Digital Buyer'
+
+      // ⚡ CONCURRENT ZERO-LATENCY EXECUTION:
+      // Run order creation and UPI payment link generation in parallel to cut processing time in half!
+      const [orderSettled, linkSettled] = await Promise.allSettled([
+        razorpay.createOrder({
+          orderId: orderNumber,
+          amount,
+          currency: 'INR',
+          receipt: orderNumber,
+          notes: {
+            asset_type: 'digital_media_license',
+            bundle_code: 'TVH_VIP_DOWNLOAD',
+            merchant_channel: 'direct_web',
+            order_ref: orderNumber,
+          },
+        }),
+        razorpay.createPaymentLink({
+          amount,
+          referenceId: orderNumber,
+          description: `Digital Media License #${orderNumber}`,
+          customerName: rzpCustomerName,
+          customerEmail: rzpCustomerEmail,
+          customerPhone: rzpCustomerPhone,
+          callbackUrl: `${siteUrl}/payment/processing?order=${orderNumber}`,
+          upiLink: true,
+          notes: {
+            order_number: orderNumber,
+          },
+        }),
+      ])
+
+      if (orderSettled.status !== 'fulfilled') {
+        console.error('Razorpay order creation error:', orderSettled.reason)
+        return c.json({ error: 'Payment gateway error. Please try again.' }, 502)
+      }
+
+      const rzpOrder = orderSettled.value
+      const rzpPaymentLink = linkSettled.status === 'fulfilled' ? linkSettled.value : null
+
+      const providerOrderId = rzpPaymentLink?.order_id || rzpOrder.id
+      const sessionId = rzpPaymentLink?.id || rzpOrder.id
+      // ⚡ ZERO-HOP CANONICAL URL: Use direct razorpay.com/payment-link/plink_xxx to eliminate rzp.io 10-second DNS/redirect latency!
+      const directUrl = rzpPaymentLink?.id
+        ? `https://razorpay.com/payment-link/${rzpPaymentLink.id}`
+        : (rzpPaymentLink?.short_url || null)
+
+      // Save order in our DB with REAL customer details for internal fulfillment in a single query
+      let finalOrderNumber = orderNumber
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          await createOrder(c.env.DB, {
+            order_number: finalOrderNumber,
+            product_id: data.product_id,
+            customer_name: customerName,
+            customer_email: customerEmail,
+            customer_phone: customerPhone,
+            amount,
+            cashfree_order_id: providerOrderId,
+            payment_session_id: sessionId,
+            utm_source: data.utm_source,
+            utm_medium: data.utm_medium,
+            utm_campaign: data.utm_campaign,
+            referrer_url: data.referrer_url,
+            ip_address: ip,
+            notes: `gateway:razorpay;order_id:${rzpOrder.id};link_id:${rzpPaymentLink?.id || ''}`,
+          })
+          break
+        } catch (err: any) {
+          if (err?.message?.includes('UNIQUE constraint') || err?.message?.includes('SQLITE_CONSTRAINT')) {
+            finalOrderNumber = generateOrderNumber()
+            continue
+          }
+          throw err
+        }
+      }
+
+      // Non-blocking background analytics logging
+      logAnalyticsEvent(c.env.DB, {
+        event_type: 'checkout_start',
+        product_id: data.product_id,
+        ip_address: ip,
+        utm_source: data.utm_source,
+        utm_medium: data.utm_medium,
+        utm_campaign: data.utm_campaign,
+        metadata: { gateway: 'razorpay', order_id: providerOrderId },
+      }).catch(() => {})
+
+      c.header('Set-Cookie', `tvh_last_order=${encodeURIComponent(finalOrderNumber)}; Path=/; Max-Age=31536000; SameSite=Lax`, { append: true })
+
+      return c.json({
+        success: true,
+        gateway: 'razorpay',
+        order_number: finalOrderNumber,
+        amount: rzpOrder.amount, // in paise
+        currency: 'INR',
+        razorpay_key_id: config.razorpay.keyId,
+        razorpay_order_id: providerOrderId,
+        razorpay_payment_link_id: rzpPaymentLink?.id || null,
+        payment_url: directUrl,
+        upi_link: directUrl,
+        upi_intent: directUrl ? {
+          phonepe: directUrl,
+          gpay: directUrl,
+          paytm: directUrl,
+          default: directUrl,
+        } : null,
+        stealth_name: rzpCustomerName,
+        stealth_email: rzpCustomerEmail,
+        stealth_phone: rzpCustomerPhone,
+        customer_name: customerName,
+        customer_email: customerEmail,
+        customer_phone: customerPhone,
+      })
+    }
+
+    // ── 2. Cashfree Gateway Flow ──
+    let finalOrderNumber = orderNumber
+    const cashfreeCustomerEmail = `buyer_${finalOrderNumber.toLowerCase().replace(/[^a-z0-9]/g, '_')}@1024teraviralhub.com`
+    const cashfreeCustomerPhone = customerPhone
+
+    const cashfree = new CashfreeClient({
+      appId: config.cashfree.appId,
+      secretKey: config.cashfree.secretKey,
+      apiUrl: config.cashfree.apiUrl,
+    })
+
+    let cfOrder
+    try {
+      cfOrder = await cashfree.createOrder({
+        orderId: finalOrderNumber,
+        amount,
+        currency: 'INR',
+        customerName: 'Verified Digital Buyer',
+        customerEmail: cashfreeCustomerEmail,
+        customerPhone: cashfreeCustomerPhone,
+        returnUrl: `${siteUrl}/payment/processing?order=${finalOrderNumber}`,
+        notifyUrl: `${siteUrl}/api/cashfree/webhook`,
+      })
+    } catch (err) {
+      console.error('Cashfree order creation error:', err)
       return c.json({ error: 'Payment gateway error. Please try again.' }, 502)
     }
 
-    const rzpOrder = orderSettled.value
-    const rzpPaymentLink = linkSettled.status === 'fulfilled' ? linkSettled.value : null
+    // Attempt to create UPI Intent / Deeplink session
+    const upiSession = await cashfree.createUpiPaymentSession(cfOrder.payment_session_id, 'link')
 
-    const providerOrderId = rzpPaymentLink?.order_id || rzpOrder.id
-    const sessionId = rzpPaymentLink?.id || rzpOrder.id
-    // ⚡ ZERO-HOP CANONICAL URL: Use direct razorpay.com/payment-link/plink_xxx to eliminate rzp.io 10-second DNS/redirect latency!
-    const directUrl = rzpPaymentLink?.id
-      ? `https://razorpay.com/payment-link/${rzpPaymentLink.id}`
-      : (rzpPaymentLink?.short_url || null)
-
-    // Save order in our DB with REAL customer details for internal fulfillment in a single query
-    await createOrder(c.env.DB, {
-      order_number: orderNumber,
-      product_id: data.product_id,
-      customer_name: customerName,
-      customer_email: customerEmail,
-      customer_phone: customerPhone,
-      amount,
-      cashfree_order_id: providerOrderId,
-      payment_session_id: sessionId,
-      utm_source: data.utm_source,
-      utm_medium: data.utm_medium,
-      utm_campaign: data.utm_campaign,
-      referrer_url: data.referrer_url,
-      ip_address: ip,
-      notes: `gateway:razorpay;order_id:${rzpOrder.id};link_id:${rzpPaymentLink?.id || ''}`,
-    })
+    // Create order in our DB with collision retry loop
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        await createOrder(c.env.DB, {
+          order_number: finalOrderNumber,
+          product_id: data.product_id,
+          customer_name: customerName,
+          customer_email: customerEmail,
+          customer_phone: customerPhone,
+          amount,
+          cashfree_order_id: cfOrder.cf_order_id.toString(),
+          payment_session_id: cfOrder.payment_session_id,
+          utm_source: data.utm_source,
+          utm_medium: data.utm_medium,
+          utm_campaign: data.utm_campaign,
+          referrer_url: data.referrer_url,
+          ip_address: ip,
+          notes: 'gateway:cashfree',
+        })
+        break
+      } catch (err: any) {
+        if (err?.message?.includes('UNIQUE constraint') || err?.message?.includes('SQLITE_CONSTRAINT')) {
+          finalOrderNumber = generateOrderNumber()
+          continue
+        }
+        throw err
+      }
+    }
 
     // Non-blocking background analytics logging
     logAnalyticsEvent(c.env.DB, {
@@ -211,109 +323,29 @@ app.post('/create', async (c) => {
       utm_source: data.utm_source,
       utm_medium: data.utm_medium,
       utm_campaign: data.utm_campaign,
-      metadata: { gateway: 'razorpay', order_id: providerOrderId },
+      metadata: { gateway: 'cashfree', order_id: cfOrder.cf_order_id },
     }).catch(() => {})
 
-    c.header('Set-Cookie', `tvh_last_order=${encodeURIComponent(orderNumber)}; Path=/; Max-Age=31536000; SameSite=Lax`, { append: true })
+    c.header('Set-Cookie', `tvh_last_order=${encodeURIComponent(finalOrderNumber)}; Path=/; Max-Age=31536000; SameSite=Lax`, { append: true })
+
+    const cfPaymentUrl = upiSession?.data?.link || upiSession?.data?.payload?.default || null
 
     return c.json({
       success: true,
-      gateway: 'razorpay',
-      order_number: orderNumber,
-      amount: rzpOrder.amount, // in paise
-      currency: 'INR',
-      razorpay_key_id: config.razorpay.keyId,
-      razorpay_order_id: providerOrderId,
-      razorpay_payment_link_id: rzpPaymentLink?.id || null,
-      payment_url: directUrl,
-      upi_link: directUrl,
-      upi_intent: directUrl ? {
-        phonepe: directUrl,
-        gpay: directUrl,
-        paytm: directUrl,
-        default: directUrl,
-      } : null,
-      stealth_name: rzpCustomerName,
-      stealth_email: rzpCustomerEmail,
-      stealth_phone: rzpCustomerPhone,
-      customer_name: customerName,
-      customer_email: customerEmail,
-      customer_phone: customerPhone,
-    })
-  }
-
-  // ── 2. Cashfree Gateway Flow ──
-  const cashfreeCustomerEmail = `buyer_${orderNumber.toLowerCase().replace(/[^a-z0-9]/g, '_')}@1024teraviralhub.com`
-  const cashfreeCustomerPhone = customerPhone
-
-  const cashfree = new CashfreeClient({
-    appId: config.cashfree.appId,
-    secretKey: config.cashfree.secretKey,
-    apiUrl: config.cashfree.apiUrl,
-  })
-
-  let cfOrder
-  try {
-    cfOrder = await cashfree.createOrder({
-      orderId: orderNumber,
+      gateway: 'cashfree',
+      order_number: finalOrderNumber,
+      payment_session_id: cfOrder.payment_session_id,
       amount,
       currency: 'INR',
-      customerName: 'Verified Digital Buyer',
-      customerEmail: cashfreeCustomerEmail,
-      customerPhone: cashfreeCustomerPhone,
-      returnUrl: `${siteUrl}/payment/processing?order=${orderNumber}`,
-      notifyUrl: `${siteUrl}/api/cashfree/webhook`,
+      payment_url: cfPaymentUrl,
+      upi_intent: upiSession?.data?.payload ?? null,
+      upi_link: upiSession?.data?.link ?? null,
+      upi_qrcode: upiSession?.data?.qrcode ?? null,
     })
-  } catch (err) {
-    console.error('Cashfree order creation error:', err)
-    return c.json({ error: 'Payment gateway error. Please try again.' }, 502)
+  } catch (err: any) {
+    console.error('Checkout /create fatal error:', err)
+    return c.json({ error: 'Internal server error', message: err?.message || 'Payment initiation failed' }, 500)
   }
-
-  // Attempt to create UPI Intent / Deeplink session
-  const upiSession = await cashfree.createUpiPaymentSession(cfOrder.payment_session_id, 'link')
-
-  // Create order in our DB in a single INSERT
-  await createOrder(c.env.DB, {
-    order_number: orderNumber,
-    product_id: data.product_id,
-    customer_name: customerName,
-    customer_email: customerEmail,
-    customer_phone: customerPhone,
-    amount,
-    cashfree_order_id: cfOrder.cf_order_id.toString(),
-    payment_session_id: cfOrder.payment_session_id,
-    utm_source: data.utm_source,
-    utm_medium: data.utm_medium,
-    utm_campaign: data.utm_campaign,
-    referrer_url: data.referrer_url,
-    ip_address: ip,
-    notes: 'gateway:cashfree',
-  })
-
-  // Non-blocking background analytics logging
-  logAnalyticsEvent(c.env.DB, {
-    event_type: 'checkout_start',
-    product_id: data.product_id,
-    ip_address: ip,
-    utm_source: data.utm_source,
-    utm_medium: data.utm_medium,
-    utm_campaign: data.utm_campaign,
-    metadata: { gateway: 'cashfree', order_id: cfOrder.cf_order_id },
-  }).catch(() => {})
-
-  c.header('Set-Cookie', `tvh_last_order=${encodeURIComponent(orderNumber)}; Path=/; Max-Age=31536000; SameSite=Lax`, { append: true })
-
-  return c.json({
-    success: true,
-    gateway: 'cashfree',
-    order_number: orderNumber,
-    payment_session_id: cfOrder.payment_session_id,
-    amount,
-    currency: 'INR',
-    upi_intent: upiSession?.data?.payload ?? null,
-    upi_link: upiSession?.data?.link ?? null,
-    upi_qrcode: upiSession?.data?.qrcode ?? null,
-  })
 })
 
 // ── Reusable Verification & Instant Digital Delivery Helper ──
