@@ -24,6 +24,7 @@ const ProductsPage = lazyWithRetry(() => import('./client/pages/products/Product
 const CategoryPage = lazyWithRetry(() => import('./client/pages/products/CategoryPage'))
 const ProductPage = lazyWithRetry(() => import('./client/pages/product/ProductPage'))
 const CheckoutPage = lazyWithRetry(() => import('./client/pages/checkout/CheckoutPage'))
+const FlipkartCheckoutPage = lazyWithRetry(() => import('./client/pages/checkout/FlipkartCheckoutPage'))
 const PaymentProcessingPage = lazyWithRetry(() => import('./client/pages/payment/PaymentProcessingPage'))
 const PaymentSuccessPage = lazyWithRetry(() => import('./client/pages/payment/PaymentSuccessPage'))
 const PaymentFailedPage = lazyWithRetry(() => import('./client/pages/payment/PaymentFailedPage'))
@@ -195,6 +196,7 @@ export default function App() {
             <Route element={<MinimalLayout />}>
               <Route path="/checkout" element={<CheckoutPage />} />
               <Route path="/checkout/:id" element={<CheckoutPage />} />
+              <Route path="/checkout/flipkart/:slug" element={<FlipkartCheckoutPage />} />
               <Route path="/payment/processing" element={<PaymentProcessingPage />} />
               <Route path="/payment/success" element={<PaymentSuccessPage />} />
               <Route path="/payment/failed" element={<PaymentFailedPage />} />

@@ -426,6 +426,14 @@ export default function ProductPage() {
       },
     })
 
+    // 🛍️ FLIPKART 3-STEP CHECKOUT (A/B Test System)
+    const isFlipkartCheckout = publicSettings?.flipkart_checkout_enabled ?? true
+    if (isFlipkartCheckout) {
+      navigate(`/checkout/flipkart/${product.slug}`)
+      setIsProcessing(false)
+      return
+    }
+
     const utm = getSavedUtmParams()
 
     try {

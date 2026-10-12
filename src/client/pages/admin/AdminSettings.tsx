@@ -71,6 +71,8 @@ export default function AdminSettings() {
     page_cookie_policy_enabled: true,
     page_about_enabled: true,
     page_contact_enabled: true,
+    // Flipkart 3-Step Checkout Flow A/B Test
+    flipkart_checkout_enabled: true,
   })
 
   const [sitemapCopied, setSitemapCopied] = useState(false)
@@ -501,6 +503,29 @@ export default function AdminSettings() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* Flipkart 3-Step Checkout System A/B Test Toggle */}
+            <label style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '16px', background: 'linear-gradient(135deg, rgba(40, 116, 240, 0.08) 0%, rgba(255, 194, 0, 0.06) 100%)',
+              border: '1px solid rgba(40, 116, 240, 0.25)', borderRadius: 'var(--radius-md)', cursor: 'pointer'
+            }}>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-primary)' }}>
+                  <span>🛍️ Flipkart 3-Step Checkout System</span>
+                  <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: 999, background: '#2874f0', color: '#fff', fontWeight: 700 }}>A/B Test 5%+ CR</span>
+                </div>
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: 4, lineHeight: 1.4 }}>
+                  Exact Flipkart UI flow: Step 2 Confirm Details (with optional Address modal, SuperCoins, dynamic delivery date, open-box delivery) &rarr; Step 3 Payments page (pre-selected PhonePe 1-click Pay + Cash on Delivery clearly marked <strong>Unavailable</strong> to reduce drop-offs).
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.flipkart_checkout_enabled}
+                onChange={e => setSettings(s => ({ ...s, flipkart_checkout_enabled: e.target.checked }))}
+                style={{ width: 20, height: 20, accentColor: '#2874f0', marginLeft: 16, cursor: 'pointer' }}
+              />
+            </label>
+
             {/* Direct UPI Launch Toggle */}
             <label style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',

@@ -21,7 +21,9 @@ app.get('/public', async (c) => {
     // Big Billion FOMO & Scarcity
     fomoLootDealEnabled, fomoSocialProofEnabled, fomoSlotsTotal, fomoDealOfDayEnabled,
     // Meta Pixel & Ad Conversion Tracking
-    metaPixelId, metaPixelEnabled
+    metaPixelId, metaPixelEnabled,
+    // Flipkart 3-Step Checkout Flow A/B Test
+    flipkartCheckoutEnabled
   ] = await Promise.all([
     getSetting<boolean>(c.env.DB, 'upi_direct_launch', true),
     getSetting<string>(c.env.DB, 'preferred_upi_app', 'phonepe'),
@@ -72,6 +74,8 @@ app.get('/public', async (c) => {
     // Meta Pixel & Ad Tracking
     getSetting<string>(c.env.DB, 'meta_pixel_id', ''),
     getSetting<boolean>(c.env.DB, 'meta_pixel_enabled', true),
+    // Flipkart 3-Step Checkout Flow
+    getSetting<boolean>(c.env.DB, 'flipkart_checkout_enabled', true),
   ])
 
   return c.json({
@@ -121,6 +125,8 @@ app.get('/public', async (c) => {
     // Meta Pixel
     meta_pixel_id: metaPixelId ?? '',
     meta_pixel_enabled: metaPixelEnabled ?? true,
+    // Flipkart 3-Step Checkout Flow
+    flipkart_checkout_enabled: flipkartCheckoutEnabled ?? true,
   })
 })
 

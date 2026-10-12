@@ -207,6 +207,8 @@ export const api = {
       // Meta Pixel & Ad Tracking
       meta_pixel_id?: string
       meta_pixel_enabled?: boolean
+      // Flipkart 3-Step Checkout Flow
+      flipkart_checkout_enabled?: boolean
     }>('/settings/public'),
   },
 
