@@ -264,20 +264,46 @@ export default function CheckoutPage() {
     const utm = getSavedUtmParams()
 
     try {
-      const result = await api.checkout.create({
-        product_id: activeProduct.id,
-        customer_name: customerName.trim() || undefined,
-        customer_email: customerEmail.trim() || undefined,
-        customer_phone: customerPhone.replace(/\D/g, '') || undefined,
-        preferred_gateway: isBoth ? preferredGateway : isRazorpay ? 'razorpay' : 'cashfree',
-        utm_source: utm.utm_source,
-        utm_medium: utm.utm_medium,
-        utm_campaign: utm.utm_campaign,
-        referrer_url: document.referrer,
-      })
+      // 🛡️ DEDUPLICATION CACHE: Reuse active order session if created within 15 minutes to avoid duplicate pending orders
+      const sessionKey = `tvh_active_checkout_${activeProduct.id}`
+      let result: any = null
 
-      if (!result.success || (!result.payment_session_id && result.gateway !== 'razorpay') || !result.order_number) {
-        throw new Error('Failed to initiate secure checkout session.')
+      try {
+        const rawCached = sessionStorage.getItem(sessionKey)
+        if (rawCached) {
+          const parsed = JSON.parse(rawCached)
+          const isFresh = parsed.createdAt && (Date.now() - parsed.createdAt < 15 * 60 * 1000)
+          const isSameAmount = parsed.amount === effectiveTotal
+          if (isFresh && isSameAmount && parsed.result?.order_number) {
+            result = parsed.result
+          }
+        }
+      } catch { }
+
+      if (!result) {
+        result = await api.checkout.create({
+          product_id: activeProduct.id,
+          customer_name: customerName.trim() || undefined,
+          customer_email: customerEmail.trim() || undefined,
+          customer_phone: customerPhone.replace(/\D/g, '') || undefined,
+          preferred_gateway: isBoth ? preferredGateway : isRazorpay ? 'razorpay' : 'cashfree',
+          utm_source: utm.utm_source,
+          utm_medium: utm.utm_medium,
+          utm_campaign: utm.utm_campaign,
+          referrer_url: document.referrer,
+        })
+
+        if (!result.success || (!result.payment_session_id && result.gateway !== 'razorpay') || !result.order_number) {
+          throw new Error('Failed to initiate secure checkout session.')
+        }
+
+        try {
+          sessionStorage.setItem(sessionKey, JSON.stringify({
+            createdAt: Date.now(),
+            amount: effectiveTotal,
+            result,
+          }))
+        } catch { }
       }
 
       trackPixelEvent('InitiateCheckout', {

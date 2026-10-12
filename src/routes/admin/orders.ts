@@ -54,7 +54,10 @@ app.get('/', async (c) => {
       SUM(CASE WHEN status = 'PAID' THEN amount ELSE 0 END) as total_revenue,
       SUM(CASE WHEN status = 'PAID' THEN 1 ELSE 0 END) as paid_count,
       SUM(CASE WHEN status = 'PENDING' THEN 1 ELSE 0 END) as pending_count,
-      SUM(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END) as failed_count
+      SUM(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END) as failed_count,
+      COUNT(DISTINCT ip_address) as unique_initiations,
+      COUNT(DISTINCT CASE WHEN status = 'PAID' THEN ip_address END) as unique_paid_buyers,
+      ROUND(100.0 * COUNT(DISTINCT CASE WHEN status = 'PAID' THEN ip_address END) / NULLIF(COUNT(DISTINCT ip_address), 0), 1) as unique_conversion_rate
     FROM orders
   `).first() as {
     total_orders: number
@@ -62,6 +65,9 @@ app.get('/', async (c) => {
     paid_count: number
     pending_count: number
     failed_count: number
+    unique_initiations?: number
+    unique_paid_buyers?: number
+    unique_conversion_rate?: number
   }
 
   return c.json({
@@ -73,6 +79,9 @@ app.get('/', async (c) => {
       paid_count: stats?.paid_count ?? 0,
       pending_count: stats?.pending_count ?? 0,
       failed_count: stats?.failed_count ?? 0,
+      unique_initiations: stats?.unique_initiations ?? stats?.total_orders ?? 0,
+      unique_paid_buyers: stats?.unique_paid_buyers ?? stats?.paid_count ?? 0,
+      unique_conversion_rate: stats?.unique_conversion_rate ?? 0,
     }
   })
 })

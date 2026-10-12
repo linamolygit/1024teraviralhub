@@ -102,7 +102,7 @@ export default function AdminDashboard() {
       label: 'Conversion Rate',
       value: `${conversion.purchase_rate || 0}%`,
       icon: <TrendingUp size={20} />,
-      sub: `${conversion.checkout_starts || 0} Checkouts · ${conversion.purchases || 0} Paid`,
+      sub: `${(conversion as any).unique_purchases || conversion.purchases || 0} Paid of ${(conversion as any).unique_checkouts || conversion.checkout_starts || 0} Unique Shoppers`,
       color: '#3B82F6',
     },
   ]

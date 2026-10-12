@@ -76,9 +76,13 @@ export default function AdminOrders() {
     setTimeout(() => setCopiedId(null), 2000)
   }
 
-  // Calculate conversion rates
+  // Calculate conversion rates (prioritize real unique buyer conversion)
   const conversionRate = useMemo(() => {
-    if (!stats || stats.total_orders === 0) return 0
+    if (!stats) return 0
+    if ((stats as any).unique_conversion_rate !== undefined && (stats as any).unique_conversion_rate !== null) {
+      return (stats as any).unique_conversion_rate
+    }
+    if (stats.total_orders === 0) return 0
     return Math.round((stats.paid_count / stats.total_orders) * 100)
   }, [stats])
 
@@ -316,12 +320,12 @@ export default function AdminOrders() {
             </div>
             <div style={{ fontSize: '1.65rem', fontWeight: 900, color: '#1162F2', letterSpacing: '-0.02em' }}>
               {stats.paid_count}
-              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: 6 }}>
-                ({conversionRate}%)
+              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#108934', marginLeft: 6 }}>
+                ({conversionRate}% Real Conversion)
               </span>
             </div>
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4 }}>
-              Payment conversion success rate
+              {(stats as any).unique_paid_buyers || stats.paid_count} Paid of {(stats as any).unique_initiations || stats.total_orders} Unique Buyers ({stats.paid_count}/{stats.total_orders} total attempts)
             </div>
           </div>
 
@@ -644,7 +648,7 @@ export default function AdminOrders() {
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', marginBottom: 6 }}>
               <span style={{ fontWeight: 700 }}>Payment Gateway Conversion Health</span>
               <span style={{ color: '#1162F2', fontWeight: 800 }}>
-                {conversionRate}% Success Ratio ({stats.paid_count}/{stats.total_orders} Orders)
+                {conversionRate}% Real Conversion ({(stats as any).unique_paid_buyers || stats.paid_count}/{(stats as any).unique_initiations || stats.total_orders} Unique Shoppers)
               </span>
             </div>
 

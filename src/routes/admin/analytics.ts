@@ -76,7 +76,9 @@ app.get('/', async (c) => {
     trafficSourcesRow,
     productViewsRow,
     checkoutStartsRow,
-    periodPaidOrdersRow
+    periodPaidOrdersRow,
+    uniqueCheckoutsRow,
+    uniquePaidOrdersRow
   ] = await Promise.all([
     // Unique Visitors
     c.env.DB.prepare(`
@@ -155,6 +157,20 @@ app.get('/', async (c) => {
       FROM orders
       WHERE status = 'PAID' AND ${ordersWhere}
     `).first<{ c: number }>().catch(() => ({ c: 0 })),
+
+    // Unique Checkout Starters
+    c.env.DB.prepare(`
+      SELECT COUNT(DISTINCT ip_address) as c
+      FROM analytics_events
+      WHERE event_type = 'checkout_start' AND ${eventWhere}
+    `).first<{ c: number }>().catch(() => ({ c: 0 })),
+
+    // Unique Paid Buyers
+    c.env.DB.prepare(`
+      SELECT COUNT(DISTINCT ip_address) as c
+      FROM orders
+      WHERE status = 'PAID' AND ${ordersWhere}
+    `).first<{ c: number }>().catch(() => ({ c: 0 })),
   ])
 
   const totalVisitors = totalVisitorsRow?.c ?? 0
@@ -173,6 +189,9 @@ app.get('/', async (c) => {
   const productViews = productViewsRow?.c ?? 0
   const checkoutStarts = checkoutStartsRow?.c ?? 0
   const paidPurchases = periodPaidOrdersRow?.c ?? 0
+  const uniqueCheckouts = uniqueCheckoutsRow?.c ?? checkoutStarts
+  const uniquePurchases = uniquePaidOrdersRow?.c ?? paidPurchases
+  const uniquePurchaseRate = uniqueCheckouts > 0 ? Math.round((uniquePurchases / uniqueCheckouts) * 100) : 0
 
   // 4. Calculate 5-Stage Funnel Percentages
   // Stage 1: Visitors
@@ -241,7 +260,11 @@ app.get('/', async (c) => {
       checkout_starts: checkoutStarts,
       purchases: paidPurchases,
       checkout_rate: productViews > 0 ? Math.round((checkoutStarts / productViews) * 100) : 0,
-      purchase_rate: checkoutStarts > 0 ? Math.round((paidPurchases / checkoutStarts) * 100) : 0,
+      purchase_rate: uniquePurchaseRate > 0 ? uniquePurchaseRate : (checkoutStarts > 0 ? Math.round((paidPurchases / checkoutStarts) * 100) : 0),
+      raw_purchase_rate: checkoutStarts > 0 ? Math.round((paidPurchases / checkoutStarts) * 100) : 0,
+      unique_checkouts: uniqueCheckouts,
+      unique_purchases: uniquePurchases,
+      unique_purchase_rate: uniquePurchaseRate,
     },
     top_products: topProducts?.results ?? [],
     daily_revenue: dailyRevenue?.results ?? [],

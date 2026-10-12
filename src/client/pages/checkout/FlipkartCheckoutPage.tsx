@@ -300,19 +300,48 @@ export default function FlipkartCheckoutPage() {
       const customerName = address?.name || 'Flipkart Customer'
       const customerPhone = address?.phone || undefined
 
-      const orderRes = await api.checkout.create({
-        product_id: product.id,
-        customer_name: customerName,
-        customer_phone: customerPhone,
-        preferred_gateway: isBoth ? (defaultDualGateway || 'razorpay') : isRazorpay ? 'razorpay' : 'cashfree',
-        utm_source: utm.utm_source,
-        utm_medium: utm.utm_medium,
-        utm_campaign: utm.utm_campaign,
-        referrer_url: document.referrer,
-      })
+      // 🛡️ DEDUPLICATION CACHE: Reuse active order session if created within 15 minutes to avoid duplicate pending orders
+      const sessionKey = `tvh_active_checkout_${product.id}`
+      let orderRes: any = null
 
-      if (!orderRes.success || !orderRes.order_number) {
-        throw new Error('Unable to create secure payment order. Please retry.')
+      try {
+        const rawCached = sessionStorage.getItem(sessionKey)
+        if (rawCached) {
+          const parsed = JSON.parse(rawCached)
+          const isFresh = parsed.createdAt && (Date.now() - parsed.createdAt < 15 * 60 * 1000)
+          const isSameAmount = parsed.amount === totalAmount
+          const isSameCustomer = parsed.customerPhone === customerPhone && parsed.customerName === customerName
+          if (isFresh && isSameAmount && isSameCustomer && parsed.orderRes?.order_number) {
+            orderRes = parsed.orderRes
+          }
+        }
+      } catch { }
+
+      if (!orderRes) {
+        orderRes = await api.checkout.create({
+          product_id: product.id,
+          customer_name: customerName,
+          customer_phone: customerPhone,
+          preferred_gateway: isBoth ? (defaultDualGateway || 'razorpay') : isRazorpay ? 'razorpay' : 'cashfree',
+          utm_source: utm.utm_source,
+          utm_medium: utm.utm_medium,
+          utm_campaign: utm.utm_campaign,
+          referrer_url: document.referrer,
+        })
+
+        if (!orderRes.success || !orderRes.order_number) {
+          throw new Error('Unable to create secure payment order. Please retry.')
+        }
+
+        try {
+          sessionStorage.setItem(sessionKey, JSON.stringify({
+            createdAt: Date.now(),
+            amount: totalAmount,
+            customerName,
+            customerPhone,
+            orderRes,
+          }))
+        } catch { }
       }
 
       // Save order session for recovery
