@@ -322,6 +322,16 @@ export const api = {
     return req<OrderLookupResult>(`/order-lookup?${params.toString()}`)
   },
 
+  myOrders: (params?: { q?: string; phone?: string; email?: string; orders?: string }) => {
+    const q = new URLSearchParams()
+    if (params?.q?.trim()) q.set('q', params.q.trim())
+    if (params?.phone?.trim()) q.set('phone', params.phone.trim())
+    if (params?.email?.trim()) q.set('email', params.email.trim())
+    if (params?.orders?.trim()) q.set('orders', params.orders.trim())
+    return req<{ success: boolean; count: number; orders: MyOrderItem[] }>(`/order-lookup/my-orders?${q.toString()}`)
+  },
+
+
   search: (q: string) => req<{ products: Product[]; posts: BlogPost[] }>(`/search?q=${encodeURIComponent(q)}`),
 
   contact: (data: { name: string; email: string; inquiry_type?: string; order_reference?: string; subject?: string; message: string }) =>
@@ -1201,6 +1211,25 @@ export interface OrderLookupResult {
   download_token: string | null
   download_expired: boolean
 }
+
+export interface MyOrderItem {
+  order_number: string
+  id: number
+  status: string
+  is_paid: boolean
+  amount: number
+  original_price: number
+  sale_price: number
+  product: string
+  product_slug: string
+  product_id: number
+  product_image: string | null
+  created_at: string
+  delivery_headline: string
+  delivery_subtitle: string
+  download_token: string | null
+}
+
 
 export interface AdminUser {
   firebase_uid: string

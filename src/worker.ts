@@ -166,6 +166,7 @@ app.route('/api/cashfree', cashfreeWebhookRoute)
 app.route('/api/razorpay', razorpayWebhookRoute)
 app.route('/api/download', downloadRoutes)
 app.route('/api/order-lookup', orderLookupRoute)
+app.route('/api/my-orders', orderLookupRoute)
 app.route('/api/search', searchRoute)
 app.route('/api/contact', contactRoute)
 app.route('/api/analytics', analyticsRoute)
@@ -201,7 +202,7 @@ app.route('/api/admin/media', adminMediaRoutes)
 
 // ─── SEO: Dynamic Sitemap.xml ────────────────
 app.get('/sitemap.xml', async (c) => {
-  const products = await c.env.DB.prepare(`SELECT slug, updated_at FROM products WHERE is_published = 1`).all()
+  const products = await c.env.DB.prepare(`SELECT slug, updated_at FROM products WHERE is_published = 1 AND (is_ghost = 0 OR is_ghost IS NULL)`).all()
   const blogs = await c.env.DB.prepare(`SELECT slug, updated_at FROM blog_posts WHERE is_published = 1`).all()
   const siteUrl = c.env.SITE_URL || `${new URL(c.req.url).origin}`
 

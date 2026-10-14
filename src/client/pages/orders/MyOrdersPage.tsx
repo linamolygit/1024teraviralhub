@@ -1,41 +1,50 @@
-
-// src/client/pages/orders/MyOrdersPage.tsx — Dedicated My Orders & Re-Download Hub with Cookie Session
-import { useState, useEffect } from 'react'
-import { useSearchParams, Link } from 'react-router-dom'
+// src/client/pages/orders/MyOrdersPage.tsx — Exact Flipkart Mobile "My Orders" Interface
+import { useState, useEffect, useMemo } from 'react'
+import { useSearchParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Package, Download, AlertCircle, RefreshCw, Clock, ShieldCheck,
-  Search, Plus, CheckCircle2, ChevronDown, ChevronUp, Sparkles, Headphones
+  ArrowLeft,
+  Search,
+  SlidersHorizontal,
+  ChevronRight,
+  Package,
+  X,
+  RefreshCw,
+  ShoppingBag,
+  Clock,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react'
-import { api, type PurchasedDownloadItem } from '../../lib/api'
+import { api, type MyOrderItem } from '../../lib/api'
 import { useSavedOrders, saveOrderSession } from '../../lib/orderSession'
-import DownloadProductCard from '../../components/downloads/DownloadProductCard'
-import DownloadsAccessInfo from '../../components/downloads/DownloadsAccessInfo'
-import DownloadsHelpSection from '../../components/downloads/DownloadsHelpSection'
-import NoDownloadsState from '../../components/downloads/NoDownloadsState'
 import { useSiteConfig } from '../../lib/site-config'
 
 export default function MyOrdersPage() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
   const { siteName } = useSiteConfig()
-  const { orders: savedSessionOrders, count: savedSessionCount, saveOrder } = useSavedOrders()
+  const { orders: savedSessionOrders, saveOrder } = useSavedOrders()
 
+  // URL Query Parameters
   const urlOrderParam = searchParams.get('order') || ''
-  const urlTokenParam = searchParams.get('token') || ''
+  const urlPhoneParam = searchParams.get('phone') || ''
   const urlEmailParam = searchParams.get('email') || ''
+  const urlQParam = searchParams.get('q') || ''
 
-  const [searchOrder, setSearchOrder] = useState(urlOrderParam)
-  const [searchEmail, setSearchEmail] = useState(urlEmailParam)
-  const [showAddOrderBox, setShowAddOrderBox] = useState(false)
-  const [lookupFeedback, setLookupFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  // Local Search & Filter State
+  const [searchQuery, setSearchQuery] = useState(urlQParam || urlOrderParam || urlPhoneParam)
+  const [submittedSearch, setSubmittedSearch] = useState(urlQParam || urlOrderParam || urlPhoneParam)
+  const [activeTab, setActiveTab] = useState<'all' | 'flipkart' | 'grocery' | 'minutes'>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'pending'>('all')
+  const [showFilterModal, setShowFilterModal] = useState(false)
 
-  // Dynamic Browser Page Title
+  // Browser Page Title
   useEffect(() => {
-    document.title = `My Orders & Downloads — ${siteName}`
+    document.title = `My Orders — ${siteName}`
   }, [siteName])
 
-  // Collect all tokens and order numbers from browser session, localStorage, cookies, and query params
+  // Collect all known order numbers from localStorage, sessionStorage, and cookie
   const localLastPurchased = typeof window !== 'undefined' ? localStorage.getItem('tvh_last_purchased_order') : null
   const localActiveOrderNum = typeof window !== 'undefined' ? (localStorage.getItem('tvh_active_order_number') || sessionStorage.getItem('tvh_active_order_number')) : null
   let activeOrderFromObj: string | null = null
@@ -44,572 +53,746 @@ export default function MyOrdersPage() {
     if (raw) activeOrderFromObj = JSON.parse(raw)?.order_number || null
   } catch {}
 
-  const allTokens = Array.from(
-    new Set([
-      ...savedSessionOrders.map((o) => o.token?.trim()).filter(Boolean),
-      ...(urlTokenParam ? urlTokenParam.split(',').map((t) => t.trim()) : []),
-    ])
-  ) as string[]
+  const allOrderNumbers = useMemo(() => {
+    return Array.from(
+      new Set([
+        ...savedSessionOrders.map((o) => o.orderNumber?.trim()).filter(Boolean),
+        ...(localLastPurchased ? [localLastPurchased.trim()] : []),
+        ...(localActiveOrderNum ? [localActiveOrderNum.trim()] : []),
+        ...(activeOrderFromObj ? [activeOrderFromObj.trim()] : []),
+        ...(urlOrderParam ? [urlOrderParam.trim()] : []),
+      ])
+    ) as string[]
+  }, [savedSessionOrders, localLastPurchased, localActiveOrderNum, activeOrderFromObj, urlOrderParam])
 
-  const allOrderNumbers = Array.from(
-    new Set([
-      ...savedSessionOrders.map((o) => o.orderNumber?.trim()).filter(Boolean),
-      ...(localLastPurchased ? [localLastPurchased.trim()] : []),
-      ...(localActiveOrderNum ? [localActiveOrderNum.trim()] : []),
-      ...(activeOrderFromObj ? [activeOrderFromObj.trim()] : []),
-      ...(urlOrderParam ? [urlOrderParam.trim()] : []),
-      ...(searchOrder ? [searchOrder.trim()] : []),
-    ])
-  ) as string[]
-
-  // Query Backend Purchases Access
+  // Fetch real orders from database via backend API
   const {
-    data,
+    data: ordersData,
     isLoading,
-    isError,
-    refetch,
     isFetching,
+    refetch,
   } = useQuery({
-    queryKey: ['my-orders-access', allTokens.join(','), allOrderNumbers.join(','), searchEmail],
+    queryKey: ['my-orders-list', allOrderNumbers.join(','), submittedSearch, urlEmailParam, urlPhoneParam],
     queryFn: () =>
-      api.download.getPurchases({
-        tokens: allTokens.join(',') || undefined,
+      api.myOrders({
         orders: allOrderNumbers.join(',') || undefined,
-        email: searchEmail || undefined,
+        q: submittedSearch || undefined,
+        phone: urlPhoneParam || undefined,
+        email: urlEmailParam || undefined,
       }),
-    enabled: true,
-    staleTime: 15000,
+    staleTime: 10000,
   })
 
-  const activePurchases: PurchasedDownloadItem[] = data?.active || []
-  const expiredPurchases: PurchasedDownloadItem[] = data?.expired || []
-  const hasPurchases = activePurchases.length > 0 || expiredPurchases.length > 0
+  const rawOrders: MyOrderItem[] = ordersData?.orders || []
 
-  // Whenever purchases are fetched, ensure they are synced to dual cookie/session storage
+  // Sync found orders into session & cookies
   useEffect(() => {
-    if (data) {
-      const allItems = [...(data.active || []), ...(data.expired || [])]
-      for (const it of allItems) {
-        if (it.order_number || it.token) {
+    if (rawOrders.length > 0) {
+      for (const ord of rawOrders) {
+        if (ord.order_number) {
           saveOrder({
-            orderNumber: it.order_number,
-            token: it.token,
-            productTitle: it.product?.title,
-            thumbnailUrl: it.product?.thumbnail_url || undefined,
-            createdAt: it.purchased_at,
+            orderNumber: ord.order_number,
+            token: ord.download_token || undefined,
+            productTitle: ord.product,
+            thumbnailUrl: ord.product_image || undefined,
+            createdAt: ord.created_at,
           })
+          try {
+            document.cookie = `tvh_last_order=${encodeURIComponent(ord.order_number)}; path=/; max-age=31536000; SameSite=Lax`
+          } catch {}
         }
       }
     }
-  }, [data, saveOrder])
+  }, [rawOrders, saveOrder])
 
-  // Manual lookup handler to add/link an existing order to this browser
-  const handleLookupSubmit = async (orderNum: string, emailStr: string) => {
-    setSearchOrder(orderNum)
-    setSearchEmail(emailStr)
-    setLookupFeedback(null)
-
+  // Handle Search Submission (Enter or Click)
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    setSubmittedSearch(searchQuery.trim())
     const newParams = new URLSearchParams(searchParams)
-    if (orderNum) newParams.set('order', orderNum)
-    if (emailStr) newParams.set('email', emailStr)
+    if (searchQuery.trim()) {
+      newParams.set('q', searchQuery.trim())
+    } else {
+      newParams.delete('q')
+    }
     setSearchParams(newParams)
-
-    if (orderNum) {
-      saveOrderSession({
-        orderNumber: orderNum,
-        createdAt: Date.now(),
-      })
-      try {
-        document.cookie = `tvh_last_order=${encodeURIComponent(orderNum)}; path=/; max-age=31536000; SameSite=Lax`
-      } catch {}
-    }
-
-    try {
-      // 1. Try standard purchases query
-      const res = await api.download.getPurchases({
-        order: orderNum || undefined,
-        email: emailStr || undefined,
-      })
-
-      let found = (res.active?.length || 0) + (res.expired?.length || 0)
-
-      // 2. If not found by token/order, try universal order lookup (supports Phone # and Order #)
-      if (found === 0 && (orderNum || emailStr)) {
-        try {
-          const directLookup = await api.orderLookup({
-            q: orderNum || undefined,
-            order: orderNum || undefined,
-            phone: orderNum || undefined,
-            email: emailStr || undefined,
-          })
-
-          if (directLookup && directLookup.order_number) {
-            saveOrderSession({
-              orderNumber: directLookup.order_number,
-              token: directLookup.download_token || undefined,
-              productTitle: directLookup.product,
-              amount: directLookup.amount,
-              createdAt: Date.now(),
-            })
-            try {
-              document.cookie = `tvh_last_order=${encodeURIComponent(directLookup.order_number)}; path=/; max-age=31536000; SameSite=Lax`
-            } catch {}
-
-            // Refetch purchases with newly linked order
-            const refreshed = await api.download.getPurchases({
-              order: directLookup.order_number,
-              tokens: directLookup.download_token || undefined,
-            })
-            found = (refreshed.active?.length || 0) + (refreshed.expired?.length || 0)
-          }
-        } catch {
-          // Direct lookup failed
-        }
-      }
-
-      if (found > 0) {
-        setLookupFeedback({
-          type: 'success',
-          message: `Found ${found} order item(s)! Automatically linked and saved to this device.`,
-        })
-        setShowAddOrderBox(false)
-        refetch()
-      } else {
-        setLookupFeedback({
-          type: 'error',
-          message: 'No purchase records found with those details. Please check your order number or mobile number.',
-        })
-      }
-    } catch {
-      setLookupFeedback({
-        type: 'error',
-        message: 'Could not connect to verify your order. Please try again.',
-      })
-    }
   }
 
+  // Filter orders by active tab, status, and local instant search filter
+  const displayedOrders = useMemo(() => {
+    return rawOrders.filter((ord) => {
+      // Status filter
+      if (statusFilter === 'paid' && !ord.is_paid) return false
+      if (statusFilter === 'pending' && ord.is_paid) return false
+
+      // Tab filter
+      if (activeTab === 'grocery' || activeTab === 'minutes') {
+        // We are a digital product store, so grocery/minutes tabs show empty state
+        return false
+      }
+
+      // In-page text filter (if search query entered but not yet submitted)
+      if (searchQuery.trim() && !submittedSearch) {
+        const q = searchQuery.toLowerCase()
+        const matchesProduct = ord.product?.toLowerCase().includes(q)
+        const matchesOrder = ord.order_number?.toLowerCase().includes(q)
+        const matchesDelivery = ord.delivery_headline?.toLowerCase().includes(q)
+        if (!matchesProduct && !matchesOrder && !matchesDelivery) return false
+      }
+
+      return true
+    })
+  }, [rawOrders, statusFilter, activeTab, searchQuery, submittedSearch])
+
   return (
-    <div className="section" style={{ minHeight: '82vh', paddingTop: '32px', paddingBottom: '80px' }}>
-      <div className="container" style={{ maxWidth: '1060px' }}>
-        {/* ── 1. Page Header ── */}
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <div
+    <div
+      style={{
+        minHeight: '100dvh',
+        background: '#F1F2F4',
+        fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
+        color: '#111827',
+        paddingBottom: '40px',
+      }}
+    >
+      {/* ── Mobile Container (Max 540px, centered on desktop) ── */}
+      <div
+        style={{
+          maxWidth: '540px',
+          margin: '0 auto',
+          background: '#FFFFFF',
+          minHeight: '100dvh',
+          boxShadow: '0 4px 25px rgba(0, 0, 0, 0.05)',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        {/* ══════════════════════════════════════════════════════════
+            1. TOP NAVBAR: ← My Orders
+           ══════════════════════════════════════════════════════════ */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            padding: '14px 16px',
+            background: '#FFFFFF',
+            borderBottom: '1px solid #F3F4F6',
+            position: 'sticky',
+            top: 0,
+            zIndex: 30,
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => {
+              if (window.history.length > 1) {
+                navigate(-1)
+              } else {
+                navigate('/')
+              }
+            }}
+            aria-label="Back"
             style={{
-              width: '60px',
-              height: '60px',
-              borderRadius: '18px',
-              background: 'linear-gradient(135deg, rgba(124, 58, 237, 0.15), rgba(59, 130, 246, 0.15))',
-              border: '1.5px solid rgba(124, 58, 237, 0.3)',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '4px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              margin: '0 auto 16px',
-              color: 'var(--brand-purple)',
-              boxShadow: '0 4px 14px rgba(124, 58, 237, 0.15)',
+              color: '#111827',
+              marginRight: '12px',
             }}
           >
-            <Package size={28} />
-          </div>
-
+            <ArrowLeft size={22} strokeWidth={2.4} />
+          </button>
           <h1
             style={{
-              fontSize: 'clamp(1.85rem, 4vw, 2.45rem)',
-              fontWeight: 900,
-              lineHeight: 1.2,
-              marginBottom: '10px',
-              color: 'var(--text-primary)',
-              letterSpacing: '-0.02em',
+              fontSize: '1.25rem',
+              fontWeight: 700,
+              margin: 0,
+              color: '#111827',
+              letterSpacing: '-0.01em',
             }}
           >
-            My Orders & Downloads
+            My Orders
           </h1>
-
-          <p
-            style={{
-              color: 'var(--text-secondary)',
-              fontSize: '1rem',
-              maxWidth: '620px',
-              margin: '0 auto 14px',
-              lineHeight: 1.6,
-            }}
-          >
-            Products purchased on this browser are automatically preserved. You can re-open this page anytime to access and re-download your files directly.
-          </p>
-
-          {/* Browser Cookie & Storage Status Pill */}
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '6px 14px',
-              borderRadius: '9999px',
-              background: 'rgba(16, 185, 129, 0.08)',
-              border: '1px solid rgba(16, 185, 129, 0.25)',
-              fontSize: '0.8125rem',
-              color: 'var(--success)',
-              fontWeight: 600,
-            }}
-          >
-            <span
-              style={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                background: 'var(--success)',
-                display: 'inline-block',
-                boxShadow: '0 0 8px rgba(16, 185, 129, 0.6)',
-              }}
-            />
-            <span>Browser Session Active · {savedSessionCount} Order(s) Saved</span>
-          </div>
+          {isFetching && (
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
+              <RefreshCw size={16} className="spin-icon" color="#6B7280" />
+            </div>
+          )}
         </div>
 
-        {/* ── 2. Top Action Bar: Add / Link Missing Order ── */}
+        {/* ══════════════════════════════════════════════════════════
+            2. SEARCH & FILTERS BAR (Matching Flipkart Mobile)
+           ══════════════════════════════════════════════════════════ */}
         <div
           style={{
+            padding: '12px 16px 8px 16px',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
             gap: '12px',
-            marginBottom: '28px',
-            padding: '14px 18px',
-            borderRadius: 'var(--radius-lg)',
-            background: 'var(--bg-surface)',
-            border: '1px solid var(--bg-border)',
+            background: '#FFFFFF',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Sparkles size={18} color="var(--brand-purple)" />
-            <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              {hasPurchases
-                ? `Showing ${activePurchases.length + expiredPurchases.length} Purchase(s) on this browser`
-                : 'Looking for a purchase made on another browser or device?'}
-            </span>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setShowAddOrderBox(!showAddOrderBox)}
+          {/* Search Input Box */}
+          <form
+            onSubmit={handleSearchSubmit}
             style={{
-              display: 'inline-flex',
+              flex: 1,
+              display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              padding: '6px 14px',
-              borderRadius: '8px',
-              background: showAddOrderBox ? 'var(--bg-border)' : 'rgba(124, 58, 237, 0.1)',
-              border: '1px solid rgba(124, 58, 237, 0.25)',
-              color: 'var(--brand-purple)',
-              fontSize: '0.8125rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
+              background: '#FFFFFF',
+              border: '1.5px solid #D1D5DB',
+              borderRadius: '10px',
+              padding: '0 12px',
+              height: '44px',
+              boxSizing: 'border-box',
             }}
           >
-            {showAddOrderBox ? (
-              <>
-                <ChevronUp size={16} /> Hide Order Lookup
-              </>
-            ) : (
-              <>
-                <Plus size={16} /> Add / Find Missing Order
-              </>
+            <Search size={18} color="#6B7280" style={{ marginRight: '8px', flexShrink: 0 }} />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search your orders..."
+              style={{
+                width: '100%',
+                border: 'none',
+                outline: 'none',
+                background: 'transparent',
+                fontSize: '0.92rem',
+                color: '#111827',
+              }}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('')
+                  setSubmittedSearch('')
+                  const newParams = new URLSearchParams(searchParams)
+                  newParams.delete('q')
+                  setSearchParams(newParams)
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '2px',
+                  color: '#9CA3AF',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+              >
+                <X size={16} />
+              </button>
             )}
+          </form>
+
+          {/* Filters Button */}
+          <button
+            type="button"
+            onClick={() => setShowFilterModal(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: '#FFFFFF',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '6px 4px',
+              color: '#111827',
+              fontSize: '0.92rem',
+              fontWeight: 600,
+              flexShrink: 0,
+            }}
+          >
+            <SlidersHorizontal size={18} strokeWidth={2.2} />
+            <span>Filters</span>
           </button>
         </div>
 
-        {/* ── 3. Collapsible Add/Find Order Box ── */}
-        <AnimatePresence>
-          {showAddOrderBox && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2 }}
-              style={{ overflow: 'hidden', marginBottom: '28px' }}
-            >
+        {/* ══════════════════════════════════════════════════════════
+            3. HORIZONTAL FILTER PILLS: All | Flipkart | Grocery | Minutes
+           ══════════════════════════════════════════════════════════ */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 16px 14px 16px',
+            overflowX: 'auto',
+            background: '#FFFFFF',
+            borderBottom: '1px solid #F3F4F6',
+            scrollbarWidth: 'none',
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setActiveTab('all')}
+            style={{
+              padding: '6px 18px',
+              borderRadius: '9999px',
+              border: activeTab === 'all' ? '1px solid #111827' : '1px solid #E5E7EB',
+              background: activeTab === 'all' ? '#111827' : '#FFFFFF',
+              color: activeTab === 'all' ? '#FFFFFF' : '#111827',
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            All
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('flipkart')}
+            style={{
+              padding: '6px 18px',
+              borderRadius: '9999px',
+              border: activeTab === 'flipkart' ? '1px solid #111827' : '1px solid #E5E7EB',
+              background: activeTab === 'flipkart' ? '#111827' : '#FFFFFF',
+              color: activeTab === 'flipkart' ? '#FFFFFF' : '#111827',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            Flipkart
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('grocery')}
+            style={{
+              padding: '6px 18px',
+              borderRadius: '9999px',
+              border: activeTab === 'grocery' ? '1px solid #111827' : '1px solid #E5E7EB',
+              background: activeTab === 'grocery' ? '#111827' : '#FFFFFF',
+              color: activeTab === 'grocery' ? '#FFFFFF' : '#111827',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            Grocery
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('minutes')}
+            style={{
+              padding: '6px 18px',
+              borderRadius: '9999px',
+              border: activeTab === 'minutes' ? '1px solid #111827' : '1px solid #E5E7EB',
+              background: activeTab === 'minutes' ? '#111827' : '#FFFFFF',
+              color: activeTab === 'minutes' ? '#FFFFFF' : '#111827',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            Minutes
+          </button>
+        </div>
+
+        {/* ══════════════════════════════════════════════════════════
+            4. ORDERS LIST (Exact Flipkart Style Cards)
+           ══════════════════════════════════════════════════════════ */}
+        <div style={{ flex: 1, background: '#FFFFFF' }}>
+          {isLoading ? (
+            <div style={{ padding: '60px 20px', textAlign: 'center' }}>
               <div
-                className="glass-card"
                 style={{
-                  padding: '22px',
-                  borderRadius: 'var(--radius-xl)',
-                  border: '1.5px solid rgba(124, 58, 237, 0.3)',
-                  background: 'var(--bg-elevated)',
+                  width: 34,
+                  height: 34,
+                  borderRadius: '50%',
+                  border: '3.5px solid #E5E7EB',
+                  borderTop: '3.5px solid #2874F0',
+                  animation: 'spin 0.8s linear infinite',
+                  margin: '0 auto 12px auto',
                 }}
-              >
-                <div style={{ marginBottom: '14px' }}>
-                  <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '4px' }}>
-                    Link Previous Order to This Browser
-                  </h3>
-                  <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-                    Enter your Order Number, Mobile Number, or Email used when purchasing. Once found, all downloads will be unlocked and permanently saved on this device.
-                  </p>
-                </div>
-
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault()
-                    if (searchOrder.trim() || searchEmail.trim()) {
-                      handleLookupSubmit(searchOrder.trim(), searchEmail.trim())
-                    }
-                  }}
-                  style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr)) auto', gap: '12px', alignItems: 'center' }}
-                >
-                  <input
-                    type="text"
-                    className="input-field"
-                    placeholder="Order # or Mobile # (e.g. 9801947855)"
-                    value={searchOrder}
-                    onChange={(e) => setSearchOrder(e.target.value.toUpperCase())}
-                    style={{ fontSize: '0.85rem' }}
-                  />
-                  <input
-                    type="email"
-                    className="input-field"
-                    placeholder="Customer Email Address (optional)"
-                    value={searchEmail}
-                    onChange={(e) => setSearchEmail(e.target.value)}
-                    style={{ fontSize: '0.85rem' }}
-                  />
-                  <button
-                    type="submit"
-                    disabled={isFetching || (!searchOrder.trim() && !searchEmail.trim())}
-                    className="btn-primary"
-                    style={{ padding: '10px 22px', fontSize: '0.85rem', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}
-                  >
-                    {isFetching ? <RefreshCw size={15} className="spin" /> : <Search size={15} />}
-                    <span>Find & Save</span>
-                  </button>
-                </form>
-
-                {lookupFeedback && (
+              />
+              <p style={{ color: '#6B7280', fontSize: '0.88rem', fontWeight: 600 }}>Loading orders...</p>
+            </div>
+          ) : displayedOrders.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {displayedOrders.map((ord) => {
+                const imgUrl = ord.product_image || '/api/images/fallback.png'
+                return (
                   <div
+                    key={ord.order_number || ord.id}
+                    onClick={() => navigate(`/order/details?order=${encodeURIComponent(ord.order_number)}`)}
                     style={{
-                      marginTop: '14px',
-                      padding: '10px 14px',
-                      borderRadius: '8px',
-                      fontSize: '0.8125rem',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '8px',
-                      background: lookupFeedback.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                      border: `1px solid ${lookupFeedback.type === 'success' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
-                      color: lookupFeedback.type === 'success' ? 'var(--success)' : 'var(--error)',
+                      padding: '16px',
+                      borderBottom: '1px solid #F3F4F6',
+                      background: '#FFFFFF',
+                      cursor: 'pointer',
+                      transition: 'background 0.12s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      ;(e.currentTarget as HTMLElement).style.background = '#F9FAFB'
+                    }}
+                    onMouseLeave={(e) => {
+                      ;(e.currentTarget as HTMLElement).style.background = '#FFFFFF'
                     }}
                   >
-                    {lookupFeedback.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
-                    <span>{lookupFeedback.message}</span>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                    {/* Left: Product Thumbnail Squircle (Matching Screenshot 100%) */}
+                    <div
+                      style={{
+                        width: '74px',
+                        height: '74px',
+                        borderRadius: '12px',
+                        background: '#F3F4F6',
+                        border: '1px solid #E5E7EB',
+                        padding: '5px',
+                        flexShrink: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        overflow: 'hidden',
+                        marginRight: '16px',
+                      }}
+                    >
+                      <img
+                        src={imgUrl}
+                        alt={ord.product || 'Product'}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'contain',
+                          borderRadius: '8px',
+                        }}
+                        onError={(e) => {
+                          ;(e.target as HTMLImageElement).src =
+                            'https://placehold.co/100x100/f3f4f6/111827?text=Product'
+                        }}
+                      />
+                    </div>
 
-        {/* ── 4. Loading Skeleton ── */}
-        {isLoading && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px', marginBottom: '40px' }}>
-            {[1, 2].map((k) => (
+                    {/* Middle: Order Details (Headline & Subtitle) */}
+                    <div style={{ flex: 1, minWidth: 0, paddingRight: '8px' }}>
+                      {/* Bold Primary Line (e.g. "Delivery expected by Oct 24") */}
+                      <h3
+                        style={{
+                          fontSize: '0.96rem',
+                          fontWeight: 700,
+                          color: '#111827',
+                          margin: '0 0 4px 0',
+                          lineHeight: 1.35,
+                          letterSpacing: '-0.01em',
+                        }}
+                      >
+                        {ord.delivery_headline}
+                      </h3>
+
+                      {/* Subtitle (e.g. "Your Order has been placed.") */}
+                      <p
+                        style={{
+                          fontSize: '0.84rem',
+                          color: '#4B5563',
+                          margin: '0 0 4px 0',
+                          lineHeight: 1.35,
+                        }}
+                      >
+                        {ord.delivery_subtitle}
+                      </p>
+
+                      {/* Product Name & Price Muted Line */}
+                      <p
+                        style={{
+                          fontSize: '0.78rem',
+                          color: '#6B7280',
+                          margin: 0,
+                          lineHeight: 1.3,
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                      >
+                        {ord.product} • ₹{ord.amount}
+                      </p>
+                    </div>
+
+                    {/* Right: Chevron Arrow (>) */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#111827',
+                        flexShrink: 0,
+                        marginLeft: 'auto',
+                      }}
+                    >
+                      <ChevronRight size={18} strokeWidth={2.4} />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            /* ══════════════════════════════════════════════════════════
+                EMPTY STATE: No Orders Found / Find by Phone
+               ══════════════════════════════════════════════════════════ */
+            <div style={{ padding: '48px 24px', textAlign: 'center' }}>
               <div
-                key={k}
-                className="glass-card"
                 style={{
-                  padding: '24px',
-                  borderRadius: 'var(--radius-xl)',
-                  border: '1px solid var(--bg-border)',
-                  height: '180px',
-                  background: 'var(--bg-surface)',
+                  width: '64px',
+                  height: '64px',
+                  borderRadius: '16px',
+                  background: '#F3F4F6',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  margin: '0 auto 16px auto',
+                  color: '#6B7280',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-muted)' }}>
-                  <RefreshCw size={18} className="spin" />
-                  <span>Loading your orders & downloads...</span>
-                </div>
+                <Package size={30} />
               </div>
-            ))}
-          </div>
-        )}
 
-        {/* ── 5. Error State ── */}
-        {isError && !isLoading && (
-          <div
-            className="glass-card"
-            style={{
-              padding: '40px 24px',
-              borderRadius: 'var(--radius-xl)',
-              border: '1px solid var(--bg-border)',
-              textAlign: 'center',
-              maxWidth: '500px',
-              margin: '0 auto 40px',
-            }}
-          >
-            <AlertCircle size={44} color="var(--error)" style={{ margin: '0 auto 14px' }} />
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '8px' }}>
-              Unable to Load Orders
-            </h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '20px', lineHeight: 1.6 }}>
-              Please check your internet connection or tap below to refresh your browser session.
-            </p>
-            <button
-              type="button"
-              onClick={() => refetch()}
-              className="btn-primary"
-              style={{ padding: '10px 20px', fontSize: '0.85rem' }}
-            >
-              <RefreshCw size={14} style={{ marginRight: '6px' }} /> Try Again
-            </button>
-          </div>
-        )}
+              <h2
+                style={{
+                  fontSize: '1.15rem',
+                  fontWeight: 700,
+                  color: '#111827',
+                  marginBottom: '8px',
+                }}
+              >
+                {submittedSearch
+                  ? 'No matching orders found'
+                  : activeTab === 'grocery'
+                  ? 'No Grocery orders yet'
+                  : activeTab === 'minutes'
+                  ? 'No Minutes orders yet'
+                  : 'No orders found on this device'}
+              </h2>
 
-        {/* ── 6. Active Downloads Section ── */}
-        {!isLoading && !isError && activePurchases.length > 0 && (
-          <div style={{ marginBottom: '48px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span
+              <p
+                style={{
+                  fontSize: '0.875rem',
+                  color: '#6B7280',
+                  lineHeight: 1.5,
+                  maxWidth: '380px',
+                  margin: '0 auto 24px auto',
+                }}
+              >
+                {submittedSearch
+                  ? `We could not find any order matching "${submittedSearch}". Please verify your order number or phone number.`
+                  : 'Enter your 10-digit mobile number or order number to find and link your purchases immediately.'}
+              </p>
+
+              {/* Find Order by Mobile / Order # Input Box */}
+              <form
+                onSubmit={handleSearchSubmit}
+                style={{
+                  maxWidth: '360px',
+                  margin: '0 auto 24px auto',
+                  display: 'flex',
+                  gap: '8px',
+                }}
+              >
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Enter 10-digit Mobile # or Order #"
                   style={{
-                    width: '10px',
-                    height: '10px',
-                    borderRadius: '50%',
-                    background: 'var(--success)',
-                    display: 'inline-block',
-                    boxShadow: '0 0 8px rgba(16, 185, 129, 0.6)',
+                    flex: 1,
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    border: '1.5px solid #D1D5DB',
+                    fontSize: '0.88rem',
+                    outline: 'none',
                   }}
                 />
-                <h2 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                  Active Products & Downloads ({activePurchases.length})
-                </h2>
-              </div>
-              <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-                ⚡ 1-Click Direct File Streaming Ready
-              </span>
-            </div>
+                <button
+                  type="submit"
+                  style={{
+                    padding: '10px 18px',
+                    borderRadius: '8px',
+                    background: '#2874F0',
+                    border: 'none',
+                    color: '#FFFFFF',
+                    fontWeight: 700,
+                    fontSize: '0.88rem',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Find
+                </button>
+              </form>
 
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-                gap: '24px',
-              }}
-            >
-              {activePurchases.map((item) => (
-                <DownloadProductCard key={item.token} item={item} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── 7. Expired Downloads Section ── */}
-        {!isLoading && !isError && expiredPurchases.length > 0 && (
-          <div style={{ marginBottom: '48px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
-              <span
+              <Link
+                to="/"
                 style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  background: 'var(--error)',
-                  display: 'inline-block',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '10px 24px',
+                  borderRadius: '10px',
+                  background: '#111827',
+                  color: '#FFFFFF',
+                  textDecoration: 'none',
+                  fontSize: '0.88rem',
+                  fontWeight: 700,
                 }}
-              />
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                Previous / Expired Orders ({expiredPurchases.length})
-              </h2>
+              >
+                <ShoppingBag size={16} /> Continue Shopping
+              </Link>
             </div>
-
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-                gap: '24px',
-              }}
-            >
-              {expiredPurchases.map((item) => (
-                <DownloadProductCard key={item.token} item={item} isExpired />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── 8. Empty State (No orders detected in session or query) ── */}
-        {!isLoading && !isError && !hasPurchases && (
-          <NoDownloadsState onSearchOrder={handleLookupSubmit} isLoading={isFetching} />
-        )}
-
-        {/* ── 9. Direct Dispute Resolution Guarantee Card ── */}
-        <div
-          className="glass-card"
-          style={{
-            marginTop: '32px',
-            marginBottom: '32px',
-            padding: '24px 28px',
-            borderRadius: 'var(--radius-xl)',
-            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(59, 130, 246, 0.05))',
-            border: '1.5px solid rgba(16, 185, 129, 0.35)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '18px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', maxWidth: '640px' }}>
-            <div
-              style={{
-                width: '42px',
-                height: '42px',
-                borderRadius: '12px',
-                background: 'rgba(16, 185, 129, 0.15)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#10B981',
-                flexShrink: 0,
-              }}
-            >
-              <Headphones size={22} />
-            </div>
-            <div>
-              <div style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--text-primary)', marginBottom: '4px' }}>
-                Need Assistance With Any Order? We Are Here For You 24/7!
-              </div>
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                Our team resolves 100% of download issues, access requests, or payment queries directly on our site within minutes.
-              </div>
-            </div>
-          </div>
-
-          <Link
-            to="/contact?type=order_issue"
-            style={{
-              padding: '10px 20px',
-              borderRadius: '10px',
-              background: '#111827',
-              color: '#FFFFFF',
-              fontSize: '0.875rem',
-              fontWeight: 700,
-              textDecoration: 'none',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            Contact Customer Support →
-          </Link>
+          )}
         </div>
 
-        {/* ── 10. Purchase Access Guidelines & FAQ ── */}
-        <DownloadsAccessInfo />
+        {/* ══════════════════════════════════════════════════════════
+            5. FILTER BOTTOM SHEET / MODAL
+           ══════════════════════════════════════════════════════════ */}
+        <AnimatePresence>
+          {showFilterModal && (
+            <>
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowFilterModal(false)}
+                style={{
+                  position: 'fixed',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  background: 'rgba(0,0,0,0.45)',
+                  zIndex: 90,
+                }}
+              />
 
-        {/* ── 11. Need Help Section ── */}
-        <DownloadsHelpSection />
+              {/* Bottom Sheet */}
+              <motion.div
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                style={{
+                  position: 'fixed',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  maxWidth: '540px',
+                  margin: '0 auto',
+                  background: '#FFFFFF',
+                  borderTopLeftRadius: '20px',
+                  borderTopRightRadius: '20px',
+                  padding: '20px',
+                  zIndex: 100,
+                  boxShadow: '0 -10px 30px rgba(0,0,0,0.15)',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: '16px',
+                    borderBottom: '1px solid #F3F4F6',
+                    paddingBottom: '12px',
+                  }}
+                >
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, color: '#111827' }}>
+                    Filter Orders
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowFilterModal(false)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: '4px',
+                      color: '#6B7280',
+                    }}
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                <div style={{ marginBottom: '20px' }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#6B7280', marginBottom: '10px' }}>
+                    ORDER STATUS
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {[
+                      { id: 'all', label: 'All Orders' },
+                      { id: 'paid', label: 'Delivered / Placed' },
+                      { id: 'pending', label: 'Payment Awaiting Confirmation' },
+                    ].map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          setStatusFilter(opt.id as any)
+                          setShowFilterModal(false)
+                        }}
+                        style={{
+                          textAlign: 'left',
+                          padding: '12px 14px',
+                          borderRadius: '8px',
+                          border: statusFilter === opt.id ? '1.5px solid #2874F0' : '1px solid #E5E7EB',
+                          background: statusFilter === opt.id ? '#EFF6FF' : '#FFFFFF',
+                          color: statusFilter === opt.id ? '#1D4ED8' : '#111827',
+                          fontWeight: statusFilter === opt.id ? 700 : 500,
+                          fontSize: '0.9rem',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStatusFilter('all')
+                    setShowFilterModal(false)
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '10px',
+                    background: '#F3F4F6',
+                    border: 'none',
+                    fontWeight: 700,
+                    fontSize: '0.9rem',
+                    color: '#374151',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Reset Filters
+                </button>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
       </div>
+
+      <style>{`
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .spin-icon { animation: spin 1s linear infinite; }
+      `}</style>
     </div>
   )
 }

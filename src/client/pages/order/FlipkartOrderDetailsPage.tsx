@@ -170,6 +170,33 @@ export default function FlipkartOrderDetailsPage() {
       })
   }, [orderParam, tokenParam])
 
+  // Auto-polling verification for pending/active orders
+  useEffect(() => {
+    if (!orderData || orderData.status === 'PAID') return
+    const orderNum = orderData.order_number
+    if (!orderNum) return
+
+    const interval = setInterval(() => {
+      api
+        .orderLookup(orderNum)
+        .then((res) => {
+          if (res && res.status === 'PAID') {
+            setOrderData(res)
+          }
+        })
+        .catch(() => {})
+    }, 3500)
+
+    const stopTimer = setTimeout(() => {
+      clearInterval(interval)
+    }, 35000)
+
+    return () => {
+      clearInterval(interval)
+      clearTimeout(stopTimer)
+    }
+  }, [orderData?.order_number, orderData?.status])
+
   // Resolve Real Order Dates
   const orderDate = parseOrderDate(orderData?.created_at)
   const tomorrowDate = new Date(orderDate.getTime() + 86400000)
@@ -276,7 +303,13 @@ export default function FlipkartOrderDetailsPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                 <button
                   type="button"
-                  onClick={() => navigate('/')}
+                  onClick={() => {
+                    if (window.history.length > 1) {
+                      navigate(-1)
+                    } else {
+                      navigate('/my-orders')
+                    }
+                  }}
                   aria-label="Back to store"
                   style={{
                     background: 'none',
@@ -428,12 +461,21 @@ export default function FlipkartOrderDetailsPage() {
                       letterSpacing: '-0.01em',
                     }}
                   >
-                    Order Confirmed
+                    {orderData?.status === 'PAID'
+                      ? 'Order Confirmed'
+                      : orderData?.status === 'FAILED'
+                      ? 'Payment Failed'
+                      : 'Order Placed • Verifying Payment'}
                   </h3>
 
                   <span
                     style={{
-                      background: '#008444',
+                      background:
+                        orderData?.status === 'PAID'
+                          ? '#008444'
+                          : orderData?.status === 'FAILED'
+                          ? '#EF4444'
+                          : '#F59E0B',
                       color: '#FFFFFF',
                       fontSize: '0.74rem',
                       fontWeight: 800,
@@ -444,11 +486,15 @@ export default function FlipkartOrderDetailsPage() {
                       letterSpacing: '0.01em',
                     }}
                   >
-                    On Time
+                    {orderData?.status === 'PAID'
+                      ? 'On Time'
+                      : orderData?.status === 'FAILED'
+                      ? 'Failed'
+                      : 'Processing'}
                   </span>
                 </div>
 
-                {/* Subtitle location text (e.g. "Your item was confirmed on Oct 10 from BHIWANDI.") */}
+                {/* Subtitle location text */}
                 <p
                   style={{
                     fontSize: '0.86rem',
@@ -457,11 +503,43 @@ export default function FlipkartOrderDetailsPage() {
                     lineHeight: 1.45,
                   }}
                 >
-                  Your item was confirmed on{' '}
-                  <strong style={{ color: '#111827' }}>
-                    {months[orderDate.getMonth()]} {orderDate.getDate()}
-                  </strong>{' '}
-                  from <strong style={{ color: '#111827' }}>{primaryHub}</strong>.
+                  {orderData?.status === 'PAID' ? (
+                    <>
+                      Your item was confirmed on{' '}
+                      <strong style={{ color: '#111827' }}>
+                        {months[orderDate.getMonth()]} {orderDate.getDate()}
+                      </strong>{' '}
+                      from <strong style={{ color: '#111827' }}>{primaryHub}</strong>.
+                    </>
+                  ) : orderData?.status === 'FAILED' ? (
+                    <>Payment was declined or cancelled. You can retry your order anytime.</>
+                  ) : (
+                    <>
+                      We are confirming payment from your UPI app / bank. Click{' '}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (orderData?.order_number) {
+                            api.orderLookup(orderData.order_number).then((res) => {
+                              if (res) setOrderData(res)
+                            })
+                          }
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#2874F0',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          padding: 0,
+                          textDecoration: 'underline',
+                        }}
+                      >
+                        here to refresh status
+                      </button>
+                      .
+                    </>
+                  )}
                 </p>
 
                 {/* Horizontal Delivery Tracker (Screenshot 1: 3 Steps) */}
