@@ -104,6 +104,7 @@ app.get('/', async (c) => {
     order_number: order.order_number,
     status: finalStatus,
     amount: order.amount,
+    customer_name: order.customer_name || 'Customer',
     original_price: product?.price ?? order.amount,
     sale_price: product?.sale_price ?? order.amount,
     product: product?.title ?? 'Digital Product Asset',
@@ -328,6 +329,231 @@ app.get('/my-orders', async (c) => {
     count: detailedOrders.length,
     orders: detailedOrders,
   })
+})
+
+// POST /api/order-lookup/chat — Multi-Language Support Chatbot with Real Order Context
+app.post('/chat', async (c) => {
+  try {
+    const body = await c.req.json<{
+      order_number?: string
+      message?: string
+      history?: Array<{ role: 'user' | 'assistant'; content: string }>
+    }>()
+
+    const rawMsg = (body.message || '').trim()
+    if (!rawMsg) {
+      return c.json({ reply: 'Please enter a message.' }, 400)
+    }
+
+    const rawOrder = (body.order_number || '').trim().toUpperCase().replace(/^#/, '')
+    const orderAlt = rawOrder.startsWith('TVH-') ? rawOrder : `TVH-${rawOrder}`
+
+    let order: any = null
+    if (rawOrder) {
+      order = await c.env.DB.prepare(`
+        SELECT * FROM orders
+        WHERE (order_number = ? OR order_number = ?)
+        ORDER BY created_at DESC LIMIT 1
+      `).bind(rawOrder, orderAlt).first()
+    }
+
+    // Resolve real product details
+    let product: any = null
+    let downloadToken = order?.download_token || null
+
+    if (order) {
+      const realProdId = extractRealProductId(order)
+      product = await c.env.DB.prepare(
+        `SELECT id, title, slug, price, sale_price, google_drive_link, file_type FROM products WHERE id = ?`
+      ).bind(realProdId).first()
+
+      if (!product) {
+        product = await c.env.DB.prepare(
+          `SELECT id, title, slug, price, sale_price, google_drive_link, file_type FROM products WHERE id = ?`
+        ).bind(order.product_id).first()
+      }
+
+      if (!downloadToken && order.id) {
+        const tok = await c.env.DB.prepare(
+          `SELECT token FROM download_tokens WHERE order_id = ? ORDER BY id DESC LIMIT 1`
+        ).bind(order.id).first<{ token: string }>()
+        if (tok?.token) downloadToken = tok.token
+      }
+    }
+
+    const siteUrl = c.env.SITE_URL || 'https://1024teraviralhub.com'
+    const customerName = order?.customer_name?.trim() || 'Customer'
+    const productTitle = product?.title || order?.product || 'Digital Product Asset'
+    const orderNumber = order?.order_number || rawOrder || 'N/A'
+    const orderStatus = order?.status === 'PAID' ? 'Delivered / Placed' : (order?.status || 'Pending')
+    const amount = order?.amount ? `₹${order.amount}` : ''
+    const downloadUrl = downloadToken
+      ? `${siteUrl}/download/${downloadToken}`
+      : `${siteUrl}/order-lookup?order=${encodeURIComponent(orderNumber)}`
+
+    // Determine user's language
+    const isDevanagari = /[\u0900-\u097F]/.test(rawMsg)
+    const isHinglish =
+      !isDevanagari &&
+      /\b(kya|kaise|karo|bhai|batao|nahi|mera|meri|mere|kaha|kahan|hai|hain|milega|milegi|khul|khula|open|link|bhejo|paise|kat|gaya|gaye|de|do|hoga|hogi|kab|tak|karu|download|file|invoice|wapas|chahiye|dekhna|dikha|dikhao|madad|problem|dikkat)\b/i.test(
+        rawMsg
+      )
+
+    // Check Gemini API key for dynamic generation
+    let geminiKey = ''
+    try {
+      const row = await c.env.DB.prepare(`SELECT value FROM website_settings WHERE key = 'gemini_api_key'`).first<{ value: string }>()
+      if (row?.value) {
+        try { geminiKey = JSON.parse(row.value) } catch { geminiKey = row.value }
+      }
+    } catch {}
+    if (!geminiKey) {
+      geminiKey = (c.env as any).GEMINI_API_KEY || ''
+    }
+
+    let reply = ''
+
+    if (geminiKey) {
+      try {
+        const systemInstruction = `You are the friendly, helpful Support Assistant for 1024 Tera Viral Hub.
+You are chatting with customer "${customerName}" regarding Order #${orderNumber} for "${productTitle}".
+Order Status: ${orderStatus}. Amount: ${amount}.
+Official Download Link: ${downloadUrl}.
+Support Email: support@1024teraviralhub.com.
+
+STRICT INSTRUCTIONS:
+1. MATCH THE USER'S LANGUAGE EXACTLY:
+   - If user wrote in Hinglish (Hindi written with English alphabet like "bhai mera download link nahi mil raha"), reply in natural, polite Hinglish.
+   - If user wrote in Hindi (Devanagari script), reply in natural, polite Hindi.
+   - If user wrote in English, reply in English.
+   - If another Indian language (Bengali, Tamil, Marathi, etc.), reply in that language.
+2. If they ask about download or file access, provide the download link: ${downloadUrl}.
+3. If they ask about opening ZIP files on mobile: mention Files by Google/ZArchiver for Android, and Files app for iPhone.
+4. Keep replies crisp (2-3 short sentences), direct, and polite. Do NOT make up external policies.`
+
+        const chatContents = [
+          ...(body.history || []).slice(-6).map((h) => ({
+            role: h.role === 'user' ? 'user' : 'model',
+            parts: [{ text: h.content }],
+          })),
+          { role: 'user', parts: [{ text: rawMsg }] },
+        ]
+
+        const gRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-goog-api-key': geminiKey,
+            },
+            body: JSON.stringify({
+              contents: chatContents,
+              systemInstruction: { parts: [{ text: systemInstruction }] },
+              generationConfig: { maxOutputTokens: 350, temperature: 0.6 },
+            }),
+          }
+        )
+
+        if (gRes.ok) {
+          const gJson = (await gRes.json()) as any
+          const txt = gJson?.candidates?.[0]?.content?.parts?.[0]?.text?.trim()
+          if (txt) reply = txt
+        }
+      } catch (err) {
+        console.error('Gemini support chat error:', err)
+      }
+    }
+
+    // High-Accuracy Intelligent Multi-Language Fallback
+    if (!reply) {
+      const lower = rawMsg.toLowerCase()
+
+      // 1. Download Link / File Access
+      if (/download|link|file|access|drive|kaha|kahan|bhejo|folder|get|mila nahi|mil nahi|kaise download/i.test(lower)) {
+        if (isDevanagari) {
+          reply = `नमस्ते ${customerName}! आपके ऑर्डर #${orderNumber} का डाउनलोड लिंक तैयार है। आप नीचे दिए गए लिंक से सीधे अपनी फ़ाइलें एक्सेस और डाउनलोड कर सकते हैं:\n\n${downloadUrl}\n\nयदि डाउनलोड में कोई समस्या आए तो हमें बताएं।`
+        } else if (isHinglish) {
+          reply = `Aapke order #${orderNumber} ka download link active hai! Aap is link se direct files download kar sakte hain:\n\n${downloadUrl}\n\nAap link par click karke turant access le sakte hain.`
+        } else {
+          reply = `Hello ${customerName}, your digital download link for Order #${orderNumber} is active and ready:\n\n${downloadUrl}\n\nClick the link above to immediately access and download your files.`
+        }
+      }
+      // 2. Open ZIP / Extraction
+      else if (/zip|rar|extract|unzip|open|khol|phone|mobile|laptop|pc|kaise open/i.test(lower)) {
+        if (isDevanagari) {
+          reply = `यह डिजिटल पैक ZIP फ़ॉर्मेट में है। Android फ़ोन में 'Files by Google' या 'ZArchiver' ऐप से इसे अनज़िप (extract) करें। iPhone में इन-बिल्ट 'Files' ऐप इस्तेमाल करें, और PC/लैपटॉप में फ़ाइल पर Right Click करके 'Extract All' चुनें।`
+        } else if (isHinglish) {
+          reply = `Yeh digital pack ZIP format me hai. Android mobile me 'Files by Google' ya 'ZArchiver' app se extract karein. iPhone me direct 'Files' app se open karein, aur PC me Right Click karke 'Extract All' karein.`
+        } else {
+          reply = `The package is delivered in ZIP format. On Android, use the 'Files by Google' or 'ZArchiver' app to extract. On iPhone, open with the built-in 'Files' app. On PC/Mac, right-click the file and select 'Extract All'.`
+        }
+      }
+      // 3. Invoice / Bill / Receipt
+      else if (/bill|invoice|receipt|gst|slip|payment proof|kitna|payment|paise/i.test(lower)) {
+        if (isDevanagari) {
+          reply = `आपके ऑर्डर #${orderNumber} का कुल बिल ${amount || 'सत्यापित राशि'} है। आपका भुगतान सफलतापूर्वक प्राप्त हो चुका है। आप अपने Order Details पेज से भी अपनी रसीद डाउनलोड कर सकते हैं।`
+        } else if (isHinglish) {
+          reply = `Aapke order #${orderNumber} ka total amount ${amount || 'Verified'} hai. Payment successfully confirmed hai aur aap apne Order Details page se bhi receipt dekh ya download kar sakte hain.`
+        } else {
+          reply = `Your official invoice for Order #${orderNumber} is confirmed for ${amount || 'paid amount'}. You can view and download your payment receipt directly from the Order Details page.`
+        }
+      }
+      // 4. Order Status / Delivery
+      else if (/status|kaha tak|delivery|deliver|pahucha|aaya nahi|placed|kab tak/i.test(lower)) {
+        if (isDevanagari) {
+          reply = `आपके ऑर्डर #${orderNumber} की स्थिति "${orderStatus}" है। चूंकि यह एक डिजिटल उत्पाद है, डिलीवरी तुरंत उपलब्ध करा दी गई है:\n\n${downloadUrl}`
+        } else if (isHinglish) {
+          reply = `Aapke order #${orderNumber} ka status "${orderStatus}" hai. Yeh ek instant digital product hai, isliye aapki delivery turant is link par active hai:\n\n${downloadUrl}`
+        } else {
+          reply = `Order #${orderNumber} status: ${orderStatus}. As this is a digital product, your instant access delivery is active at:\n\n${downloadUrl}`
+        }
+      }
+      // 5. Refund / Return / Cancellation
+      else if (/refund|return|cancel|wapas|paise wapas/i.test(lower)) {
+        if (isDevanagari) {
+          reply = `डिजिटल उत्पाद होने के कारण फ़ाइलें तुरंत डिलीवर हो जाती हैं। यदि आपको फ़ाइलें डाउनलोड करने या इस्तेमाल करने में कोई भी परेशानी हो रही है, तो हम आपको तुरंत नया लिंक या समाधान प्रदान करेंगे। कृपया अपनी समस्या बताएं।`
+        } else if (isHinglish) {
+          reply = `Instant digital product hone ki wajah se files turant deliver ho jaati hain. Agar aapko files download karne ya open karne me koi bhi issue hai, toh hum aapko 100% full support aur alternate access provide karenge. Mujhe batayein kya dikkat aa rahi hai?`
+        } else {
+          reply = `As this is an instant digital asset delivery, files are made accessible immediately upon payment. If you are experiencing any issue accessing, downloading, or using your files, our team guarantees full replacement support. Please let me know what difficulty you are facing.`
+        }
+      }
+      // 6. Human Support / Call / Email
+      else if (/human|agent|talk|call|phone|contact|support|email|whatsapp|baat/i.test(lower)) {
+        if (isDevanagari) {
+          reply = `आप हमारी समर्पित कस्टमर सपोर्ट टीम से support@1024teraviralhub.com पर सीधे संपर्क कर सकते हैं। हमारी टीम 24 घंटे के अंदर आपकी पूरी सहायता करेगी।`
+        } else if (isHinglish) {
+          reply = `Aap hamari direct support team ko support@1024teraviralhub.com par email kar sakte hain. Aapka order #${orderNumber} mention karein aur hamari team turant assist karegi.`
+        } else {
+          reply = `You can connect directly with our human support team at support@1024teraviralhub.com. Please mention Order #${orderNumber} for priority assistance.`
+        }
+      }
+      // 7. General Greetings / Default Fallback
+      else {
+        if (isDevanagari) {
+          reply = `नमस्ते ${customerName}! मैं 1024 Tera Viral Hub का सपोर्ट असिस्टेंट हूँ। आपके ऑर्डर #${orderNumber} ("${productTitle}") के लिए मैं आपकी क्या सहायता कर सकता हूँ?`
+        } else if (isHinglish) {
+          reply = `Hello ${customerName}! Main aapki kya sahayata kar sakta hoon aapke order #${orderNumber} ("${productTitle}") ke baare me? Download link, file access ya koi bhi sawal ho toh zaroor batayein.`
+        } else {
+          reply = `Hello ${customerName}! I'm your Support Assistant for Order #${orderNumber} ("${productTitle}"). How may I assist you with your download, access, or order today?`
+        }
+      }
+    }
+
+    return c.json({
+      success: true,
+      reply,
+      order: {
+        order_number: orderNumber,
+        product: productTitle,
+        status: orderStatus,
+        download_url: downloadUrl,
+      },
+    })
+  } catch (err: any) {
+    return c.json({ error: err.message || 'Support chat service error' }, 500)
+  }
 })
 
 export default app

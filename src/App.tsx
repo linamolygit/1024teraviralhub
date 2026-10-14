@@ -30,6 +30,7 @@ const PaymentSuccessPage = lazyWithRetry(() => import('./client/pages/payment/Pa
 const PaymentFailedPage = lazyWithRetry(() => import('./client/pages/payment/PaymentFailedPage'))
 const DownloadPage = lazyWithRetry(() => import('./client/pages/download/DownloadPage'))
 const FlipkartOrderDetailsPage = lazyWithRetry(() => import('./client/pages/order/FlipkartOrderDetailsPage'))
+const FlipkartSupportChatPage = lazyWithRetry(() => import('./client/pages/order/FlipkartSupportChatPage'))
 const DownloadsPage = lazyWithRetry(() => import('./client/pages/downloads/DownloadsPage'))
 const MyOrdersPage = lazyWithRetry(() => import('./client/pages/orders/MyOrdersPage'))
 const OrderLookupPage = lazyWithRetry(() => import('./client/pages/order-lookup/OrderLookupPage'))
@@ -202,6 +203,9 @@ export default function App() {
               <Route path="/payment/failed" element={<PaymentFailedPage />} />
               <Route path="/order/details" element={<FlipkartOrderDetailsPage />} />
               <Route path="/orders/details" element={<FlipkartOrderDetailsPage />} />
+              <Route path="/order/support" element={<FlipkartSupportChatPage />} />
+              <Route path="/orders/support" element={<FlipkartSupportChatPage />} />
+              <Route path="/order/help" element={<FlipkartSupportChatPage />} />
               <Route path="/download/:token" element={<DownloadPage />} />
               <Route path="/share/:uid" element={<ShareBridgePage />} />
             </Route>

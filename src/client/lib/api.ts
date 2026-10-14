@@ -1201,6 +1201,8 @@ export interface OrderLookupResult {
   order_number: string
   status: string
   amount: number
+  customer_name?: string
+  customer_email?: string
   original_price?: number
   sale_price?: number
   product: string

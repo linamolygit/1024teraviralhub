@@ -339,7 +339,7 @@ export default function FlipkartOrderDetailsPage() {
 
               {/* Help Pill Button (Screenshot 1) */}
               <Link
-                to="/help"
+                to={`/order/support?order=${encodeURIComponent(orderData?.order_number || orderParam)}${tokenParam ? `&token=${encodeURIComponent(tokenParam)}` : ''}`}
                 style={{
                   textDecoration: 'none',
                   padding: '6px 18px',
