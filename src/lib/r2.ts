@@ -83,8 +83,18 @@ function sanitizeFilename(name: string): string {
 export const MAX_PRODUCT_FILE_SIZE = 500 * 1024 * 1024  // 500 MB
 export const MAX_IMAGE_SIZE = 10 * 1024 * 1024           // 10 MB
 
-// Allowed image types
-export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+export const ALLOWED_IMAGE_TYPES = [
+  'image/jpeg',
+  'image/jpg',
+  'image/pjpeg',
+  'image/jfif',
+  'image/png',
+  'image/x-png',
+  'image/webp',
+  'image/gif',
+  'image/avif',
+  'image/svg+xml',
+]
 
 // Allowed product file types
 export const ALLOWED_PRODUCT_TYPES = [

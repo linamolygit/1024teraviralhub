@@ -78,6 +78,11 @@ async function ensureProductColumns(db: D1Database) {
   } catch {
     // Column already exists
   }
+  try {
+    await db.exec(`ALTER TABLE products ADD COLUMN is_ghost INTEGER DEFAULT 0;`)
+  } catch {
+    // Column already exists
+  }
 }
 
 // Ensure media deduplication tables & columns exist in D1
@@ -138,28 +143,69 @@ async function computeSha256(buffer: ArrayBuffer): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
+const booleanCoerce = z.union([z.boolean(), z.number(), z.string()]).optional().transform((val) => {
+  if (val === undefined) return undefined
+  if (typeof val === 'number') return val === 1
+  if (typeof val === 'string') return val === 'true' || val === '1'
+  return Boolean(val)
+})
+
 const productSchema = z.object({
-  slug: z.string().regex(/^[a-z0-9-]+$/),
-  title: z.string().min(3).max(200),
-  description: z.string().min(10),
-  short_description: z.string().max(300).optional(),
-  category_id: z.number().optional(),
-  price: z.number().positive(),
-  sale_price: z.number().positive().optional().nullable(),
-  is_published: z.boolean().optional(),
-  is_featured: z.boolean().optional(),
-  tags: z.array(z.string()).optional(),
-  file_type: z.string().optional(),
-  license_type: z.string().optional(),
-  license_info: z.string().optional(),
-  usage_instructions: z.string().optional(),
-  button_text: z.string().max(50).optional(),
+  slug: z.string().optional().transform((val) => {
+    if (!val || typeof val !== 'string' || !val.trim()) {
+      return `product-${Date.now().toString(36)}`
+    }
+    const clean = val
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9-_]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+    return clean || `product-${Date.now().toString(36)}`
+  }),
+  title: z.string().min(1, 'Title is required').max(300),
+  description: z.string().optional().default(''),
+  short_description: z.string().max(500).optional().nullable(),
+  category_id: z.union([z.number(), z.string(), z.null()]).optional().nullable().transform((val) => {
+    if (val === null || val === undefined || val === '' || val === 0) return null
+    const num = typeof val === 'string' ? parseInt(val, 10) : val
+    return isNaN(num) || num <= 0 ? null : num
+  }),
+  price: z.union([z.number(), z.string()]).transform((val) => {
+    const num = typeof val === 'string' ? parseFloat(val) : val
+    return isNaN(num) || num < 0 ? 0 : num
+  }),
+  sale_price: z.union([z.number(), z.string(), z.null()]).optional().nullable().transform((val) => {
+    if (val === null || val === undefined || val === '') return null
+    const num = typeof val === 'string' ? parseFloat(val) : val
+    return isNaN(num) || num <= 0 ? null : num
+  }),
+  is_published: booleanCoerce,
+  is_featured: booleanCoerce,
+  is_ghost: booleanCoerce,
+  tags: z.union([z.array(z.string()), z.string()]).optional().transform((val) => {
+    if (Array.isArray(val)) return val
+    if (typeof val === 'string' && val.trim()) {
+      try { return JSON.parse(val) } catch { return val.split(',').map((s) => s.trim()).filter(Boolean) }
+    }
+    return []
+  }),
+  file_type: z.string().optional().nullable(),
+  license_type: z.string().optional().nullable(),
+  license_info: z.string().optional().nullable(),
+  usage_instructions: z.string().optional().nullable(),
+  button_text: z.string().max(50).optional().nullable(),
   google_drive_link: z.string().optional().nullable(),
   video_url: z.string().optional().nullable(),
-  meta_title: z.string().max(70).optional(),
-  meta_description: z.string().max(160).optional(),
-  download_limit: z.number().int().min(1).max(20).optional(),
-  access_duration_hours: z.number().int().min(1).max(168).optional(),
+  meta_title: z.string().max(100).optional().nullable(),
+  meta_description: z.string().max(250).optional().nullable(),
+  download_limit: z.union([z.number(), z.string()]).optional().transform((val) => {
+    const num = typeof val === 'string' ? parseInt(val, 10) : (val ?? 3)
+    return isNaN(num) || num < 1 ? 3 : num
+  }),
+  access_duration_hours: z.union([z.number(), z.string()]).optional().transform((val) => {
+    const num = typeof val === 'string' ? parseInt(val, 10) : (val ?? 12)
+    return isNaN(num) || num < 1 ? 12 : num
+  }),
 })
 
 // GET /api/admin/products/media-library — Browse all deduplicated media in storage with type filtering
@@ -273,7 +319,9 @@ app.post('/', async (c) => {
 
     const parsed = productSchema.safeParse(body)
     if (!parsed.success) {
-      return c.json({ error: 'Validation failed', details: parsed.error.errors }, 400)
+      const errStr = parsed.error.errors.map((e) => `${e.path.join('.') || 'field'}: ${e.message}`).join(', ')
+      console.error('Product creation validation failed:', errStr, body)
+      return c.json({ error: `Validation failed: ${errStr}`, details: parsed.error.errors }, 400)
     }
 
     const d = parsed.data
@@ -291,13 +339,13 @@ app.post('/', async (c) => {
     const result = await c.env.DB.prepare(`
       INSERT INTO products (
         slug, title, description, short_description, category_id, price, sale_price,
-        is_published, is_featured, tags, file_type, license_type, license_info,
+        is_published, is_featured, is_ghost, tags, file_type, license_type, license_info,
         usage_instructions, button_text, google_drive_link, video_url, meta_title, meta_description, download_limit, access_duration_hours
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       finalSlug, d.title, d.description, d.short_description ?? null,
       d.category_id ?? null, d.price, d.sale_price ?? null,
-      d.is_published ? 1 : 0, d.is_featured ? 1 : 0,
+      d.is_published ? 1 : 0, d.is_featured ? 1 : 0, d.is_ghost ? 1 : 0,
       d.tags ? JSON.stringify(d.tags) : null,
       d.file_type ?? null, d.license_type ?? 'personal', d.license_info ?? null,
       d.usage_instructions ?? null, d.button_text ?? 'Buy', d.google_drive_link ?? null,
@@ -356,7 +404,10 @@ app.put('/:id', async (c) => {
     if (!body) return c.json({ error: 'Invalid JSON payload' }, 400)
 
     const parsed = productSchema.partial().safeParse(body)
-    if (!parsed.success) return c.json({ error: 'Validation failed', details: parsed.error.errors }, 400)
+    if (!parsed.success) {
+      const errStr = parsed.error.errors.map((e) => `${e.path.join('.') || 'field'}: ${e.message}`).join(', ')
+      return c.json({ error: `Validation failed: ${errStr}`, details: parsed.error.errors }, 400)
+    }
 
     const d = parsed.data
     const fields: string[] = []
@@ -384,6 +435,7 @@ app.put('/:id', async (c) => {
     if (d.sale_price !== undefined) { fields.push('sale_price = ?'); values.push(d.sale_price ?? null) }
     if (d.is_published !== undefined) { fields.push('is_published = ?'); values.push(d.is_published ? 1 : 0) }
     if (d.is_featured !== undefined) { fields.push('is_featured = ?'); values.push(d.is_featured ? 1 : 0) }
+    if (d.is_ghost !== undefined) { fields.push('is_ghost = ?'); values.push(d.is_ghost ? 1 : 0) }
     if (d.tags !== undefined) { fields.push('tags = ?'); values.push(JSON.stringify(d.tags)) }
     if (d.button_text !== undefined) { fields.push('button_text = ?'); values.push(d.button_text ?? 'Buy') }
     if (d.google_drive_link !== undefined) { fields.push('google_drive_link = ?'); values.push(d.google_drive_link ?? null) }
@@ -416,6 +468,27 @@ app.put('/:id', async (c) => {
     console.error('CRITICAL: PUT /api/admin/products/:id failed:', err)
     return c.json({ error: err.message || 'Internal Server Error' }, 500)
   }
+})
+
+// POST /api/admin/products/:id/toggle-ghost — Quick 1-click toggle for ghost mode (unlisted product)
+app.post('/:id/toggle-ghost', async (c) => {
+  await ensureProductColumns(c.env.DB)
+  const id = parseInt(c.req.param('id'))
+  const product = await c.env.DB.prepare('SELECT id, is_ghost FROM products WHERE id = ?').bind(id).first<{ id: number; is_ghost: number | null }>()
+  if (!product) return c.json({ error: 'Product not found' }, 404)
+  const newGhost = product.is_ghost === 1 ? 0 : 1
+  await c.env.DB.prepare("UPDATE products SET is_ghost = ?, updated_at = datetime('now') WHERE id = ?").bind(newGhost, id).run()
+
+  try {
+    await logAdminAudit(c.env.DB, {
+      admin_uid: c.get('adminUid'),
+      action: newGhost === 1 ? 'ENABLE_GHOST_MODE' : 'DISABLE_GHOST_MODE',
+      resource_type: 'product',
+      resource_id: id.toString(),
+    })
+  } catch {}
+
+  return c.json({ success: true, is_ghost: newGhost === 1 })
 })
 
 // DELETE /api/admin/products/:id
@@ -521,7 +594,9 @@ app.post('/:id/upload-image', async (c) => {
 
   if (!file) return c.json({ error: 'No file provided' }, 400)
   if (file.size > MAX_IMAGE_SIZE) return c.json({ error: 'Image too large (max 10MB)' }, 400)
-  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) return c.json({ error: 'Invalid image type' }, 400)
+  const isImageMime = ALLOWED_IMAGE_TYPES.includes(file.type?.toLowerCase()) ||
+    /\.(jpe?g|png|webp|gif|avif|svg)$/i.test(file.name || '')
+  if (!isImageMime) return c.json({ error: `Invalid image type (${file.type || 'unknown'}). Supported formats: JPG, PNG, WebP, GIF, AVIF` }, 400)
 
   const buffer = await file.arrayBuffer()
   const contentHash = await computeSha256(buffer)

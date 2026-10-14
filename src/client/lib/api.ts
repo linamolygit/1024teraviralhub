@@ -10,8 +10,13 @@ async function req<T>(url: string, opts?: RequestInit): Promise<T> {
     ...opts,
   })
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText })) as { error?: string }
-    throw new Error(err.error ?? `HTTP ${res.status}`)
+    const err = await res.json().catch(() => ({ error: res.statusText })) as { error?: string; details?: any[] }
+    let msg = err.error ?? `HTTP ${res.status}`
+    if (Array.isArray(err.details) && err.details.length > 0 && !msg.includes(':')) {
+      const detailsStr = err.details.map((d: any) => `${d.path?.join('.') || 'field'}: ${d.message}`).join(', ')
+      msg = `${msg}: ${detailsStr}`
+    }
+    throw new Error(msg)
   }
   return res.json() as Promise<T>
 }
@@ -94,6 +99,7 @@ export const api = {
         paytm?: string
         bhim?: string
         default?: string
+        web?: string
       } | null
       upi_link?: string | null
       upi_qrcode?: string | null
@@ -358,6 +364,10 @@ export const adminApi = {
       adminReq<{ success: boolean }>(`/admin/products/${id}`, token, {
         method: 'PUT', body: JSON.stringify(data),
       }),
+    toggleGhost: (token: string, id: number) =>
+      adminReq<{ success: boolean; is_ghost: boolean }>(`/admin/products/${id}/toggle-ghost`, token, {
+        method: 'POST',
+      }),
     delete: (token: string, id: number) =>
       adminReq<{ success: boolean }>(`/admin/products/${id}`, token, { method: 'DELETE' }),
     uploadImage: (
@@ -530,6 +540,14 @@ export const adminApi = {
     },
     get: (token: string, id: string | number) =>
       adminReq<OrderDetail>(`/admin/orders/${id}`, token),
+    sync: (token: string, id: string | number) =>
+      adminReq<{ success: boolean; isPaid: boolean; status: string; order: Order }>(`/admin/orders/${id}/sync`, token, {
+        method: 'POST',
+      }),
+    syncPending: (token: string) =>
+      adminReq<{ success: boolean; checked_count: number; newly_paid: number }>('/admin/orders/sync-pending', token, {
+        method: 'POST',
+      }),
   },
 
   analytics: {
@@ -1004,6 +1022,7 @@ export interface Product {
   currency: string
   is_published: number | boolean
   is_featured: number | boolean
+  is_ghost?: number | boolean
   tags: string | string[] | null
   file_type: string
   file_count: number
@@ -1111,6 +1130,7 @@ export interface Payment {
   status: string
   amount: number
   payment_method: string | null
+  bank_reference?: string | null
   error_code: string | null
   created_at: string
 }
@@ -1237,6 +1257,7 @@ export interface DownloadLog {
   id: number
   ip_address: string | null
   user_agent: string | null
+  country?: string | null
   success: number
   order_number: string
   customer_name: string

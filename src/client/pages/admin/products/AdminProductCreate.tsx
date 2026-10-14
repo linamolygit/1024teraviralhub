@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft, Save, Upload, Plus, X, Sparkles, Image as ImageIcon,
-  CheckCircle, Star, FileCheck, Layers, Link as LinkIcon, Loader2, Video, Play, Film, Crop
+  CheckCircle, Star, FileCheck, Layers, Link as LinkIcon, Loader2, Video, Play, Film, Crop,
+  Ghost
 } from 'lucide-react'
 import ImageCropModal from '../../../components/admin/ImageCropModal'
 import { optimizeVideo } from '../../../lib/video-optimizer'
@@ -47,6 +48,7 @@ export default function AdminProductCreate() {
     sale_price: '',
     is_published: true,
     is_featured: false,
+    is_ghost: false,
     file_type: 'image',
     license_type: 'personal',
     button_text: 'Buy',
@@ -327,9 +329,11 @@ export default function AdminProductCreate() {
       return adminApi.products.create(token!, {
         ...form,
         category_id: form.category_id || undefined,
+        price: typeof form.price === 'string' ? (parseFloat(form.price) || 0) : form.price,
         sale_price: form.sale_price ? parseFloat(form.sale_price) : null,
         tags: form.tags,
         video_url: form.video_url?.trim() || null,
+        is_ghost: Boolean(form.is_ghost),
       })
     },
     onMutate: () => {
@@ -1651,6 +1655,41 @@ export default function AdminProductCreate() {
                 />
                 Featured on Homepage (⭐ Badge)
               </label>
+
+              {/* Ghost Mode Toggle */}
+              <div style={{ marginTop: 6, paddingTop: 10, borderTop: '1px solid var(--bg-border)' }}>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={form.is_ghost}
+                    onChange={(e) => setForm((f) => ({ ...f, is_ghost: e.target.checked }))}
+                    style={{ width: 16, height: 16, accentColor: '#8B5CF6', marginTop: 2 }}
+                  />
+                  <div>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <Ghost size={16} color="#8B5CF6" /> Ghost Mode (Unlisted)
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '0.68rem',
+                          padding: '1px 6px',
+                          borderRadius: 999,
+                          background: form.is_ghost ? 'rgba(139, 92, 246, 0.2)' : 'var(--bg-elevated)',
+                          color: form.is_ghost ? '#A78BFA' : 'var(--text-muted)',
+                          border: form.is_ghost ? '1px solid rgba(139, 92, 246, 0.4)' : '1px solid var(--bg-border)',
+                          fontWeight: 800,
+                        }}
+                      >
+                        {form.is_ghost ? 'ACTIVE' : 'OFF'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: 2, lineHeight: 1.4 }}>
+                      YouTube Unlisted video jaisa system. Website par kahin show nahi hoga, par link work karega aur Facebook Ads se sales hoti rahengi.
+                    </div>
+                  </div>
+                </label>
+              </div>
             </div>
           </div>
         </div>

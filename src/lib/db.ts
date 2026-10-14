@@ -20,7 +20,7 @@ export async function getPublishedProducts(db: D1Database, opts?: {
     SELECT p.*, pc.name as category_name, pc.slug as category_slug
     FROM products p
     LEFT JOIN product_categories pc ON p.category_id = pc.id
-    WHERE p.is_published = 1
+    WHERE p.is_published = 1 AND (p.is_ghost = 0 OR p.is_ghost IS NULL)
   `
   const params: (string | number)[] = []
 
@@ -96,6 +96,7 @@ export async function getProductById(db: D1Database, id: number) {
 export async function createOrder(db: D1Database, data: {
   order_number: string
   product_id: number
+  real_product_id?: number
   customer_name: string
   customer_email: string
   customer_phone?: string
@@ -111,13 +112,14 @@ export async function createOrder(db: D1Database, data: {
 }) {
   const result = await db.prepare(`
     INSERT INTO orders (
-      order_number, product_id, customer_name, customer_email, customer_phone,
+      order_number, product_id, real_product_id, customer_name, customer_email, customer_phone,
       amount, cashfree_order_id, payment_session_id,
       utm_source, utm_medium, utm_campaign, referrer_url, ip_address, status, notes
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)
   `).bind(
     data.order_number,
     data.product_id,
+    data.real_product_id ?? null,
     data.customer_name,
     data.customer_email,
     data.customer_phone ?? null,
@@ -167,11 +169,11 @@ export async function createDownloadToken(db: D1Database, orderId: number, expir
 
 export async function verifyDownloadToken(db: D1Database, token: string) {
   const tokenRecord = await db.prepare(`
-    SELECT dt.*, o.status as order_status, o.product_id
+    SELECT dt.*, o.status as order_status, o.product_id, o.real_product_id, o.notes
     FROM download_tokens dt
     JOIN orders o ON dt.order_id = o.id
     WHERE dt.token = ? AND dt.is_revoked = 0
-  `).bind(token).first() as (DownloadToken & { order_status: string; product_id: number }) | null
+  `).bind(token).first() as (DownloadToken & { order_status: string; product_id: number; real_product_id?: number | null; notes?: string | null }) | null
 
   if (!tokenRecord) return { valid: false, reason: 'Token not found' }
   if (tokenRecord.order_status !== 'PAID') return { valid: false, reason: 'Payment not verified' }

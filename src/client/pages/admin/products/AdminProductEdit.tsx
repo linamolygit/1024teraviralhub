@@ -5,7 +5,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft, Save, Upload, Plus, X, Trash2, CheckCircle, Sparkles,
   Image as ImageIcon, Star, ExternalLink, Loader2, RefreshCw, FileCheck, Layers, Video, Play, Film, Link as LinkIcon,
-  Crop, Sliders, Eye, ZoomIn, ShieldCheck, Check, Info, Maximize2
+  Crop, Sliders, Eye, ZoomIn, ShieldCheck, Check, Info, Maximize2,
+  Ghost
 } from 'lucide-react'
 import ImageCropModal from '../../../components/admin/ImageCropModal'
 import { optimizeVideo } from '../../../lib/video-optimizer'
@@ -42,6 +43,7 @@ export default function AdminProductEdit() {
     sale_price: '',
     is_published: false,
     is_featured: false,
+    is_ghost: false,
     file_type: 'image',
     license_type: 'personal',
     button_text: 'Buy',
@@ -146,6 +148,7 @@ export default function AdminProductEdit() {
         sale_price: p.sale_price !== null && p.sale_price !== undefined ? p.sale_price.toString() : '',
         is_published: p.is_published === 1 || p.is_published === true,
         is_featured: p.is_featured === 1 || p.is_featured === true,
+        is_ghost: p.is_ghost === 1 || p.is_ghost === true,
         file_type: p.file_type || 'image',
         license_type: p.license_type || 'personal',
         button_text: p.button_text || 'Buy',
@@ -461,9 +464,11 @@ export default function AdminProductEdit() {
       return adminApi.products.update(token!, parseInt(id!), {
         ...form,
         category_id: form.category_id || undefined,
+        price: typeof form.price === 'string' ? (parseFloat(form.price) || 0) : form.price,
         sale_price: form.sale_price ? parseFloat(form.sale_price) : null,
         tags: form.tags,
         video_url: form.video_url?.trim() || null,
+        is_ghost: Boolean(form.is_ghost),
       })
     },
     onMutate: () => {
@@ -1995,6 +2000,85 @@ export default function AdminProductEdit() {
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Shown in top featured grid</div>
                 </div>
               </label>
+
+              {/* Ghost Mode Toggle */}
+              <div style={{ marginTop: 6, paddingTop: 12, borderTop: '1px solid var(--bg-border)' }}>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={form.is_ghost}
+                    onChange={(e) => setForm((f) => ({ ...f, is_ghost: e.target.checked }))}
+                    style={{ width: 16, height: 16, accentColor: '#8B5CF6', marginTop: 3 }}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '0.875rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <Ghost size={16} color="#8B5CF6" /> Ghost Mode (Unlisted)
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '0.68rem',
+                          padding: '1px 7px',
+                          borderRadius: 999,
+                          background: form.is_ghost ? 'rgba(139, 92, 246, 0.2)' : 'var(--bg-elevated)',
+                          color: form.is_ghost ? '#A78BFA' : 'var(--text-muted)',
+                          border: form.is_ghost ? '1px solid rgba(139, 92, 246, 0.4)' : '1px solid var(--bg-border)',
+                          fontWeight: 800,
+                        }}
+                      >
+                        {form.is_ghost ? 'ACTIVE' : 'OFF'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 3, lineHeight: 1.4 }}>
+                      YouTube Unlisted video jaisa system. Website ke home page, category, catalog ya search me kahin nahi dikhega, lekin direct link 100% chalega aur Facebook Ads se sales hoti rahengi.
+                    </div>
+                  </div>
+                </label>
+
+                {form.is_ghost && (
+                  <div
+                    style={{
+                      marginTop: 10,
+                      padding: '10px 12px',
+                      background: 'rgba(139, 92, 246, 0.08)',
+                      borderRadius: 8,
+                      border: '1px solid rgba(139, 92, 246, 0.28)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 8,
+                    }}
+                  >
+                    <div style={{ overflow: 'hidden' }}>
+                      <div style={{ fontSize: '0.7rem', color: '#A78BFA', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Direct Ad Link</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-primary)', fontFamily: 'monospace', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                        /product/{form.slug}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const url = `${window.location.origin}/product/${form.slug}`
+                        navigator.clipboard.writeText(url)
+                        adminToast.success('Direct Link Copied! 🔗', url)
+                      }}
+                      style={{
+                        padding: '4px 10px',
+                        fontSize: '0.74rem',
+                        fontWeight: 700,
+                        background: '#8B5CF6',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        borderRadius: 6,
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      Copy Link
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
