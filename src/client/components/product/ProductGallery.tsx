@@ -672,8 +672,8 @@ export default function ProductGallery({
           </div>
         )}
 
-        {/* Floating Bottom-Left Rating Badge */}
-        {reviewsCount > 0 && averageRating && activeItem?.type === 'image' ? (
+        {/* Floating Bottom-Left Rating Badge: Flipkart style 4.4 ★ | 6.8K (5K - 8K Random Range) */}
+        {activeItem?.type === 'image' && (
           <div
             style={{
               position: 'absolute',
@@ -694,12 +694,15 @@ export default function ProductGallery({
               zIndex: 10,
             }}
           >
-            <span>{averageRating.toFixed(1)}</span>
+            <span>{averageRating ? Number(averageRating.toFixed(1)) : 4.4}</span>
             <Star size={13} fill="#008444" color="#008444" />
             <span style={{ color: '#9CA3AF', fontWeight: 400 }}>|</span>
-            <span style={{ color: '#4B5563', fontWeight: 600 }}>{reviewsCount}</span>
+            <span style={{ color: '#4B5563', fontWeight: 600 }}>
+              {(5.1 + (((productId || 1) * 37 + 13) % 28) * 0.1).toFixed(1)}K
+            </span>
           </div>
-        ) : null}
+        )}
+
 
         {/* Gallery Navigation Arrows with Pure Transparent Frosted Glass Optics */}
         {mediaItems.length > 1 && (

@@ -29,7 +29,7 @@ app.get('/', async (c) => {
   })
 
   // Get total count
-  let countQuery = `SELECT COUNT(*) as count FROM products p LEFT JOIN product_categories pc ON p.category_id = pc.id WHERE p.is_published = 1`
+  let countQuery = `SELECT COUNT(*) as count FROM products p LEFT JOIN product_categories pc ON p.category_id = pc.id WHERE p.is_published = 1 AND (p.is_ghost = 0 OR p.is_ghost IS NULL)`
   const countParams: string[] = []
   if (category) { countQuery += ` AND pc.slug = ?`; countParams.push(category) }
   if (featured) { countQuery += ` AND p.is_featured = 1` }
@@ -66,9 +66,10 @@ app.get('/', async (c) => {
       ...p,
       thumbnail_url: thumbnail ? `/api/images/${encodeURIComponent(thumbnail.r2_key)}` : null,
       effective_price: p.sale_price ?? p.price,
-      reviews_count: showSeedReviews ? (totalReviews || 20) : totalReviews,
-      average_rating: showSeedReviews ? (avgRating || 4.8) : avgRating,
+      reviews_count: showSeedReviews ? (totalReviews >= 1000 ? totalReviews : (1450 + ((p.id * 17 + 11) % 65))) : totalReviews,
+      average_rating: showSeedReviews ? (avgRating || 4.4) : avgRating,
     }
+
   }))
 
   return c.json({
@@ -110,7 +111,7 @@ app.get('/:slug', async (c) => {
   const related = await c.env.DB.prepare(`
     SELECT p.id, p.slug, p.title, p.price, p.sale_price, p.file_type
     FROM products p
-    WHERE p.category_id = ? AND p.id != ? AND p.is_published = 1
+    WHERE p.category_id = ? AND p.id != ? AND p.is_published = 1 AND (p.is_ghost = 0 OR p.is_ghost IS NULL)
     ORDER BY p.total_sales DESC
     LIMIT 4
   `).bind(product.category_id, product.id).all()

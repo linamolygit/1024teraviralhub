@@ -188,10 +188,11 @@ export default function ProductCard({ product, onBuyNow }: Props) {
               </span>
             </div>
             <span style={{ fontSize: '0.7rem', color: '#6B7280', fontWeight: 600 }}>
-              ({product.reviews_count} {product.reviews_count === 1 ? 'review' : 'reviews'})
+              ({(product.reviews_count ? Number(product.reviews_count).toLocaleString('en-IN') : '1,480')} reviews)
             </span>
           </div>
         ) : null}
+
 
         <p
           className="card-desc-clamp"

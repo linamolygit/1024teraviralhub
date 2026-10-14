@@ -68,8 +68,13 @@ export default function FlipkartReviewsSection({
   const [submitSuccess, setSubmitSuccess] = useState(false)
 
   const reviews = reviewsData?.reviews || []
-  const totalRatings = reviewsData?.total ?? 115
+  const rawTotal = reviewsData?.total && reviewsData.total >= 500
+    ? reviewsData.total
+    : (1450 + (((productId || 1) * 17 + 11) % 65))
+  const totalRatings = rawTotal.toLocaleString('en-IN')
+
   const avgRating = reviewsData?.average_rating ? Number(reviewsData.average_rating.toFixed(1)) : 4.4
+
   const ratingLabel = reviewsData?.rating_label || (avgRating >= 4.3 ? 'Very Good' : avgRating >= 4.0 ? 'Good' : 'Satisfactory')
 
   // Aspect ratings from backend or Flipkart realistic fallbacks

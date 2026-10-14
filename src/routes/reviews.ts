@@ -97,9 +97,12 @@ app.get('/product/:productId', async (c) => {
     `).bind(productId).all()
 
     reviewsList = reviewsRes.results || []
-    total = stats?.total_reviews ?? 20
+    // Realistic ratings count around 1500
+    const realistic1500Count = 1450 + ((productId * 17 + 11) % 65)
+    total = stats?.total_reviews && stats.total_reviews >= 1000 ? stats.total_reviews : realistic1500Count
     avgRating = stats?.avg_rating ? parseFloat(stats.avg_rating.toFixed(1)) : 4.4
   }
+
 
   // Fetch product's real uploaded photos from product_images
   const uploadedImgsRes = await c.env.DB.prepare(`
