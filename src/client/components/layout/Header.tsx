@@ -21,7 +21,13 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQ, setSearchQ] = useState('')
-  const [isNavHidden, setIsNavHidden] = useState(false)
+  // On mobile (<= 768px), navbar is hidden pehle se hi (by default on initial page load)
+  const [isNavHidden, setIsNavHidden] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth <= 768
+    }
+    return true
+  })
   const { siteName, legalPages } = useSiteConfig()
   const navigate = useNavigate()
   const location = useLocation()
@@ -46,11 +52,15 @@ export default function Header() {
     return location.pathname === l.to
   }
 
-  // Close mobile menu and reset navbar on route change
+  // Close mobile menu and keep navbar hidden on mobile route change
   useEffect(() => {
     setMenuOpen(false)
     setSearchOpen(false)
-    setIsNavHidden(false)
+    if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+      setIsNavHidden(true)
+    } else {
+      setIsNavHidden(false)
+    }
   }, [location.pathname])
 
   // Prevent body scroll when mobile menu is open
@@ -63,10 +73,12 @@ export default function Header() {
     return () => { document.body.style.overflow = '' }
   }, [menuOpen])
 
-  // Mobile auto-hide on scroll-down, reveal on pull-down (scroll-up or swipe down)
+  // Mobile navbar: already hidden pehle se hi, reveals ONLY on hard pull-down / scroll-down gesture
   useEffect(() => {
     let lastScrollY = typeof window !== 'undefined' ? window.scrollY : 0
+    let accumulatedUpScroll = 0
     let touchStartY = 0
+    let touchStartX = 0
     let ticking = false
 
     const handleScroll = () => {
@@ -83,15 +95,17 @@ export default function Header() {
             return
           }
 
-          // Keep visible at top of page
-          if (currentScrollY <= 15) {
-            setIsNavHidden(false)
-          } else if (delta > 5 && currentScrollY > 40) {
-            // Scrolling down -> auto-hide navbar
+          if (delta > 8) {
+            // Scrolling down into content -> immediately hide navbar
+            accumulatedUpScroll = 0
             setIsNavHidden(true)
-          } else if (delta < -5) {
-            // Pulling down / scrolling up -> show navbar
-            setIsNavHidden(false)
+          } else if (delta < -10) {
+            // Scrolling up (pulling content down)
+            accumulatedUpScroll += Math.abs(delta)
+            // Only reveal on hard pull/scroll down (> 60px deliberate movement)
+            if (accumulatedUpScroll > 60 || delta < -35) {
+              setIsNavHidden(false)
+            }
           }
 
           lastScrollY = currentScrollY
@@ -101,23 +115,26 @@ export default function Header() {
       }
     }
 
-    // Touch gesture listener for mobile pull-down
+    // Touch gesture listener for deliberate hard pull-down ("upar se niche khichna")
     const handleTouchStart = (e: TouchEvent) => {
       if (e.touches && e.touches.length > 0) {
         touchStartY = e.touches[0].clientY
+        touchStartX = e.touches[0].clientX
       }
     }
 
     const handleTouchMove = (e: TouchEvent) => {
       if (!e.touches || e.touches.length === 0 || menuOpen || searchOpen) return
       const currentTouchY = e.touches[0].clientY
-      const touchDelta = currentTouchY - touchStartY
+      const currentTouchX = e.touches[0].clientX
+      const touchDeltaY = currentTouchY - touchStartY
+      const touchDeltaX = Math.abs(currentTouchX - touchStartX)
 
-      // Pulling down ("upar se niche khiche", finger moves down)
-      if (touchDelta > 20) {
+      // Hard pull-down ("upar se niche khiche" with deliberate force >= 50px)
+      if (touchDeltaY > 50 && touchDeltaY > touchDeltaX * 1.3) {
         setIsNavHidden(false)
-      } else if (touchDelta < -20 && window.scrollY > 40) {
-        // Swiping up (scrolling down)
+      } else if (touchDeltaY < -20) {
+        // Swiping up (moving down into content) -> hide navbar
         setIsNavHidden(true)
       }
     }
