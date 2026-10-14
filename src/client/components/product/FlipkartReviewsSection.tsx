@@ -18,7 +18,6 @@ import {
   Lock,
 } from 'lucide-react'
 import { api, type Review, type CustomerReviewPhoto } from '../../lib/api'
-import { getThematicImagesForTitle } from '../../../lib/reviewDefaults'
 
 interface FlipkartReviewsSectionProps {
   productId: number
@@ -82,63 +81,9 @@ export default function FlipkartReviewsSection({
     { label: 'Service', score: reviewsData?.aspect_ratings?.service ?? 4.1 },
   ]
 
-  // Customer review photos (for the collage and fullscreen viewer)
-  const photos = reviewsData?.customer_photos || []
-
-  // Fallback demo photos dynamically derived from product title keywords so photos always match the product!
-  const thematicFallbackUrls = getThematicImagesForTitle(productTitle)
-  const displayPhotos: CustomerReviewPhoto[] = photos.length > 0 ? photos : [
-    {
-      url: thematicFallbackUrls[0],
-      customer_name: 'Shiv Mohan',
-      rating: 5,
-      title: 'Terrific purchase',
-      comment: 'Good product. Very useful and totally worth the price. Delivered instantly without any hassle!',
-      created_at: new Date(Date.now() - 60 * 86400000).toISOString(),
-      helpful_count: 5,
-      unhelpful_count: 0,
-    },
-    {
-      url: thematicFallbackUrls[1],
-      customer_name: 'Hanuman Singh',
-      rating: 5,
-      title: 'Value-for-money',
-      comment: 'Value for money! Best purchase in this budget. Everything is well organized and easy to use.',
-      created_at: new Date(Date.now() - 45 * 86400000).toISOString(),
-      helpful_count: 4,
-      unhelpful_count: 0,
-    },
-    {
-      url: thematicFallbackUrls[2],
-      customer_name: 'Rohan Deshmukh',
-      rating: 5,
-      title: 'Worth every penny',
-      comment: 'Good for daily use, simple and clean. Loved the experience, totally satisfied with the purchase.',
-      created_at: new Date(Date.now() - 35 * 86400000).toISOString(),
-      helpful_count: 7,
-      unhelpful_count: 0,
-    },
-    {
-      url: thematicFallbackUrls[3],
-      customer_name: 'Aarav Sharma',
-      rating: 5,
-      title: 'Just wow! Must buy',
-      comment: 'Just wow! Exceeded my expectations. The quality is top notch and works like a charm. Very happy!',
-      created_at: new Date(Date.now() - 25 * 86400000).toISOString(),
-      helpful_count: 6,
-      unhelpful_count: 0,
-    },
-    {
-      url: thematicFallbackUrls[4],
-      customer_name: 'Priya Patel',
-      rating: 4,
-      title: 'Good product',
-      comment: 'Good product, good for personal use. Smooth transaction via PhonePe and quick delivery.',
-      created_at: new Date(Date.now() - 15 * 86400000).toISOString(),
-      helpful_count: 4,
-      unhelpful_count: 0,
-    },
-  ]
+  // Customer review photos (for the collage and fullscreen viewer) - strictly filter out any unsplash links
+  const photos = (reviewsData?.customer_photos || []).filter((p) => p?.url && typeof p.url === 'string' && !p.url.includes('unsplash.com'))
+  const displayPhotos: CustomerReviewPhoto[] = photos
 
   // Time format helper (e.g. "2 months ago", "3 weeks ago")
   const formatTimeAgo = (dateStr: string) => {
@@ -353,9 +298,7 @@ export default function FlipkartReviewsSection({
                   }}
                   loading="lazy"
                   onError={(e) => {
-                    // Fallback watch image if external URL fails
-                    (e.target as HTMLImageElement).src =
-                      'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=600&auto=format&fit=crop&q=80'
+                    (e.target as HTMLImageElement).style.display = 'none'
                   }}
                 />
               </div>
@@ -398,7 +341,7 @@ export default function FlipkartReviewsSection({
                         }}
                         loading="lazy"
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src = thematicFallbackUrls[0]
+                          (e.target as HTMLImageElement).style.display = 'none'
                         }}
                       />
                       {isLastItem && remainingCount > 0 && (

@@ -37,23 +37,14 @@ app.get('/product/:productId', async (c) => {
     try {
       const parsed = JSON.parse(productRow.review_images)
       if (Array.isArray(parsed)) {
-        extraImages = parsed.filter((u: any) => typeof u === 'string' && u.trim().length > 0)
+        extraImages = parsed.filter((u: any) => typeof u === 'string' && u.trim().length > 0 && !u.includes('unsplash.com'))
       }
     } catch {
       extraImages = productRow.review_images
         .split('\n')
         .map((s) => s.trim())
-        .filter((s) => s.length > 0)
+        .filter((s) => s.length > 0 && !s.includes('unsplash.com'))
     }
-  }
-
-  // Auto-sync Google review images in background if not yet cached
-  if (extraImages.length === 0 && productRow?.title) {
-    c.executionCtx.waitUntil(
-      syncProductReviewImagesFromGoogle(c.env.DB, c.env.R2, productId, productRow.title).catch((err) => {
-        console.warn('[Auto Google Review Sync Background Error]', err)
-      })
-    )
   }
 
   const selectCols = `id, product_id, customer_name, rating, title, comment, image_url, helpful_count, unhelpful_count, is_verified_purchase, created_at`
@@ -134,9 +125,13 @@ app.get('/product/:productId', async (c) => {
     unhelpful_count: number
   }[] = []
 
-  // 1. Gather all photos already attached to reviews
+  // 1. Gather all photos already attached to reviews (strictly non-unsplash)
   for (const r of reviewsList) {
     if (r.image_url && typeof r.image_url === 'string' && r.image_url.trim().length > 0) {
+      if (r.image_url.includes('unsplash.com')) {
+        r.image_url = null
+        continue
+      }
       customerPhotos.push({
         url: r.image_url.trim(),
         review_id: r.id,
@@ -151,7 +146,7 @@ app.get('/product/:productId', async (c) => {
     }
   }
 
-  // 2. Add extra guaranteed photos (uploaded product photos + title-matched photos)
+  // 2. Add extra guaranteed photos (strictly non-unsplash)
   const fallbackNames = ['Shiv Mohan', 'Hanuman Singh', 'Aarav Sharma', 'Priya Patel', 'Vikram Malhotra', 'Sneha Verma', 'Rohan Deshmukh']
   const fallbackTitles = ['Terrific purchase', 'Value-for-money', 'Good product', 'Worth every penny', 'Just wow! Must buy']
   const fallbackComments = [
@@ -164,7 +159,7 @@ app.get('/product/:productId', async (c) => {
 
   for (let idx = 0; idx < guaranteedPhotos.length; idx++) {
     const photoUrl = guaranteedPhotos[idx]
-    if (!customerPhotos.some((p) => p.url === photoUrl)) {
+    if (photoUrl && !photoUrl.includes('unsplash.com') && !customerPhotos.some((p) => p.url === photoUrl)) {
       customerPhotos.push({
         url: photoUrl,
         customer_name: fallbackNames[idx % fallbackNames.length],
@@ -185,7 +180,7 @@ app.get('/product/:productId', async (c) => {
       rev.title = rev.rating === 5 ? 'Terrific purchase' : rev.rating === 4 ? 'Very Good' : 'Value-for-money'
     }
     // If top reviews don't have an image, attach one from guaranteed photos
-    if (!rev.image_url && i < guaranteedPhotos.length) {
+    if (!rev.image_url && i < guaranteedPhotos.length && guaranteedPhotos[i] && !guaranteedPhotos[i].includes('unsplash.com')) {
       rev.image_url = guaranteedPhotos[i]
     }
   }
