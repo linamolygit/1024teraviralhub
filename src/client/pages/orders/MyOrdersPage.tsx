@@ -35,7 +35,6 @@ export default function MyOrdersPage() {
   // Local Search & Filter State
   const [searchQuery, setSearchQuery] = useState(urlQParam || urlOrderParam || urlPhoneParam)
   const [submittedSearch, setSubmittedSearch] = useState(urlQParam || urlOrderParam || urlPhoneParam)
-  const [activeTab, setActiveTab] = useState<'all' | 'flipkart' | 'grocery' | 'minutes'>('all')
   const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'pending'>('all')
   const [showFilterModal, setShowFilterModal] = useState(false)
 
@@ -118,18 +117,12 @@ export default function MyOrdersPage() {
     setSearchParams(newParams)
   }
 
-  // Filter orders by active tab, status, and local instant search filter
+  // Filter orders by status and local instant search filter
   const displayedOrders = useMemo(() => {
     return rawOrders.filter((ord) => {
       // Status filter
       if (statusFilter === 'paid' && !ord.is_paid) return false
       if (statusFilter === 'pending' && ord.is_paid) return false
-
-      // Tab filter
-      if (activeTab === 'grocery' || activeTab === 'minutes') {
-        // We are a digital product store, so grocery/minutes tabs show empty state
-        return false
-      }
 
       // In-page text filter (if search query entered but not yet submitted)
       if (searchQuery.trim() && !submittedSearch) {
@@ -142,7 +135,7 @@ export default function MyOrdersPage() {
 
       return true
     })
-  }, [rawOrders, statusFilter, activeTab, searchQuery, submittedSearch])
+  }, [rawOrders, statusFilter, searchQuery, submittedSearch])
 
   return (
     <div
@@ -176,9 +169,8 @@ export default function MyOrdersPage() {
             padding: '14px 16px',
             background: '#FFFFFF',
             borderBottom: '1px solid #F3F4F6',
-            position: 'sticky',
-            top: 0,
-            zIndex: 30,
+            position: 'relative',
+            zIndex: 10,
           }}
         >
           <button
@@ -228,11 +220,12 @@ export default function MyOrdersPage() {
            ══════════════════════════════════════════════════════════ */}
         <div
           style={{
-            padding: '12px 16px 8px 16px',
+            padding: '12px 16px',
             display: 'flex',
             alignItems: 'center',
             gap: '12px',
             background: '#FFFFFF',
+            borderBottom: '1px solid #F3F4F6',
           }}
         >
           {/* Search Input Box */}
@@ -314,99 +307,7 @@ export default function MyOrdersPage() {
         </div>
 
         {/* ══════════════════════════════════════════════════════════
-            3. HORIZONTAL FILTER PILLS: All | Flipkart | Grocery | Minutes
-           ══════════════════════════════════════════════════════════ */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '8px 16px 14px 16px',
-            overflowX: 'auto',
-            background: '#FFFFFF',
-            borderBottom: '1px solid #F3F4F6',
-            scrollbarWidth: 'none',
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => setActiveTab('all')}
-            style={{
-              padding: '6px 18px',
-              borderRadius: '9999px',
-              border: activeTab === 'all' ? '1px solid #111827' : '1px solid #E5E7EB',
-              background: activeTab === 'all' ? '#111827' : '#FFFFFF',
-              color: activeTab === 'all' ? '#FFFFFF' : '#111827',
-              fontSize: '0.85rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            All
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('flipkart')}
-            style={{
-              padding: '6px 18px',
-              borderRadius: '9999px',
-              border: activeTab === 'flipkart' ? '1px solid #111827' : '1px solid #E5E7EB',
-              background: activeTab === 'flipkart' ? '#111827' : '#FFFFFF',
-              color: activeTab === 'flipkart' ? '#FFFFFF' : '#111827',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            Flipkart
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('grocery')}
-            style={{
-              padding: '6px 18px',
-              borderRadius: '9999px',
-              border: activeTab === 'grocery' ? '1px solid #111827' : '1px solid #E5E7EB',
-              background: activeTab === 'grocery' ? '#111827' : '#FFFFFF',
-              color: activeTab === 'grocery' ? '#FFFFFF' : '#111827',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            Grocery
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('minutes')}
-            style={{
-              padding: '6px 18px',
-              borderRadius: '9999px',
-              border: activeTab === 'minutes' ? '1px solid #111827' : '1px solid #E5E7EB',
-              background: activeTab === 'minutes' ? '#111827' : '#FFFFFF',
-              color: activeTab === 'minutes' ? '#FFFFFF' : '#111827',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            Minutes
-          </button>
-        </div>
-
-        {/* ══════════════════════════════════════════════════════════
-            4. ORDERS LIST (Exact Flipkart Style Cards)
+            3. ORDERS LIST (Exact Flipkart Style Cards)
            ══════════════════════════════════════════════════════════ */}
         <div style={{ flex: 1, background: '#FFFFFF' }}>
           {isLoading ? (
@@ -573,10 +474,6 @@ export default function MyOrdersPage() {
               >
                 {submittedSearch
                   ? 'No matching orders found'
-                  : activeTab === 'grocery'
-                  ? 'No Grocery orders yet'
-                  : activeTab === 'minutes'
-                  ? 'No Minutes orders yet'
                   : 'No orders found on this device'}
               </h2>
 

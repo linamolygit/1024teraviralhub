@@ -21,6 +21,7 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQ, setSearchQ] = useState('')
+  const [isNavHidden, setIsNavHidden] = useState(false)
   const { siteName, legalPages } = useSiteConfig()
   const navigate = useNavigate()
   const location = useLocation()
@@ -45,10 +46,11 @@ export default function Header() {
     return location.pathname === l.to
   }
 
-  // Close mobile menu on route change
+  // Close mobile menu and reset navbar on route change
   useEffect(() => {
     setMenuOpen(false)
     setSearchOpen(false)
+    setIsNavHidden(false)
   }, [location.pathname])
 
   // Prevent body scroll when mobile menu is open
@@ -61,6 +63,76 @@ export default function Header() {
     return () => { document.body.style.overflow = '' }
   }, [menuOpen])
 
+  // Mobile auto-hide on scroll-down, reveal on pull-down (scroll-up or swipe down)
+  useEffect(() => {
+    let lastScrollY = typeof window !== 'undefined' ? window.scrollY : 0
+    let touchStartY = 0
+    let ticking = false
+
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const currentScrollY = window.scrollY
+          const delta = currentScrollY - lastScrollY
+
+          // Do not hide if menu or search overlay is open
+          if (menuOpen || searchOpen) {
+            setIsNavHidden(false)
+            lastScrollY = currentScrollY
+            ticking = false
+            return
+          }
+
+          // Keep visible at top of page
+          if (currentScrollY <= 15) {
+            setIsNavHidden(false)
+          } else if (delta > 5 && currentScrollY > 40) {
+            // Scrolling down -> auto-hide navbar
+            setIsNavHidden(true)
+          } else if (delta < -5) {
+            // Pulling down / scrolling up -> show navbar
+            setIsNavHidden(false)
+          }
+
+          lastScrollY = currentScrollY
+          ticking = false
+        })
+        ticking = true
+      }
+    }
+
+    // Touch gesture listener for mobile pull-down
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches && e.touches.length > 0) {
+        touchStartY = e.touches[0].clientY
+      }
+    }
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!e.touches || e.touches.length === 0 || menuOpen || searchOpen) return
+      const currentTouchY = e.touches[0].clientY
+      const touchDelta = currentTouchY - touchStartY
+
+      // Pulling down ("upar se niche khiche", finger moves down)
+      if (touchDelta > 20) {
+        setIsNavHidden(false)
+      } else if (touchDelta < -20 && window.scrollY > 40) {
+        // Swiping up (scrolling down)
+        setIsNavHidden(true)
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    window.addEventListener('touchstart', handleTouchStart, { passive: true })
+    window.addEventListener('touchmove', handleTouchMove, { passive: true })
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+      window.removeEventListener('touchstart', handleTouchStart)
+      window.removeEventListener('touchmove', handleTouchMove)
+    }
+  }, [menuOpen, searchOpen])
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     if (searchQ.trim()) {
@@ -72,7 +144,7 @@ export default function Header() {
 
   return (
     <header
-      className={`header ${menuOpen ? 'header-menu-open' : ''}`}
+      className={`header ${menuOpen ? 'header-menu-open' : ''} ${isNavHidden && !menuOpen && !searchOpen ? 'header-hidden-mobile' : 'header-visible-mobile'}`}
       style={{ zIndex: 100, background: '#FFFFFF', borderBottom: '1px solid #E0E0E0', boxShadow: '0 1px 4px rgba(0, 0, 0, 0.05)' }}
     >
       <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '64px' }}>
