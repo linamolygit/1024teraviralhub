@@ -1,6 +1,7 @@
 // src/routes/admin/settings.ts
 import { Hono } from 'hono'
 import type { Env } from '../../worker'
+import { clearShutdownCache } from '../../worker'
 import { adminAuthMiddleware } from './middleware'
 import { getSetting, setSetting } from '../../lib/db'
 import { CashfreeClient } from '../../lib/cashfree'
@@ -48,6 +49,7 @@ async function handleSaveSettings(c: any) {
     if (statements.length > 0) {
       // Execute all statements atomically in a single D1 batch
       await c.env.DB.batch(statements)
+      clearShutdownCache()
     }
 
     return c.json({ success: true, count: statements.length })

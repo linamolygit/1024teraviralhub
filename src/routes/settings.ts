@@ -25,7 +25,9 @@ app.get('/public', async (c) => {
     // Flipkart 3-Step Checkout Flow A/B Test
     flipkartCheckoutEnabled,
     // Google Programmable Search (CSE)
-    googleCseId, googleAutoReviewPhotosEnabled
+    googleCseId, googleAutoReviewPhotosEnabled,
+    // Emergency Site Shutdown
+    siteShutdownEnabled, siteShutdownMessage
   ] = await Promise.all([
     getSetting<boolean>(c.env.DB, 'upi_direct_launch', true),
     getSetting<string>(c.env.DB, 'preferred_upi_app', 'phonepe'),
@@ -81,6 +83,9 @@ app.get('/public', async (c) => {
     // Google Programmable Search (CSE)
     getSetting<string>(c.env.DB, 'google_cse_id', '83b5a1a30d4014e75'),
     getSetting<boolean>(c.env.DB, 'google_auto_review_photos_enabled', true),
+    // Emergency Site Shutdown
+    getSetting<boolean>(c.env.DB, 'site_shutdown_enabled', false),
+    getSetting<string>(c.env.DB, 'site_shutdown_message', ''),
   ])
 
   return c.json({
@@ -135,6 +140,9 @@ app.get('/public', async (c) => {
     // Google Programmable Search (CSE)
     google_cse_id: googleCseId ?? '83b5a1a30d4014e75',
     google_auto_review_photos_enabled: googleAutoReviewPhotosEnabled ?? true,
+    // Emergency Site Shutdown
+    site_shutdown_enabled: siteShutdownEnabled ?? false,
+    site_shutdown_message: siteShutdownMessage ?? '',
   })
 })
 

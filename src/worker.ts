@@ -147,6 +147,328 @@ app.use('/api/*', cors({
   credentials: true,
 }))
 
+// ─── Emergency Site Shutdown Cache & Helpers ─────────────────
+let shutdownCache: { enabled: boolean; message: string; title: string; ts: number } | null = null
+
+export function clearShutdownCache() {
+  shutdownCache = null
+}
+
+async function getShutdownState(db: D1Database): Promise<{ enabled: boolean; message: string; title: string }> {
+  const now = Date.now()
+  if (shutdownCache && now - shutdownCache.ts < 2000) {
+    return shutdownCache
+  }
+  try {
+    const rows = await db.prepare(
+      `SELECT key, value FROM website_settings WHERE key IN ('site_shutdown_enabled', 'site_shutdown_message', 'site_shutdown_title')`
+    ).all()
+    let enabled = false
+    let message = 'We are currently performing essential server maintenance and upgrades. Public access is temporarily paused. Please check back shortly.'
+    let title = 'Site Temporarily Offline'
+    if (rows && rows.results) {
+      for (const r of (rows.results as { key: string; value: string }[])) {
+        if (r.key === 'site_shutdown_enabled') {
+          try { enabled = JSON.parse(r.value) === true } catch { enabled = r.value === 'true' }
+        } else if (r.key === 'site_shutdown_message') {
+          try { message = JSON.parse(r.value) } catch { message = r.value }
+        } else if (r.key === 'site_shutdown_title') {
+          try { title = JSON.parse(r.value) } catch { title = r.value }
+        }
+      }
+    }
+    shutdownCache = { enabled, message, title, ts: now }
+    return shutdownCache
+  } catch (e) {
+    console.error('[Shutdown check error]', e)
+    return {
+      enabled: false,
+      message: 'We are currently performing essential server maintenance and upgrades. Public access is temporarily paused. Please check back shortly.',
+      title: 'Site Temporarily Offline',
+    }
+  }
+}
+
+function renderShutdownHtml(title?: string, message?: string): string {
+  const cleanTitle = escapeHtml(title || 'Site Temporarily Offline')
+  const cleanMessage = escapeHtml(message || 'We are currently performing essential server maintenance and upgrades. Public access is temporarily paused. Please check back shortly.')
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>${cleanTitle} — 1024TeraViralHub</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #080c14;
+      background-image: 
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(239, 68, 68, 0.18), transparent),
+        radial-gradient(ellipse 60% 40% at 50% 120%, rgba(30, 41, 59, 0.5), transparent);
+      color: #f1f5f9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      overflow-x: hidden;
+    }
+    .card {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(239, 68, 68, 0.28);
+      border-radius: 24px;
+      padding: 44px 32px;
+      max-width: 540px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 40px rgba(239, 68, 68, 0.12);
+      animation: fadeIn 0.4s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .icon-wrapper {
+      position: relative;
+      width: 84px;
+      height: 84px;
+      margin: 0 auto 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .pulse-ring {
+      position: absolute;
+      inset: -6px;
+      border-radius: 50%;
+      background: rgba(239, 68, 68, 0.2);
+      animation: pulse 2.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 0.7; }
+      50% { transform: scale(1.15); opacity: 0.15; }
+    }
+    .icon-box {
+      position: relative;
+      width: 84px;
+      height: 84px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ef4444 0%, #991b1b 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 10px 25px rgba(239, 68, 68, 0.4);
+      color: #ffffff;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      background: rgba(239, 68, 68, 0.14);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      color: #fca5a5;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ef4444;
+      box-shadow: 0 0 10px #ef4444;
+      animation: blink 1.5s infinite;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+    h1 {
+      font-size: 1.65rem;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 12px;
+      line-height: 1.3;
+    }
+    p {
+      font-size: 0.95rem;
+      color: #94a3b8;
+      line-height: 1.65;
+      margin-bottom: 28px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: #ffffff;
+      border: none;
+      padding: 12px 26px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 0.92rem;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35);
+    }
+    .btn:hover {
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45);
+    }
+    .auto-check {
+      margin-top: 24px;
+      font-size: 0.8rem;
+      color: #64748b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .footer {
+      margin-top: 32px;
+      text-align: center;
+      font-size: 0.82rem;
+      color: #475569;
+    }
+    .admin-link {
+      color: #64748b;
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.15s;
+    }
+    .admin-link:hover {
+      color: #94a3b8;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon-wrapper">
+      <div class="pulse-ring"></div>
+      <div class="icon-box">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+          <line x1="12" y1="2" x2="12" y2="12"></line>
+        </svg>
+      </div>
+    </div>
+
+    <div class="badge">
+      <span class="dot"></span>
+      <span>HTTP 503 • Offline for Maintenance</span>
+    </div>
+
+    <h1>${cleanTitle}</h1>
+    <p>${cleanMessage}</p>
+
+    <button class="btn" onclick="window.location.reload()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 4 23 10 17 10"></polyline>
+        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+      </svg>
+      Check Again / Refresh
+    </button>
+
+    <div class="auto-check">
+      <span>Auto-checking status in background...</span>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p style="margin: 0;">1024TeraViralHub • All systems monitored</p>
+    <p style="margin-top: 8px;">
+      <a href="/admin" class="admin-link">Store Administrator Login &rarr;</a>
+    </p>
+  </div>
+
+  <script>
+    // Automatic retry check every 15 seconds
+    setInterval(function() {
+      fetch(window.location.href, { method: 'HEAD', cache: 'no-store' })
+        .then(function(res) {
+          if (res.status === 200 || res.status === 302) {
+            window.location.reload();
+          }
+        })
+        .catch(function() {});
+    }, 15000);
+  </script>
+</body>
+</html>`
+}
+
+// ─── Emergency Site Shutdown / Maintenance Interceptor ───────
+app.use('*', async (c, next) => {
+  const path = c.req.path
+
+  // 1. Admin UI and Admin API routes are NEVER blocked (Admin can always access & toggle back)
+  if (path.startsWith('/admin') || path.startsWith('/api/admin')) {
+    return next()
+  }
+
+  // 2. Gateway Webhooks must not fail (prevent dropping paid user order completions)
+  if (path.startsWith('/api/cashfree') || path.startsWith('/api/razorpay')) {
+    return next()
+  }
+
+  // 3. Static assets needed by the admin panel or browser (JS bundles, CSS, fonts, favicon)
+  if (
+    path.startsWith('/assets/') ||
+    path === '/favicon.ico' ||
+    path.startsWith('/vite.svg') ||
+    path.endsWith('.js') ||
+    path.endsWith('.css') ||
+    path.endsWith('.woff') ||
+    path.endsWith('.woff2') ||
+    path.endsWith('.ttf')
+  ) {
+    return next()
+  }
+
+  // 4. Check if site shutdown is enabled in database
+  const shutdown = await getShutdownState(c.env.DB)
+  if (shutdown && shutdown.enabled) {
+    // If it's a public API request (/api/products, /api/checkout, /api/order-lookup, etc.)
+    if (path.startsWith('/api/')) {
+      return c.json({
+        error: shutdown.title || 'Site Temporarily Offline',
+        message: shutdown.message || 'We are currently performing maintenance. Public access is temporarily paused.',
+        shutdown: true,
+      }, 503, {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        'Retry-After': '120',
+      })
+    }
+
+    // For any public website page (/ , /product/*, /checkout, /blog/*, /order/*, etc.)
+    const html = renderShutdownHtml(shutdown.title, shutdown.message)
+    return new Response(html, {
+      status: 503,
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        'Retry-After': '120',
+      },
+    })
+  }
+
+  return next()
+})
+
 // ─── Realtime No-Cache Header for API responses (excluding image/media assets) ───
 app.use('/api/*', async (c, next) => {
   await next()

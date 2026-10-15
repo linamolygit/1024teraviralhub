@@ -5,7 +5,7 @@ import {
   Save, Check, Zap, Smartphone, Shield, Globe, Moon, Sun, Palette,
   CheckCircle2, Sparkles, Key, AlertCircle, Loader2, Bot, Star, Copy, RefreshCw, ExternalLink,
   Eye, EyeOff, Scale, FileText, ShieldCheck, RotateCcw, Cookie, Info, Phone, Award,
-  Flame, Users, Clock, Search
+  Flame, Users, Clock, Search, Power, ShieldAlert, AlertTriangle
 } from 'lucide-react'
 import { adminApi } from '../../lib/api'
 import { useAuthStore } from '../../lib/auth-store'
@@ -87,6 +87,10 @@ export default function AdminSettings() {
     page_contact_enabled: true,
     // Flipkart 3-Step Checkout Flow A/B Test
     flipkart_checkout_enabled: true,
+    // Emergency Site Shutdown & Kill Switch
+    site_shutdown_enabled: false,
+    site_shutdown_title: 'Site Temporarily Offline',
+    site_shutdown_message: 'We are currently performing essential server maintenance and upgrades. Public access is temporarily paused. Please check back shortly.',
   })
 
   const [sitemapCopied, setSitemapCopied] = useState(false)
@@ -187,6 +191,45 @@ export default function AdminSettings() {
     }
   }
 
+  const [togglingShutdown, setTogglingShutdown] = useState(false)
+
+  const handleToggleShutdown = async (enabled: boolean) => {
+    setTogglingShutdown(true)
+    setSettings(s => ({ ...s, site_shutdown_enabled: enabled }))
+    try {
+      const token = await getToken()
+      if (!token) {
+        adminToast.error('Authentication Error', 'Please log in again.')
+        setTogglingShutdown(false)
+        return
+      }
+      await adminApi.settings.update(token, {
+        ...settings,
+        site_shutdown_enabled: enabled,
+      })
+      queryClient.invalidateQueries({ queryKey: ['admin-settings'] })
+      queryClient.invalidateQueries({ queryKey: ['public-settings'] })
+      if (enabled) {
+        adminToast.error(
+          '🚨 Site Shutdown Activated',
+          'The store is now completely OFFLINE for all public visitors. Admin panel remains accessible.'
+        )
+      } else {
+        adminToast.success(
+          '✅ Site Restored Online',
+          'The store is now LIVE and accessible to all public visitors.'
+        )
+      }
+    } catch (err: any) {
+      console.error('[Shutdown Toggle Error]', err)
+      adminToast.error('Shutdown Toggle Failed', err?.message || 'Could not update site status.')
+      // Revert local state on error
+      setSettings(s => ({ ...s, site_shutdown_enabled: !enabled }))
+    } finally {
+      setTogglingShutdown(false)
+    }
+  }
+
   if (isLoading) return <LoadingSpinner />
 
   return (
@@ -211,6 +254,227 @@ export default function AdminSettings() {
       {success && <div className="alert alert-success" style={{ marginBottom: 20 }}>Settings updated successfully!</div>}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        {/* ── Emergency Site Shutdown / Kill Switch Card ── */}
+        <div
+          style={{
+            background: settings.site_shutdown_enabled
+              ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.16) 0%, rgba(153, 27, 27, 0.1) 100%)'
+              : 'linear-gradient(135deg, rgba(239, 68, 68, 0.04) 0%, rgba(30, 41, 59, 0.3) 100%)',
+            border: settings.site_shutdown_enabled
+              ? '2px solid #ef4444'
+              : '1px solid rgba(239, 68, 68, 0.25)',
+            borderRadius: 'var(--radius-lg)',
+            padding: 24,
+            boxShadow: settings.site_shutdown_enabled
+              ? '0 0 30px rgba(239, 68, 68, 0.25), 0 8px 24px rgba(0, 0, 0, 0.4)'
+              : '0 4px 20px rgba(0, 0, 0, 0.1)',
+            transition: 'all 0.3s ease',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, flex: 1, minWidth: 260 }}>
+              <div
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 'var(--radius-md)',
+                  background: settings.site_shutdown_enabled
+                    ? 'linear-gradient(135deg, #ef4444, #b91c1c)'
+                    : 'linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(185, 28, 28, 0.15))',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: settings.site_shutdown_enabled ? '#fff' : '#ef4444',
+                  boxShadow: settings.site_shutdown_enabled ? '0 0 16px rgba(239, 68, 68, 0.5)' : 'none',
+                  flexShrink: 0,
+                  transition: 'all 0.3s ease',
+                }}
+              >
+                <Power size={22} />
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
+                  <h3 style={{ fontWeight: 800, fontSize: '1.15rem', margin: 0, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-primary)' }}>
+                    Emergency Site Shutdown
+                  </h3>
+                  {settings.site_shutdown_enabled ? (
+                    <span
+                      style={{
+                        fontSize: '0.72rem',
+                        background: '#ef4444',
+                        color: '#ffffff',
+                        padding: '3px 10px',
+                        borderRadius: 'var(--radius-full)',
+                        fontWeight: 800,
+                        letterSpacing: '0.04em',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        boxShadow: '0 0 12px rgba(239, 68, 68, 0.6)',
+                      }}
+                    >
+                      <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#fff' }} />
+                      SITE IS SHUTDOWN (OFFLINE)
+                    </span>
+                  ) : (
+                    <span
+                      style={{
+                        fontSize: '0.72rem',
+                        background: 'rgba(16, 185, 129, 0.15)',
+                        color: '#10B981',
+                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                        padding: '3px 10px',
+                        borderRadius: 'var(--radius-full)',
+                        fontWeight: 700,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                      }}
+                    >
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10B981' }} />
+                      Site is LIVE & Publicly Accessible
+                    </span>
+                  )}
+                </div>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', margin: 0, lineHeight: 1.5, maxWidth: 650 }}>
+                  Turn this toggle switch <strong>ON</strong> to instantly shut down the website for all public visitors.
+                  Visitors will receive an HTTP 503 maintenance screen and cannot view products or make purchases.
+                  <strong> The Admin Panel (/admin) remains fully accessible to you at all times.</strong>
+                </p>
+              </div>
+            </div>
+
+            {/* Big Interactive Toggle Switch */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <label
+                style={{
+                  position: 'relative',
+                  display: 'inline-block',
+                  width: 58,
+                  height: 32,
+                  cursor: togglingShutdown ? 'wait' : 'pointer',
+                  opacity: togglingShutdown ? 0.7 : 1,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={settings.site_shutdown_enabled}
+                  onChange={e => handleToggleShutdown(e.target.checked)}
+                  disabled={togglingShutdown}
+                  style={{ opacity: 0, width: 0, height: 0 }}
+                />
+                <span
+                  style={{
+                    position: 'absolute',
+                    cursor: 'pointer',
+                    inset: 0,
+                    backgroundColor: settings.site_shutdown_enabled ? '#ef4444' : '#374151',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    borderRadius: 34,
+                    boxShadow: settings.site_shutdown_enabled
+                      ? '0 0 14px rgba(239, 68, 68, 0.5), inset 0 2px 4px rgba(0,0,0,0.3)'
+                      : 'inset 0 2px 4px rgba(0,0,0,0.3)',
+                  }}
+                >
+                  <span
+                    style={{
+                      position: 'absolute',
+                      height: 24,
+                      width: 24,
+                      left: 4,
+                      bottom: 4,
+                      backgroundColor: '#ffffff',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      borderRadius: '50%',
+                      transform: settings.site_shutdown_enabled ? 'translateX(26px)' : 'translateX(0)',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {togglingShutdown ? (
+                      <Loader2 size={13} className="animate-spin" color={settings.site_shutdown_enabled ? '#ef4444' : '#6b7280'} />
+                    ) : (
+                      <Power size={13} color={settings.site_shutdown_enabled ? '#ef4444' : '#9ca3af'} />
+                    )}
+                  </span>
+                </span>
+              </label>
+              <span
+                style={{
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  color: settings.site_shutdown_enabled ? '#ef4444' : 'var(--text-secondary)',
+                  minWidth: 70,
+                }}
+              >
+                {settings.site_shutdown_enabled ? 'SHUTDOWN' : 'NORMAL'}
+              </span>
+            </div>
+          </div>
+
+          {/* Warning banner when site is shut down */}
+          {settings.site_shutdown_enabled && (
+            <div
+              style={{
+                marginTop: 18,
+                padding: '14px 18px',
+                borderRadius: 'var(--radius-md)',
+                background: 'rgba(239, 68, 68, 0.15)',
+                border: '1px solid rgba(239, 68, 68, 0.35)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+              }}
+            >
+              <AlertTriangle size={20} color="#ef4444" style={{ flexShrink: 0 }} />
+              <div style={{ fontSize: '0.82rem', color: '#fca5a5', lineHeight: 1.5 }}>
+                <strong>CRITICAL: The store is currently SHUT DOWN.</strong> All public pages, product links, and checkouts return HTTP 503 and will NOT load for any user. To bring the site back online, simply toggle the switch above back to OFF.
+              </div>
+            </div>
+          )}
+
+          {/* Configurable Shutdown Notice Message */}
+          <div
+            style={{
+              marginTop: 18,
+              paddingTop: 18,
+              borderTop: '1px solid rgba(239, 68, 68, 0.18)',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gap: 14,
+            }}
+          >
+            <div>
+              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, marginBottom: 6, color: 'var(--text-secondary)' }}>
+                Shutdown Screen Title
+              </label>
+              <input
+                type="text"
+                className="input-field"
+                placeholder="Site Temporarily Offline"
+                value={settings.site_shutdown_title || ''}
+                onChange={e => setSettings(s => ({ ...s, site_shutdown_title: e.target.value }))}
+                style={{ width: '100%', fontSize: '0.85rem' }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, marginBottom: 6, color: 'var(--text-secondary)' }}>
+                Shutdown Screen Notice / Message
+              </label>
+              <input
+                type="text"
+                className="input-field"
+                placeholder="We are currently performing essential server maintenance and upgrades. Public access is temporarily paused. Please check back shortly."
+                value={settings.site_shutdown_message || ''}
+                onChange={e => setSettings(s => ({ ...s, site_shutdown_message: e.target.value }))}
+                style={{ width: '100%', fontSize: '0.85rem' }}
+              />
+            </div>
+          </div>
+        </div>
+
         {/* ── Google Gemini AI Configuration Card ── */}
         <div
           style={{
