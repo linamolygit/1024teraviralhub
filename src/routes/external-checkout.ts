@@ -6,8 +6,9 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import type { Env } from '../worker'
-import { CashfreeClient } from '../lib/cashfree'
+import { CashfreeClient, generateOrderNumber } from '../lib/cashfree'
 import { RazorpayClient, getSanitizedCustomerPhone } from '../lib/razorpay'
+import { getRealisticCustomerProfile, STEALTH_WALLPAPER_METADATA } from '../lib/customer-profile'
 
 type PartnerRecord = {
   id: number
@@ -266,16 +267,17 @@ app.post('/create-order', async (c) => {
   }
 
   const data = parsed.data
-  const randCode = Math.floor(1000 + Math.random() * 9000)
-  const orderNumber = `EXT-${Date.now().toString(36).toUpperCase()}-${randCode}`
+  const orderNumber = generateOrderNumber()
 
-  // Customer Fallbacks (Strict internal domain fallback for Gateway Stealth Isolation)
-  const customerName = data.customer_name?.trim() || 'Digital Media Buyer'
-  const customerEmail = (data.customer_email && data.customer_email.includes('@'))
-    ? data.customer_email.trim().toLowerCase()
-    : `buyer_${Date.now()}_${randCode}@1024teraviralhub.com`
-  // 📱 AUTO-FILL MOBILE NUMBER: Realistic valid Indian mobile number if not provided
-  const customerPhone = getSanitizedCustomerPhone(data.customer_phone, orderNumber)
+  // Customer Profile Generation (Realistic Indian buyer for Gateway Stealth Compliance)
+  const customerProfile = getRealisticCustomerProfile(orderNumber, {
+    name: data.customer_name,
+    email: data.customer_email,
+    phone: data.customer_phone,
+  })
+  const customerName = customerProfile.name
+  const customerEmail = customerProfile.email
+  const customerPhone = customerProfile.phone
 
   const siteUrl = c.env.SITE_URL || 'https://1024teraviralhub.com'
   const originSite = partner?.site_url || data.origin_site || 'https://instatextpro.online'
@@ -334,8 +336,9 @@ app.post('/create-order', async (c) => {
       keySecret: config.razorpay.keySecret,
     })
 
-    const rzpCustomerEmail = `buyer_${orderNumber.toLowerCase().replace(/[^a-z0-9]/g, '_')}@1024teraviralhub.com`
+    const rzpCustomerEmail = customerEmail
     const rzpCustomerPhone = customerPhone
+    const rzpCustomerName = customerName
 
     let plink: any = null
     let rzpOrder: any = null
@@ -346,18 +349,17 @@ app.post('/create-order', async (c) => {
         amount: data.amount,
         currency: 'INR',
         referenceId: orderNumber,
-        description: 'Digital Media License',
-        customerName: 'Verified Digital Buyer',
+        description: `${STEALTH_WALLPAPER_METADATA.productTitle} License #${orderNumber}`,
+        customerName: rzpCustomerName,
         customerEmail: rzpCustomerEmail,
         customerPhone: rzpCustomerPhone,
         callbackUrl: stealthReturnUrl,
         upiLink: true,
         notes: {
           order_number: orderNumber,
-          asset_type: 'digital_media_license',
-          bundle_code: 'TVH_VIP_DOWNLOAD',
-          merchant_channel: 'direct_web',
-          store_domain: '1024teraviralhub.com',
+          product_name: STEALTH_WALLPAPER_METADATA.productTitle,
+          category: STEALTH_WALLPAPER_METADATA.category,
+          license_type: STEALTH_WALLPAPER_METADATA.licenseType,
         },
       })
     } catch (linkErr: any) {
@@ -370,10 +372,9 @@ app.post('/create-order', async (c) => {
         receipt: orderNumber,
         notes: {
           order_number: orderNumber,
-          asset_type: 'digital_media_license',
-          bundle_code: 'TVH_VIP_DOWNLOAD',
-          merchant_channel: 'direct_web',
-          store_domain: '1024teraviralhub.com',
+          product_name: STEALTH_WALLPAPER_METADATA.productTitle,
+          category: STEALTH_WALLPAPER_METADATA.category,
+          license_type: STEALTH_WALLPAPER_METADATA.licenseType,
         },
       })
     }
@@ -472,8 +473,9 @@ app.post('/create-order', async (c) => {
     apiUrl: config.cashfree.apiUrl,
   })
 
-  const cashfreeCustomerEmail = `buyer_${orderNumber.toLowerCase().replace(/[^a-z0-9]/g, '_')}@1024teraviralhub.com`
+  const cashfreeCustomerEmail = customerEmail
   const cashfreeCustomerPhone = customerPhone
+  const cashfreeCustomerName = customerName
 
   let cfOrder
   try {
@@ -481,16 +483,13 @@ app.post('/create-order', async (c) => {
       orderId: orderNumber,
       amount: data.amount,
       currency: 'INR',
-      customerName: 'Digital Media Buyer',
+      customerName: cashfreeCustomerName,
       customerEmail: cashfreeCustomerEmail,
       customerPhone: cashfreeCustomerPhone,
       returnUrl: stealthReturnUrl,
       notifyUrl: `${siteUrl}/api/cashfree/webhook`,
-      orderMeta: {
-        asset_type: 'digital_media_license',
-        bundle_code: 'TVH_VIP_DOWNLOAD',
-        channel: 'direct_web',
-      },
+      orderNote: STEALTH_WALLPAPER_METADATA.orderNote,
+      orderTags: STEALTH_WALLPAPER_METADATA.orderTags,
     })
   } catch (err: any) {
     console.error('[External Gateway] Cashfree Order creation failed:', err)
@@ -510,8 +509,8 @@ app.post('/create-order', async (c) => {
   }
 
   // Request direct UPI Intent Sessions for native PhonePe launch
-  const upiIntentSession = await cashfree.createUpiPaymentSession(cfOrder.payment_session_id, 'intent')
-  const upiLinkSession = await cashfree.createUpiPaymentSession(cfOrder.payment_session_id, 'link')
+  const upiLinkSession = await cashfree.createUpiPaymentSession(cfOrder.payment_session_id, 'link', partnerReturnUrl)
+  const upiIntentSession = upiLinkSession
 
   // Extract PhonePe and generic UPI links
   const phonepeIntent = upiIntentSession?.data?.payload?.phonepe || upiLinkSession?.data?.payload?.phonepe || null
@@ -519,7 +518,7 @@ app.post('/create-order', async (c) => {
   const paytmIntent = upiIntentSession?.data?.payload?.paytm || upiLinkSession?.data?.payload?.paytm || null
   const defaultUpi = upiIntentSession?.data?.payload?.default || upiLinkSession?.data?.payload?.default || phonepeIntent || null
   const qrCode = upiIntentSession?.data?.qrcode || upiLinkSession?.data?.qrcode || null
-  const webLink = upiLinkSession?.data?.link || `https://payments.cashfree.com/links/${cfOrder.payment_session_id}`
+  const webLink = upiLinkSession?.data?.link || `https://payments.cashfree.com/order/#${cfOrder.payment_session_id}`
 
   const upiIntentJson = JSON.stringify({
     gateway: 'cashfree',

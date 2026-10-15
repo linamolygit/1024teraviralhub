@@ -358,6 +358,27 @@ export default function FlipkartOrderDetailsPage() {
               </Link>
             </div>
 
+            {/* ── Order ID Sub-Bar (Flipkart Mobile App Style) ── */}
+            {(orderData?.order_number || orderParam) && (
+              <div
+                style={{
+                  padding: '9px 16px',
+                  background: '#FFFFFF',
+                  borderBottom: '1px solid #F3F4F6',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <div style={{ fontSize: '0.84rem', color: '#6B7280', fontWeight: 500 }}>
+                  Order ID -{' '}
+                  <span style={{ color: '#111827', fontWeight: 700, fontFamily: 'monospace', letterSpacing: '0.02em' }}>
+                    {orderData?.order_number || orderParam}
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* ── 2. Product Summary Card (Screenshot 1 top item) ── */}
             <div
               style={{
@@ -820,6 +841,27 @@ export default function FlipkartOrderDetailsPage() {
                 Tracking Updates
               </h1>
             </div>
+
+            {/* Order ID Sub-Bar */}
+            {(orderData?.order_number || orderParam) && (
+              <div
+                style={{
+                  padding: '9px 16px',
+                  background: '#FFFFFF',
+                  borderBottom: '1px solid #F3F4F6',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <div style={{ fontSize: '0.84rem', color: '#6B7280', fontWeight: 500 }}>
+                  Order ID -{' '}
+                  <span style={{ color: '#111827', fontWeight: 700, fontFamily: 'monospace', letterSpacing: '0.02em' }}>
+                    {orderData?.order_number || orderParam}
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* Vertical Animated Timeline Container (Matching Screenshot 2) */}
             <div style={{ padding: '24px 20px 30px 24px', position: 'relative' }}>

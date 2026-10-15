@@ -27,11 +27,16 @@ app.get('/', async (c) => {
 
   // Clean raw order number
   const orderNumber = rawQuery.toUpperCase().replace(/^#/, '').trim()
-  const orderAlt = orderNumber.startsWith('TVH-') ? orderNumber : `TVH-${orderNumber}`
+  const odAlt = orderNumber.startsWith('OD') ? orderNumber : `OD${orderNumber}`
+  const tvhAlt = orderNumber.startsWith('TVH-') ? orderNumber : `TVH-${orderNumber}`
 
-  // If query looks like a 10-digit phone number
+  // If query looks like a genuine 10 to 13-digit Indian mobile number (and not an OD order number)
   const queryPhone = rawQuery.replace(/[^0-9]/g, '')
-  const isPhone = queryPhone.length >= 10
+  const isPhone =
+    !orderNumber.startsWith('OD') &&
+    queryPhone.length >= 10 &&
+    queryPhone.length <= 13 &&
+    /^[6-9]/.test(queryPhone.slice(-10))
 
   if (!orderNumber && !emailParam && !phoneParam) {
     return c.json({ error: 'Please provide an Order Number, Mobile Number, or Email address.' }, 400)
@@ -39,13 +44,13 @@ app.get('/', async (c) => {
 
   let order: any = null
 
-  // 1. Try lookup by Order Number
+  // 1. Try lookup by Order Number (supports OD..., TVH-..., and raw digits)
   if (orderNumber) {
     order = await c.env.DB.prepare(`
       SELECT * FROM orders
-      WHERE (order_number = ? OR order_number = ?)
+      WHERE (order_number = ? OR order_number = ? OR order_number = ?)
       ORDER BY created_at DESC LIMIT 1
-    `).bind(orderNumber, orderAlt).first()
+    `).bind(orderNumber, odAlt, tvhAlt).first()
   }
 
   // 2. Try lookup by Phone Number if not found
@@ -177,18 +182,23 @@ app.get('/my-orders', async (c) => {
 
   // Query database matching any criteria
   const queryPhone = queryParam.replace(/[^0-9]/g, '')
-  const isPhoneSearch = queryPhone.length >= 10
+  const isPhoneSearch =
+    !queryParam.toUpperCase().startsWith('OD') &&
+    queryPhone.length >= 10 &&
+    queryPhone.length <= 13 &&
+    /^[6-9]/.test(queryPhone.slice(-10))
   const searchTargetPhone = phoneParam || (isPhoneSearch ? queryPhone.slice(-10) : '')
 
   const matchedOrdersMap = new Map<number, any>()
 
-  // 1. By Order Numbers
+  // 1. By Order Numbers (Supports OD..., TVH-..., and numeric input)
   if (orderNumsToQuery.length > 0) {
     for (const ordNum of orderNumsToQuery) {
-      const ordAlt = ordNum.startsWith('TVH-') ? ordNum : `TVH-${ordNum}`
+      const odAlt = ordNum.startsWith('OD') ? ordNum : `OD${ordNum}`
+      const tvhAlt = ordNum.startsWith('TVH-') ? ordNum : `TVH-${ordNum}`
       const rows = await c.env.DB.prepare(`
-        SELECT * FROM orders WHERE order_number = ? OR order_number = ? ORDER BY id DESC LIMIT 5
-      `).bind(ordNum, ordAlt).all()
+        SELECT * FROM orders WHERE order_number = ? OR order_number = ? OR order_number = ? ORDER BY id DESC LIMIT 5
+      `).bind(ordNum, odAlt, tvhAlt).all()
       for (const r of (rows.results as any[] || [])) {
         matchedOrdersMap.set(r.id, r)
       }
@@ -219,10 +229,11 @@ app.get('/my-orders', async (c) => {
   // 4. By generic search query (Order # or Product Title match)
   if (queryParam && !isPhoneSearch && !queryParam.includes('@')) {
     const cleanQ = queryParam.toUpperCase().replace(/^#/, '')
-    const altQ = cleanQ.startsWith('TVH-') ? cleanQ : `TVH-${cleanQ}`
+    const odAlt = cleanQ.startsWith('OD') ? cleanQ : `OD${cleanQ}`
+    const tvhAlt = cleanQ.startsWith('TVH-') ? cleanQ : `TVH-${cleanQ}`
     const qRows = await c.env.DB.prepare(`
-      SELECT * FROM orders WHERE order_number LIKE ? OR order_number LIKE ? ORDER BY created_at DESC LIMIT 10
-    `).bind(`%${cleanQ}%`, `%${altQ}%`).all()
+      SELECT * FROM orders WHERE order_number LIKE ? OR order_number LIKE ? OR order_number LIKE ? ORDER BY created_at DESC LIMIT 10
+    `).bind(`%${cleanQ}%`, `%${odAlt}%`, `%${tvhAlt}%`).all()
     for (const r of (qRows.results as any[] || [])) {
       matchedOrdersMap.set(r.id, r)
     }
@@ -346,15 +357,16 @@ app.post('/chat', async (c) => {
     }
 
     const rawOrder = (body.order_number || '').trim().toUpperCase().replace(/^#/, '')
-    const orderAlt = rawOrder.startsWith('TVH-') ? rawOrder : `TVH-${rawOrder}`
+    const odAlt = rawOrder.startsWith('OD') ? rawOrder : `OD${rawOrder}`
+    const tvhAlt = rawOrder.startsWith('TVH-') ? rawOrder : `TVH-${rawOrder}`
 
     let order: any = null
     if (rawOrder) {
       order = await c.env.DB.prepare(`
         SELECT * FROM orders
-        WHERE (order_number = ? OR order_number = ?)
+        WHERE (order_number = ? OR order_number = ? OR order_number = ?)
         ORDER BY created_at DESC LIMIT 1
-      `).bind(rawOrder, orderAlt).first()
+      `).bind(rawOrder, odAlt, tvhAlt).first()
     }
 
     // Resolve real product details

@@ -444,6 +444,11 @@ export default function FlipkartSupportChatPage() {
                         >
                           {orderData?.product || msg.content}
                         </div>
+                        {(orderData?.order_number || activeOrderNum) && (
+                          <div style={{ fontSize: '0.74rem', color: '#6B7280', marginTop: '3px' }}>
+                            Order ID: <strong style={{ color: '#111827', fontFamily: 'monospace' }}>{orderData?.order_number || activeOrderNum}</strong>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

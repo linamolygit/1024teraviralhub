@@ -93,7 +93,7 @@ export default function OrderLookupPage() {
               <input
                 type="text"
                 className="input-field"
-                placeholder="e.g. TVH-20250830-0001"
+                placeholder="e.g. OD328762145892019100"
                 value={orderNumber}
                 onChange={e => setOrderNumber(e.target.value.toUpperCase())}
                 required
@@ -105,7 +105,7 @@ export default function OrderLookupPage() {
                 }}
               />
               <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 6, margin: '6px 0 0' }}>
-                You can enter with or without the prefix (e.g. TVH-20250830-0001 or 20250830-0001)
+                You can enter with or without prefix (e.g. OD328762145892019100 or 328762145892019100)
               </p>
             </div>
 
