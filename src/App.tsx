@@ -14,6 +14,7 @@ import GoogleServicesHead from './client/components/GoogleServicesHead'
 import ThemeProvider from './client/components/ThemeProvider'
 import ErrorBoundary from './client/components/ErrorBoundary'
 import NonBuyerAdTrigger from './client/components/ads/NonBuyerAdTrigger'
+import ShutdownScreen from './client/components/ShutdownScreen'
 import { lazyWithRetry } from './client/lib/lazyWithRetry'
 import { initAnalyticsListeners, trackPageView } from './client/lib/analytics-tracker'
 import { useSiteConfig } from './client/lib/site-config'
@@ -136,7 +137,8 @@ function ScrollToTop() {
 
 export default function App() {
   const initialize = useAuthStore(s => s.initialize)
-  const { legalPages } = useSiteConfig()
+  const { legalPages, siteShutdownEnabled, siteShutdownMessage } = useSiteConfig()
+  const { pathname } = useLocation()
 
   useEffect(() => {
     if (typeof window !== 'undefined' && 'scrollRestoration' in window.history) {
@@ -146,6 +148,10 @@ export default function App() {
     saveUtmParams()
     initAnalyticsListeners()
   }, [initialize])
+
+  if (siteShutdownEnabled && !pathname.startsWith('/admin')) {
+    return <ShutdownScreen message={siteShutdownMessage} />
+  }
 
   return (
     <ThemeProvider>

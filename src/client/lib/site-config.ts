@@ -29,6 +29,8 @@ export interface SiteConfig {
   fomoDealOfDayEnabled: boolean
   metaPixelId: string
   metaPixelEnabled: boolean
+  siteShutdownEnabled: boolean
+  siteShutdownMessage: string
 }
 
 /**
@@ -76,6 +78,8 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
     about: true,
     contact: true,
   },
+  siteShutdownEnabled: false,
+  siteShutdownMessage: '',
 }
 
 export function useSiteConfig(): SiteConfig {
@@ -112,6 +116,8 @@ export function useSiteConfig(): SiteConfig {
       about: (publicSettings as any).page_about_enabled ?? true,
       contact: (publicSettings as any).page_contact_enabled ?? true,
     },
+    siteShutdownEnabled: Boolean((publicSettings as any).site_shutdown_enabled),
+    siteShutdownMessage: String((publicSettings as any).site_shutdown_message || ''),
   }
 }
 

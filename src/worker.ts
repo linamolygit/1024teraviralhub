@@ -899,7 +899,7 @@ app.get('*', async (c) => {
         return new Response(html, {
           headers: {
             'Content-Type': 'text/html; charset=utf-8',
-            'Cache-Control': 'public, max-age=60, s-maxage=300',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
           },
         })
       }
@@ -1061,7 +1061,7 @@ app.get('*', async (c) => {
         return new Response(html, {
           headers: {
             'Content-Type': 'text/html; charset=utf-8',
-            'Cache-Control': 'public, max-age=60, s-maxage=300',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
           },
         })
       }
@@ -1084,7 +1084,7 @@ app.get('*', async (c) => {
   return new Response(html, {
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': 'public, max-age=60, s-maxage=300',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
     },
   })
 })
