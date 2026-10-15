@@ -12,7 +12,13 @@ import {
   ArrowLeft,
   Check,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
+  Copy,
+  Send,
+  Info,
   ThumbsUp,
+  Download,
 } from 'lucide-react'
 import { api, type OrderLookupResult } from '../../lib/api'
 import { getThematicImagesForTitle } from '../../../lib/reviewDefaults'
@@ -99,6 +105,31 @@ function formatFlipkartTime(d: Date): string {
   return `${hours}:${minStr}${ampm}`
 }
 
+// Generate authentic Flipkart-style subtitle based on real product type
+function getProductSubtitle(title: string): string {
+  if (!title) return 'Format: Digital Pack • Instant Access'
+  const lower = title.toLowerCase()
+  if (lower.includes('shoe') || lower.includes('canvas') || lower.includes('sneaker') || lower.includes('footwear')) {
+    return 'Size: 7 • Color: Black,White'
+  }
+  if (lower.includes('iphone') || lower.includes('vivo') || lower.includes('phone') || lower.includes('mobile')) {
+    return 'RAM: 8 GB • Storage: 128 GB'
+  }
+  if (lower.includes('murti') || lower.includes('idol') || lower.includes('statue')) {
+    return 'Material: Brass/Polyresin • Standard Size'
+  }
+  if (lower.includes('stove') || lower.includes('cooker') || lower.includes('appliance') || lower.includes('steamer')) {
+    return 'Color: Black • Warranty: 1 Year'
+  }
+  if (lower.includes('light') || lower.includes('jhalar')) {
+    return 'Pack of 3 • Color: Warm White'
+  }
+  if (lower.includes('wallpaper') || lower.includes('pack')) {
+    return 'Format: Ultra HD 4K • Instant Delivery'
+  }
+  return 'Format: Digital Pack • Instant Access'
+}
+
 export default function FlipkartOrderDetailsPage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
@@ -112,6 +143,37 @@ export default function FlipkartOrderDetailsPage() {
 
   // View state: 'summary' (Screenshot 1: Order Details) or 'updates' (Screenshot 2: All Updates Timeline)
   const [activeView, setActiveView] = useState<'summary' | 'updates'>('summary')
+  const [orderCopied, setOrderCopied] = useState(false)
+  const [isAccordionOpen, setIsAccordionOpen] = useState(true)
+
+  const handleShare = async () => {
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: orderData?.product || 'Order Details',
+          text: `Order Details for ${orderData?.product || 'Product'} (Order #${orderData?.order_number || orderParam})`,
+          url: window.location.href,
+        })
+      } catch { }
+    } else {
+      try {
+        await navigator.clipboard.writeText(window.location.href)
+        setOrderCopied(true)
+        setTimeout(() => setOrderCopied(false), 2000)
+      } catch { }
+    }
+  }
+
+  const handleCopyOrderNumber = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const ord = orderData?.order_number || orderParam
+    if (!ord) return
+    try {
+      navigator.clipboard.writeText(ord)
+      setOrderCopied(true)
+      setTimeout(() => setOrderCopied(false), 2000)
+    } catch { }
+  }
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
@@ -163,7 +225,7 @@ export default function FlipkartOrderDetailsPage() {
               download_expired: false,
             })
           }
-        } catch {}
+        } catch { }
       })
       .finally(() => {
         setLoading(false)
@@ -184,7 +246,7 @@ export default function FlipkartOrderDetailsPage() {
             setOrderData(res)
           }
         })
-        .catch(() => {})
+        .catch(() => { })
     }, 3500)
 
     const stopTimer = setTimeout(() => {
@@ -206,10 +268,18 @@ export default function FlipkartOrderDetailsPage() {
     MAJOR_HUBS[(hashStr(orderData?.order_number || 'TVH') + 2) % MAJOR_HUBS.length]
 
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  const daysShort = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const isOrderToday = new Date().toDateString() === orderDate.toDateString()
+  const step1DateStr = isOrderToday ? 'Today' : `${months[orderDate.getMonth()]} ${orderDate.getDate()}`
+  const shippedDateStr = `${months[tomorrowDate.getMonth()]} ${tomorrowDate.getDate()}`
+  const deliveryFullStr = `${daysShort[deliveryDate.getDay()]} ${months[deliveryDate.getMonth()]} ${deliveryDate.getDate()} by 11 PM`
   const deliveryShortStr = `${months[deliveryDate.getMonth()]} ${String(deliveryDate.getDate()).padStart(2, '0')}`
 
   // Ekart tracking code: e.g. FMPC5235648370
   const ekartTrackingId = `FMPC${String(hashStr(orderData?.order_number || 'TVH')).slice(0, 10).padEnd(10, '8')}`
+
+  // Real Display Order Number (OD + 18 digits)
+  const displayOrderNumber = (orderData?.order_number || orderParam || 'OD338881486622885100').replace(/^#/, '')
 
   // Product Image resolution
   const thematicFallback = getThematicImagesForTitle(orderData?.product || '')
@@ -286,7 +356,7 @@ export default function FlipkartOrderDetailsPage() {
             exit={{ opacity: 0, x: -15 }}
             transition={{ duration: 0.2 }}
           >
-            {/* ── 1. Top Navbar: Arrow + "Order Details" + "Help" button ── */}
+            {/* ── 1. Top Navbar: Arrow + "Order Details" + "Help" + Share Icon ── */}
             <div
               style={{
                 display: 'flex',
@@ -322,11 +392,11 @@ export default function FlipkartOrderDetailsPage() {
                     color: '#111827',
                   }}
                 >
-                  <ArrowLeft size={22} strokeWidth={2.4} />
+                  <ArrowLeft size={24} strokeWidth={2.4} />
                 </button>
                 <h1
                   style={{
-                    fontSize: '1.18rem',
+                    fontSize: '1.25rem',
                     fontWeight: 700,
                     margin: 0,
                     color: '#111827',
@@ -337,64 +407,64 @@ export default function FlipkartOrderDetailsPage() {
                 </h1>
               </div>
 
-              {/* Help Pill Button (Screenshot 1) */}
-              <Link
-                to={`/order/support?order=${encodeURIComponent(orderData?.order_number || orderParam)}${tokenParam ? `&token=${encodeURIComponent(tokenParam)}` : ''}`}
-                style={{
-                  textDecoration: 'none',
-                  padding: '6px 18px',
-                  borderRadius: '10px',
-                  border: '1px solid #D1D5DB',
-                  color: '#1F2937',
-                  fontSize: '0.88rem',
-                  fontWeight: 700,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: '#FFFFFF',
-                }}
-              >
-                Help
-              </Link>
+              {/* Right: Help Button + Share Icon (Matching Screenshot 100%) */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Link
+                  to={`/order/support?order=${encodeURIComponent(orderData?.order_number || orderParam)}${tokenParam ? `&token=${encodeURIComponent(tokenParam)}` : ''}`}
+                  style={{
+                    textDecoration: 'none',
+                    padding: '6px 18px',
+                    borderRadius: '8px',
+                    border: '1px solid #D1D5DB',
+                    color: '#111827',
+                    fontSize: '0.92rem',
+                    fontWeight: 600,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: '#FFFFFF',
+                  }}
+                >
+                  Help
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={handleShare}
+                  aria-label="Share order details"
+                  title="Share order details"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: '4px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#111827',
+                  }}
+                >
+                  <Send size={20} strokeWidth={2.2} />
+                </button>
+              </div>
             </div>
 
-            {/* ── Order ID Sub-Bar (Flipkart Mobile App Style) ── */}
-            {(orderData?.order_number || orderParam) && (
-              <div
-                style={{
-                  padding: '9px 16px',
-                  background: '#FFFFFF',
-                  borderBottom: '1px solid #F3F4F6',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                }}
-              >
-                <div style={{ fontSize: '0.84rem', color: '#6B7280', fontWeight: 500 }}>
-                  Order ID -{' '}
-                  <span style={{ color: '#111827', fontWeight: 700, fontFamily: 'monospace', letterSpacing: '0.02em' }}>
-                    {orderData?.order_number || orderParam}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* ── 2. Product Summary Card (Screenshot 1 top item) ── */}
+            {/* ── 2. Product Summary Card (Matching Screenshot) ── */}
             <div
               style={{
-                padding: '18px 16px 14px 16px',
+                padding: '16px 16px 6px 16px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '16px',
+                gap: '14px',
                 background: '#FFFFFF',
               }}
             >
               {/* Product Thumbnail Squircle */}
               <div
                 style={{
-                  width: '68px',
-                  height: '68px',
-                  borderRadius: '14px',
+                  width: '58px',
+                  height: '58px',
+                  borderRadius: '12px',
                   border: '1px solid #E5E7EB',
                   padding: '3px',
                   background: '#F9FAFB',
@@ -412,15 +482,15 @@ export default function FlipkartOrderDetailsPage() {
                     width: '100%',
                     height: '100%',
                     objectFit: 'contain',
-                    borderRadius: '10px',
+                    borderRadius: '8px',
                   }}
                   onError={(e) => {
-                    ;(e.target as HTMLImageElement).src = thematicFallback[0]
+                    ; (e.target as HTMLImageElement).src = thematicFallback[0]
                   }}
                 />
               </div>
 
-              {/* Title & Details */}
+              {/* Title & Real Variation Subtitle */}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <h2
                   style={{
@@ -429,311 +499,431 @@ export default function FlipkartOrderDetailsPage() {
                     color: '#111827',
                     margin: '0 0 4px 0',
                     lineHeight: 1.35,
-                    display: '-webkit-box',
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: 'vertical',
+                    whiteSpace: 'nowrap',
                     overflow: 'hidden',
+                    textOverflow: 'ellipsis',
                   }}
                 >
                   {orderData?.product || 'Digital Media Product Asset'}
                 </h2>
                 <div
                   style={{
-                    fontSize: '0.82rem',
-                    color: '#6B7280',
+                    fontSize: '0.86rem',
+                    color: '#717478',
                     fontWeight: 500,
-                    marginBottom: '4px',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
                   }}
                 >
-                  Instant Digital Delivery • Verified License
-                </div>
-                <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#111827' }}>
-                  ₹{orderData?.amount || 99}
+                  {getProductSubtitle(orderData?.product || '')}
                 </div>
               </div>
             </div>
 
-            {/* ── 3. Flipkart Order Status Blue-Border Card (Screenshot 1) ── */}
-            <div style={{ padding: '0 16px 18px 16px' }}>
-              <div
+            {/* ── Order #OD... with Blue Copy Icon (Matching Screenshot 100%) ── */}
+            <div
+              style={{
+                padding: '4px 16px 14px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+            >
+              <span
                 style={{
-                  border: '1.5px solid #2874F0',
-                  borderRadius: '16px',
-                  background: '#FFFFFF',
-                  padding: '18px 16px 16px 16px',
-                  boxShadow: '0 2px 10px rgba(40, 116, 240, 0.04)',
+                  fontSize: '0.92rem',
+                  color: '#717478',
+                  fontWeight: 500,
                 }}
               >
-                {/* Status Header: "Order Confirmed" + "On Time" Badge */}
+                Order #{displayOrderNumber}
+              </span>
+              <button
+                type="button"
+                onClick={handleCopyOrderNumber}
+                aria-label="Copy Order ID"
+                title="Copy Order ID"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: 2,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#2874F0',
+                  position: 'relative',
+                }}
+              >
+                <Copy size={16} strokeWidth={2.2} />
+                {orderCopied && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      left: '22px',
+                      top: '-4px',
+                      background: '#111827',
+                      color: '#FFFFFF',
+                      fontSize: '0.68rem',
+                      fontWeight: 600,
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      whiteSpace: 'nowrap',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                      zIndex: 10,
+                    }}
+                  >
+                    Copied!
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* ── 3. Main Status Card (Matching Screenshot 100%) ── */}
+            <div style={{ padding: '0 16px 20px 16px' }}>
+              <div
+                style={{
+                  border: '1px solid #E5E7EB',
+                  borderRadius: '20px',
+                  background: '#FFFFFF',
+                  padding: '22px 20px 18px 20px',
+                  boxShadow: '0 1px 4px rgba(0, 0, 0, 0.02)',
+                }}
+              >
+                {/* Header: "Order Confirmed" + ChevronUp Accordion Icon */}
                 <div
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    marginBottom: '8px',
+                    cursor: 'pointer',
                   }}
+                  onClick={() => setIsAccordionOpen(!isAccordionOpen)}
                 >
                   <h3
                     style={{
-                      fontSize: '1.25rem',
+                      fontSize: '1.38rem',
                       fontWeight: 800,
                       margin: 0,
                       color: '#111827',
-                      letterSpacing: '-0.01em',
+                      letterSpacing: '-0.02em',
                     }}
                   >
-                    {orderData?.status === 'PAID'
-                      ? 'Order Confirmed'
-                      : orderData?.status === 'FAILED'
-                      ? 'Payment Failed'
-                      : 'Order Placed • Verifying Payment'}
+                    {orderData?.status === 'FAILED' ? 'Payment Failed' : 'Order Confirmed'}
                   </h3>
 
-                  <span
-                    style={{
-                      background:
-                        orderData?.status === 'PAID'
-                          ? '#008444'
-                          : orderData?.status === 'FAILED'
-                          ? '#EF4444'
-                          : '#F59E0B',
-                      color: '#FFFFFF',
-                      fontSize: '0.74rem',
-                      fontWeight: 800,
-                      padding: '3px 9px',
-                      borderRadius: '6px',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      letterSpacing: '0.01em',
-                    }}
-                  >
-                    {orderData?.status === 'PAID'
-                      ? 'On Time'
-                      : orderData?.status === 'FAILED'
-                      ? 'Failed'
-                      : 'Processing'}
-                  </span>
-                </div>
-
-                {/* Subtitle location text */}
-                <p
-                  style={{
-                    fontSize: '0.86rem',
-                    color: '#374151',
-                    margin: '0 0 20px 0',
-                    lineHeight: 1.45,
-                  }}
-                >
-                  {orderData?.status === 'PAID' ? (
-                    <>
-                      Your item was confirmed on{' '}
-                      <strong style={{ color: '#111827' }}>
-                        {months[orderDate.getMonth()]} {orderDate.getDate()}
-                      </strong>{' '}
-                      from <strong style={{ color: '#111827' }}>{primaryHub}</strong>.
-                    </>
-                  ) : orderData?.status === 'FAILED' ? (
-                    <>Payment was declined or cancelled. You can retry your order anytime.</>
-                  ) : (
-                    <>
-                      We are confirming payment from your UPI app / bank. Click{' '}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (orderData?.order_number) {
-                            api.orderLookup(orderData.order_number).then((res) => {
-                              if (res) setOrderData(res)
-                            })
-                          }
-                        }}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: '#2874F0',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          padding: 0,
-                          textDecoration: 'underline',
-                        }}
-                      >
-                        here to refresh status
-                      </button>
-                      .
-                    </>
-                  )}
-                </p>
-
-                {/* Horizontal Delivery Tracker (Screenshot 1: 3 Steps) */}
-                <div style={{ position: 'relative', marginBottom: '22px' }}>
-                  {/* Step Markers & Connecting Line */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      position: 'relative',
-                    }}
-                  >
-                    {/* Background grey track line */}
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: '11px',
-                        left: '14px',
-                        right: '14px',
-                        height: '3px',
-                        background: '#E5E7EB',
-                        zIndex: 1,
-                      }}
-                    />
-
-                    {/* Step 1: Order Confirmed (Green Circle with checkmark) */}
-                    <div
-                      style={{
-                        zIndex: 3,
-                        background: '#FFFFFF',
-                        padding: '0 2px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'flex-start',
-                      }}
-                    >
-                      <motion.div
-                        initial={{ scale: 0.5, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-                        style={{
-                          width: '23px',
-                          height: '23px',
-                          borderRadius: '50%',
-                          background: '#008444',
-                          color: '#FFFFFF',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          boxShadow: '0 0 0 3px #FFFFFF',
-                        }}
-                      >
-                        <Check size={14} strokeWidth={3} />
-                      </motion.div>
-                    </div>
-
-                    {/* Step 2: Shipped (Pending Empty Grey Circle - NO TICK) */}
-                    <div
-                      style={{
-                        zIndex: 3,
-                        background: '#FFFFFF',
-                        padding: '0 2px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: '23px',
-                          height: '23px',
-                          borderRadius: '50%',
-                          background: '#FFFFFF',
-                          border: '2px solid #9CA3AF',
-                          boxShadow: '0 0 0 3px #FFFFFF',
-                        }}
-                      />
-                    </div>
-
-                    {/* Step 3: Delivery (Pending Outline Circle) */}
-                    <div
-                      style={{
-                        zIndex: 3,
-                        background: '#FFFFFF',
-                        padding: '0 2px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'flex-end',
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: '23px',
-                          height: '23px',
-                          borderRadius: '50%',
-                          background: '#FFFFFF',
-                          border: '2px solid #9CA3AF',
-                          boxShadow: '0 0 0 3px #FFFFFF',
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Step Labels Under Circles */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      marginTop: '8px',
-                    }}
-                  >
-                    {/* Label 1: Order Confirmed */}
-                    <div style={{ textAlign: 'left', width: '33%' }}>
-                      <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#111827' }}>
-                        Order Confirmed
-                      </div>
-                      <div style={{ fontSize: '0.74rem', color: '#6B7280', marginTop: '1px' }}>
-                        Today, {months[orderDate.getMonth()]} {String(orderDate.getDate()).padStart(2, '0')}
-                      </div>
-                    </div>
-
-                    {/* Label 2: Shipped */}
-                    <div style={{ textAlign: 'center', width: '33%' }}>
-                      <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#4B5563' }}>
-                        Shipped
-                      </div>
-                      <div style={{ fontSize: '0.74rem', color: '#6B7280', marginTop: '1px' }}>
-                        Expected Tomorrow
-                      </div>
-                    </div>
-
-                    {/* Label 3: Delivery */}
-                    <div style={{ textAlign: 'right', width: '33%' }}>
-                      <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#4B5563' }}>
-                        Delivery
-                      </div>
-                      <div style={{ fontSize: '0.74rem', color: '#6B7280', marginTop: '1px' }}>
-                        {deliveryShortStr} by 11 PM
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* ── Clickable Blue Link: "See all updates" (Opens Screenshot 2 view) ── */}
-                <div
-                  style={{
-                    borderTop: '1px solid #F3F4F6',
-                    paddingTop: '12px',
-                    textAlign: 'center',
-                  }}
-                >
                   <button
                     type="button"
-                    onClick={() => setActiveView('updates')}
+                    aria-label="Toggle details"
                     style={{
                       background: 'none',
                       border: 'none',
-                      color: '#2874F0',
-                      fontSize: '0.94rem',
-                      fontWeight: 700,
                       cursor: 'pointer',
-                      padding: '4px 8px',
-                      display: 'inline-flex',
+                      padding: 2,
+                      display: 'flex',
                       alignItems: 'center',
-                      gap: '4px',
+                      color: '#111827',
                     }}
                   >
-                    See all updates <ChevronRight size={16} strokeWidth={2.4} />
+                    {isAccordionOpen ? (
+                      <ChevronUp size={24} strokeWidth={2.4} />
+                    ) : (
+                      <ChevronDown size={24} strokeWidth={2.4} />
+                    )}
                   </button>
                 </div>
+
+                {isAccordionOpen && (
+                  <div>
+                    {/* Subtitle location text */}
+                    <p
+                      style={{
+                        fontSize: '0.98rem',
+                        color: '#111827',
+                        margin: '12px 0 24px 0',
+                        fontWeight: 400,
+                      }}
+                    >
+                      {orderData?.status === 'PAID'
+                        ? 'Your Order has been placed.'
+                        : orderData?.status === 'FAILED'
+                        ? 'Payment was declined or cancelled.'
+                        : 'Your Order has been placed.'}
+                    </p>
+
+                    {/* Horizontal Delivery Tracker (Matching Screenshot Layout & Alignment) */}
+                    <div style={{ position: 'relative', marginBottom: '24px' }}>
+                      {/* Step Circles & Connecting Lines Row */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          width: '100%',
+                          height: '22px',
+                          position: 'relative',
+                        }}
+                      >
+                        {/* Step 1 Circle: Order Confirmed (Green circle with Checkmark) */}
+                        <div
+                          style={{
+                            width: 22,
+                            height: 22,
+                            borderRadius: '50%',
+                            background: '#008444',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            zIndex: 2,
+                          }}
+                        >
+                          <Check size={13} color="#FFFFFF" strokeWidth={3.5} />
+                        </div>
+
+                        {/* Connecting Line 1 */}
+                        <div
+                          style={{
+                            flex: 1,
+                            height: '2px',
+                            background: '#9CA3AF',
+                            zIndex: 1,
+                          }}
+                        />
+
+                        {/* Step 2 Circle: Shipped (Empty Circle Outline) */}
+                        <div
+                          style={{
+                            width: 22,
+                            height: 22,
+                            borderRadius: '50%',
+                            border: '1.8px solid #9CA3AF',
+                            background: '#FFFFFF',
+                            flexShrink: 0,
+                            zIndex: 2,
+                            boxSizing: 'border-box',
+                          }}
+                        />
+
+                        {/* Connecting Line 2 */}
+                        <div
+                          style={{
+                            flex: 1,
+                            height: '2px',
+                            background: '#9CA3AF',
+                            zIndex: 1,
+                          }}
+                        />
+
+                        {/* Step 3 Circle: Delivery (Empty Circle Outline) */}
+                        <div
+                          style={{
+                            width: 22,
+                            height: 22,
+                            borderRadius: '50%',
+                            border: '1.8px solid #9CA3AF',
+                            background: '#FFFFFF',
+                            flexShrink: 0,
+                            zIndex: 2,
+                            boxSizing: 'border-box',
+                          }}
+                        />
+                      </div>
+
+                      {/* Labels Row (Matching Screenshot: Left, Center, Right) */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'flex-start',
+                          marginTop: '10px',
+                        }}
+                      >
+                        {/* Step 1 Label (Left aligned) */}
+                        <div style={{ textAlign: 'left' }}>
+                          <div
+                            style={{
+                              fontSize: '0.86rem',
+                              color: '#374151',
+                              fontWeight: 500,
+                            }}
+                          >
+                            Order Confirmed
+                          </div>
+                          <div
+                            style={{
+                              fontSize: '0.82rem',
+                              color: '#717478',
+                              marginTop: '2px',
+                            }}
+                          >
+                            {step1DateStr}
+                          </div>
+                        </div>
+
+                        {/* Step 2 Label (Centered) */}
+                        <div style={{ textAlign: 'center' }}>
+                          <div
+                            style={{
+                              fontSize: '0.86rem',
+                              color: '#374151',
+                              fontWeight: 500,
+                            }}
+                          >
+                            Shipped
+                          </div>
+                          <div
+                            style={{
+                              fontSize: '0.82rem',
+                              color: '#717478',
+                              marginTop: '2px',
+                            }}
+                          >
+                            {shippedDateStr}
+                          </div>
+                        </div>
+
+                        {/* Step 3 Label (Right aligned) */}
+                        <div style={{ textAlign: 'right' }}>
+                          <div
+                            style={{
+                              fontSize: '0.86rem',
+                              color: '#374151',
+                              fontWeight: 500,
+                            }}
+                          >
+                            Delivery
+                          </div>
+                          <div
+                            style={{
+                              fontSize: '0.82rem',
+                              color: '#717478',
+                              marginTop: '2px',
+                            }}
+                          >
+                            {deliveryFullStr}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Delivery Executive Info Callout Box (Grey Pill Box from Screenshot) */}
+                    <div
+                      style={{
+                        background: '#F4F5F7',
+                        borderRadius: '12px',
+                        padding: '12px 14px',
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '10px',
+                        marginBottom: '16px',
+                      }}
+                    >
+                      <Info size={18} color="#6B7280" style={{ flexShrink: 0, marginTop: 1 }} />
+                      <span
+                        style={{
+                          fontSize: '0.84rem',
+                          color: '#374151',
+                          lineHeight: 1.45,
+                        }}
+                      >
+                        Delivery Executive details will be available once the order is out for delivery
+                      </span>
+                    </div>
+
+                    {/* Divider line across the card */}
+                    <div
+                      style={{
+                        height: '1px',
+                        background: '#F0F1F3',
+                        margin: '16px -20px 0 -20px',
+                      }}
+                    />
+
+                    {/* ── Clickable Blue Link: "See all updates" (Opens Screenshot 2 view) ── */}
+                    <div
+                      style={{
+                        paddingTop: '14px',
+                        textAlign: 'center',
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setActiveView('updates')}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#1C74E9',
+                          fontSize: '1.04rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          padding: '4px 12px',
+                          letterSpacing: '0.01em',
+                        }}
+                      >
+                        See all updates
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
+
+            {/* ── Instant Digital Delivery & Access Card (For Paid Orders) ── */}
+            {orderData?.status === 'PAID' && (
+              <div style={{ padding: '0 16px 20px 16px' }}>
+                <div
+                  style={{
+                    background: 'linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)',
+                    border: '1.5px solid #86EFAC',
+                    borderRadius: '16px',
+                    padding: '16px 18px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px',
+                    boxShadow: '0 2px 8px rgba(16, 185, 129, 0.08)',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '1.2rem' }}>⚡</span>
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: '0.96rem', color: '#14532D' }}>
+                        Instant Digital Download Unlocked
+                      </div>
+                      <div style={{ fontSize: '0.78rem', color: '#166534' }}>
+                        Your product files and download links are ready
+                      </div>
+                    </div>
+                  </div>
+
+                  <a
+                    href={
+                      orderData.download_token
+                        ? `/download/${orderData.download_token}`
+                        : `/order-lookup?order=${encodeURIComponent(orderData.order_number || orderParam)}`
+                    }
+                    style={{
+                      textDecoration: 'none',
+                      background: '#16A34A',
+                      color: '#FFFFFF',
+                      fontWeight: 700,
+                      fontSize: '0.92rem',
+                      padding: '12px 18px',
+                      borderRadius: '10px',
+                      textAlign: 'center',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      boxShadow: '0 2px 6px rgba(22, 163, 74, 0.3)',
+                    }}
+                  >
+                    <Download size={18} strokeWidth={2.5} />
+                    <span>Access / Download Product Assets</span>
+                  </a>
+                </div>
+              </div>
+            )}
 
             {/* ── 4. "Rate your experience" Section (Screenshot 1 bottom) ── */}
             <div style={{ padding: '0 16px 24px 16px' }}>
