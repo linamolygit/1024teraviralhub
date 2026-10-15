@@ -172,11 +172,11 @@ export default function FlipkartCheckoutPage() {
   const [isProcessingPayment, setIsProcessingPayment] = useState(false)
   const [paymentError, setPaymentError] = useState('')
   // Removed PNB Bank as requested by user; default PhonePe
-  const [selectedUpiOption, setSelectedUpiOption] = useState<'phonepe' | 'gpay' | 'whatsapp'>('phonepe')
+  const [selectedUpiOption, setSelectedUpiOption] = useState<'phonepe' | 'gpay' | 'whatsapp' | 'paytm'>('phonepe')
   const [isUpiExpanded, setIsUpiExpanded] = useState(true)
 
   // Gateway info
-  const { isRazorpay, isBoth, defaultDualGateway } = usePaymentGatewayInfo()
+  const { isRazorpay, isBoth, defaultDualGateway, publicSettings } = usePaymentGatewayInfo()
 
   // Load Real Product Data
   const { data: productData, isLoading: isProductLoading, error: productError } = useQuery({
@@ -196,6 +196,75 @@ export default function FlipkartCheckoutPage() {
     const month = d.toLocaleDateString('en-US', { month: 'short' })
     return `${day}, ${dateNum} ${month}`
   }, [])
+
+  // When user returns from PhonePe / UPI app (or if page is restored / focused),
+  // automatically verify pending order and immediately redirect to payment success / download!
+  useEffect(() => {
+    let poller: ReturnType<typeof setInterval> | null = null
+
+    const checkActiveOrder = async () => {
+      try {
+        const raw = localStorage.getItem('tvh_active_order') || sessionStorage.getItem('tvh_active_order')
+        if (!raw) return
+
+        const active = JSON.parse(raw)
+        if (!active?.order_number || Date.now() - (active.timestamp || active.createdAt || 0) > 3600000) {
+          return
+        }
+
+        const res = await api.checkout.verify(active.order_number)
+        if (res?.success && res.status === 'PAID' && res.download_token) {
+          try {
+            localStorage.removeItem('tvh_active_order')
+            sessionStorage.removeItem('tvh_active_order')
+            localStorage.removeItem('tvh_active_order_number')
+            sessionStorage.removeItem('tvh_active_order_number')
+          } catch { }
+
+          saveOrderSession({
+            orderNumber: active.order_number,
+            token: res.download_token,
+            productTitle: product?.title || active.productTitle || active.title,
+            amount: active.amount,
+            createdAt: Date.now(),
+          })
+
+          navigate(`/payment/success?order=${encodeURIComponent(active.order_number)}&token=${encodeURIComponent(res.download_token)}`, { replace: true })
+        }
+      } catch { }
+    }
+
+    checkActiveOrder()
+
+    const handleReturnToTab = async () => {
+      await checkActiveOrder()
+      setIsProcessingPayment(false)
+    }
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        handleReturnToTab()
+      }
+    }
+
+    window.addEventListener('visibilitychange', handleVisibility)
+    window.addEventListener('focus', handleReturnToTab)
+    window.addEventListener('pageshow', handleReturnToTab)
+
+    poller = setInterval(() => {
+      const raw = localStorage.getItem('tvh_active_order') || sessionStorage.getItem('tvh_active_order')
+      if (raw || isProcessingPayment) {
+        checkActiveOrder()
+      }
+    }, 2500)
+
+    return () => {
+      window.removeEventListener('visibilitychange', handleVisibility)
+      window.removeEventListener('focus', handleReturnToTab)
+      window.removeEventListener('pageshow', handleReturnToTab)
+      if (poller) clearInterval(poller)
+    }
+  }, [navigate, product, isProcessingPayment])
 
   // 100% Real Product Prices (No fake / dummy hardcoded numbers)
   const effectivePrice = product?.sale_price ?? product?.price ?? 0
@@ -352,6 +421,23 @@ export default function FlipkartCheckoutPage() {
         createdAt: Date.now(),
       })
 
+      // 💾 SNAPSHOT ACTIVE ORDER for return verification
+      const pendingOrderData = {
+        order_number: orderRes.order_number,
+        product_id: product.id,
+        product_slug: product.slug,
+        title: product.title,
+        amount: totalAmount,
+        timestamp: Date.now(),
+      }
+      try {
+        localStorage.setItem('tvh_active_order', JSON.stringify(pendingOrderData))
+        sessionStorage.setItem('tvh_active_order', JSON.stringify(pendingOrderData))
+        localStorage.setItem('tvh_active_order_number', orderRes.order_number)
+        sessionStorage.setItem('tvh_active_order_number', orderRes.order_number)
+        localStorage.setItem('tvh_last_purchased_order', orderRes.order_number)
+      } catch { }
+
       const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
       const { isInApp, isAndroid } = detectInAppBrowser()
 
@@ -362,8 +448,10 @@ export default function FlipkartCheckoutPage() {
           targetUpiUrl = orderRes.upi_intent.phonepe
         } else if (selectedUpiOption === 'gpay' && orderRes.upi_intent.gpay) {
           targetUpiUrl = orderRes.upi_intent.gpay
+        } else if (selectedUpiOption === 'paytm' && orderRes.upi_intent.paytm) {
+          targetUpiUrl = orderRes.upi_intent.paytm
         } else {
-          targetUpiUrl = orderRes.upi_intent.default || orderRes.upi_intent.phonepe || orderRes.upi_link || undefined
+          targetUpiUrl = orderRes.upi_intent.phonepe || orderRes.upi_intent.default || orderRes.upi_link || undefined
         }
       }
       if (!targetUpiUrl && orderRes.upi_link) {
@@ -374,20 +462,75 @@ export default function FlipkartCheckoutPage() {
       }
 
       // 1. Android Facebook / Instagram In-App Browser Breakout
-      if (isMobile && isInApp && isAndroid && targetUpiUrl) {
-        triggerChromeBreakout(targetUpiUrl)
+      // Breaks out into Google Chrome using HTTPS web payment URL so PhonePe opens cleanly
+      if (isMobile && isInApp && isAndroid) {
+        const breakoutUrl = (orderRes.payment_url && orderRes.payment_url.startsWith('http'))
+          ? orderRes.payment_url
+          : (orderRes.upi_intent?.web || window.location.href)
+        triggerChromeBreakout(breakoutUrl)
         setTimeout(() => setIsProcessingPayment(false), 3000)
         return
       }
 
-      // 2. Direct Mobile UPI launch
+      // 2. Direct Mobile UPI launch (PhonePe, GPay, Paytm)
       if (isMobile && targetUpiUrl) {
-        window.location.href = targetUpiUrl
+        try {
+          const a = document.createElement('a')
+          a.href = targetUpiUrl
+          a.style.display = 'none'
+          document.body.appendChild(a)
+          a.click()
+          setTimeout(() => {
+            try {
+              if (a.parentNode) document.body.removeChild(a)
+            } catch {}
+          }, 1000)
+        } catch {
+          window.location.href = targetUpiUrl
+        }
         setTimeout(() => setIsProcessingPayment(false), 2500)
         return
       }
 
-      // 3. Razorpay Modal fallback if on desktop or web gateway
+      // 3. Cashfree Modal / Desktop Checkout
+      if (orderRes.gateway === 'cashfree') {
+        if (!(window as any).Cashfree) {
+          const script = document.createElement('script')
+          script.src = 'https://sdk.cashfree.com/js/v3/cashfree.js'
+          await new Promise((res) => {
+            script.onload = res
+            script.onerror = res
+            document.head.appendChild(script)
+          })
+        }
+        if ((window as any).Cashfree && orderRes.payment_session_id) {
+          const mode = publicSettings?.cashfree_mode || 'production'
+          const cashfree = (window as any).Cashfree({ mode })
+          const returnUrl = `https://1024teraviralhub.com/payment/processing?order=${encodeURIComponent(orderRes.order_number)}`
+          cashfree.checkout({
+            paymentSessionId: orderRes.payment_session_id,
+            returnUrl,
+            redirectTarget: '_modal',
+          }).then((result: any) => {
+            if (result?.error) {
+              console.warn('[Cashfree Modal Error, falling back to direct redirect]', result.error)
+              cashfree.checkout({
+                paymentSessionId: orderRes.payment_session_id,
+                returnUrl,
+                redirectTarget: '_self',
+              })
+            }
+          })
+          setTimeout(() => setIsProcessingPayment(false), 1500)
+          return
+        }
+        if (targetUpiUrl || orderRes.payment_url) {
+          window.location.href = targetUpiUrl || orderRes.payment_url
+          return
+        }
+      }
+
+      // 4. Razorpay Modal fallback if on desktop or web gateway
       if (orderRes.gateway === 'razorpay' && (orderRes as any).razorpay_order_id) {
         if (!(window as any).Razorpay) {
           const script = document.createElement('script')
@@ -422,7 +565,7 @@ export default function FlipkartCheckoutPage() {
         }
       }
 
-      // 4. Fallback payment URL redirect
+      // 5. Fallback payment URL redirect
       const fallbackUrl = targetUpiUrl || orderRes.payment_url || orderRes.upi_link
       if (fallbackUrl) {
         window.location.href = fallbackUrl
@@ -488,9 +631,10 @@ export default function FlipkartCheckoutPage() {
       }}>
         {currentStep === 2 ? (
           /* Step 2 Header */
-          <div>
+          <div style={{ background: '#FFFFFF', borderBottom: '1px solid #EDEDED' }}>
+            {/* Top Bar with Back Arrow + Confirm details */}
             <div style={{
-              display: 'flex', alignItems: 'center', height: 52, padding: '0 16px', gap: 16
+              display: 'flex', alignItems: 'center', height: 50, padding: '0 16px', gap: 18
             }}>
               <button
                 type="button"
@@ -498,61 +642,149 @@ export default function FlipkartCheckoutPage() {
                 aria-label="Back"
                 style={{
                   background: 'none', border: 'none', padding: 4, cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', color: '#212121'
+                  display: 'flex', alignItems: 'center', color: '#111827'
                 }}
               >
-                <ArrowLeft size={22} />
+                <ArrowLeft size={24} strokeWidth={2.2} />
               </button>
-              <h1 style={{ fontSize: '1.15rem', fontWeight: 600, color: '#212121', margin: 0 }}>
+              <h1 style={{
+                fontSize: '1.25rem', fontWeight: 600, color: '#111827', margin: 0,
+                letterSpacing: '-0.01em', fontFamily: 'Inter, system-ui, -apple-system, sans-serif'
+              }}>
                 Confirm details
               </h1>
             </div>
 
             {/* Stepper (1 Address ✓ | 2 Confirm details ● | 3 Payment ○) */}
             <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              padding: '6px 20px 14px', borderTop: '1px solid #F0F0F0'
+              padding: '6px 16px 14px 16px',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', width: '100%', maxWidth: 380 }}>
-                {/* Step 1: Address */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
-                  <div style={{
-                    width: 22, height: 22, borderRadius: '50%', border: '1.8px solid #2A55E5',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 4, background: '#FFF'
-                  }}>
-                    <Check size={13} color="#2A55E5" strokeWidth={3} />
+              <div style={{
+                position: 'relative',
+                width: '100%',
+                maxWidth: 360,
+                margin: '0 auto',
+              }}>
+                {/* Horizontal Center-Locked Track Line (Passes exactly through 12px center of 24px circles) */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '12px',
+                    left: '16.666%',
+                    right: '16.666%',
+                    height: '1.5px',
+                    background: '#E5E7EB',
+                    zIndex: 1,
+                    transform: 'translateY(-50%)',
+                  }}
+                />
+
+                {/* 3 Step Items in Equal Grid */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, 1fr)',
+                    position: 'relative',
+                    zIndex: 2,
+                  }}
+                >
+                  {/* Step 1: Address (Done with Blue outline and Check) */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div
+                      style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: '50%',
+                        border: '1.8px solid #2874F0',
+                        background: '#FFFFFF',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxSizing: 'border-box',
+                      }}
+                    >
+                      <Check size={14} color="#2874F0" strokeWidth={3} />
+                    </div>
+                    <span
+                      style={{
+                        marginTop: 6,
+                        fontSize: '0.8rem',
+                        color: '#616161',
+                        fontWeight: 500,
+                        textAlign: 'center',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      Address
+                    </span>
                   </div>
-                  <span style={{ fontSize: '0.78rem', color: '#2A55E5', fontWeight: 600 }}>Address</span>
-                </div>
 
-                {/* Connecting Line 1 */}
-                <div style={{ height: 1.5, background: '#2A55E5', flex: 1, marginBottom: 18 }} />
-
-                {/* Step 2: Confirm details (Active) */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1.2 }}>
-                  <div style={{
-                    width: 24, height: 24, borderRadius: '50%', background: '#2A55E5',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 4, color: '#FFF',
-                    fontWeight: 800, fontSize: '0.8rem', boxShadow: '0 2px 6px rgba(42, 85, 229, 0.35)'
-                  }}>
-                    2
+                  {/* Step 2: Confirm details (Active Solid Blue Circle) */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div
+                      style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: '50%',
+                        background: '#2874F0',
+                        color: '#FFFFFF',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 700,
+                        fontSize: '0.82rem',
+                        boxSizing: 'border-box',
+                      }}
+                    >
+                      2
+                    </div>
+                    <span
+                      style={{
+                        marginTop: 6,
+                        fontSize: '0.82rem',
+                        color: '#111827',
+                        fontWeight: 700,
+                        textAlign: 'center',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      Confirm details
+                    </span>
                   </div>
-                  <span style={{ fontSize: '0.82rem', color: '#212121', fontWeight: 700 }}>Confirm details</span>
-                </div>
 
-                {/* Connecting Line 2 */}
-                <div style={{ height: 1.5, background: '#DCDCDC', flex: 1, marginBottom: 18 }} />
-
-                {/* Step 3: Payment */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
-                  <div style={{
-                    width: 22, height: 22, borderRadius: '50%', border: '1.8px solid #BBB',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 4, color: '#888',
-                    fontWeight: 700, fontSize: '0.75rem', background: '#FFF'
-                  }}>
-                    3
+                  {/* Step 3: Payment (Pending Grey Circle Outline) */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div
+                      style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: '50%',
+                        border: '1.8px solid #D2D4D7',
+                        background: '#FFFFFF',
+                        color: '#878787',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 600,
+                        fontSize: '0.82rem',
+                        boxSizing: 'border-box',
+                      }}
+                    >
+                      3
+                    </div>
+                    <span
+                      style={{
+                        marginTop: 6,
+                        fontSize: '0.8rem',
+                        color: '#878787',
+                        fontWeight: 500,
+                        textAlign: 'center',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      Payment
+                    </span>
                   </div>
-                  <span style={{ fontSize: '0.78rem', color: '#888', fontWeight: 500 }}>Payment</span>
                 </div>
               </div>
             </div>
