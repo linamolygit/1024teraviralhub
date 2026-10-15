@@ -182,29 +182,6 @@ export default function ShutdownScreen({ title, message }: ShutdownScreenProps) 
           Auto-checking status in background...
         </div>
       </div>
-
-      <div
-        style={{
-          marginTop: 32,
-          textAlign: 'center',
-          fontSize: '0.82rem',
-          color: '#475569',
-        }}
-      >
-        <p style={{ margin: 0 }}>1024TeraViralHub • All systems monitored</p>
-        <p style={{ marginTop: 8 }}>
-          <a
-            href="/admin"
-            style={{
-              color: '#64748b',
-              textDecoration: 'none',
-              fontWeight: 500,
-            }}
-          >
-            Store Administrator Login &rarr;
-          </a>
-        </p>
-      </div>
     </div>
   )
 }

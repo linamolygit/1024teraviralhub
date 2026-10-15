@@ -199,7 +199,7 @@ function renderShutdownHtml(title?: string, message?: string): string {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex, nofollow">
-  <title>${cleanTitle} — 1024TeraViralHub</title>
+  <title>${cleanTitle}</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -386,13 +386,6 @@ function renderShutdownHtml(title?: string, message?: string): string {
     <div class="auto-check">
       <span>Auto-checking status in background...</span>
     </div>
-  </div>
-
-  <div class="footer">
-    <p style="margin: 0;">1024TeraViralHub • All systems monitored</p>
-    <p style="margin-top: 8px;">
-      <a href="/admin" class="admin-link">Store Administrator Login &rarr;</a>
-    </p>
   </div>
 
   <script>
