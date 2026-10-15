@@ -18,7 +18,6 @@ import {
   Send,
   Info,
   ThumbsUp,
-  Download,
 } from 'lucide-react'
 import { api, type OrderLookupResult } from '../../lib/api'
 import { getThematicImagesForTitle } from '../../../lib/reviewDefaults'
@@ -92,6 +91,16 @@ function formatFlipkartDate(d: Date): string {
   const monthName = months[d.getMonth()]
   const yearShort = `'${String(d.getFullYear()).slice(-2)}`
   return `${dayName}, ${dayWithSuffix} ${monthName} ${yearShort}`
+}
+
+// Format day with suffix and month: e.g. "Sun 18th Oct" or "Sun, 18th Oct" (Matching Screenshot 2)
+function formatDayWithSuffixAndMonth(d: Date, withComma = false): string {
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  const dayName = days[d.getDay()]
+  const dayWithSuffix = getDaySuffix(d.getDate())
+  const monthName = months[d.getMonth()]
+  return withComma ? `${dayName}, ${dayWithSuffix} ${monthName}` : `${dayName} ${dayWithSuffix} ${monthName}`
 }
 
 // Format 12-hour time: "12:14am", "4:13pm"
@@ -261,19 +270,17 @@ export default function FlipkartOrderDetailsPage() {
 
   // Resolve Real Order Dates
   const orderDate = parseOrderDate(orderData?.created_at)
-  const tomorrowDate = new Date(orderDate.getTime() + 86400000)
-  const deliveryDate = new Date(orderDate.getTime() + 4 * 86400000)
-  const primaryHub = MAJOR_HUBS[hashStr(orderData?.order_number || 'TVH') % MAJOR_HUBS.length]
-  const secondaryHub =
-    MAJOR_HUBS[(hashStr(orderData?.order_number || 'TVH') + 2) % MAJOR_HUBS.length]
+  const pickupDate = new Date(orderDate.getTime() + 3 * 86400000)
+  const shippedExpectedDate = new Date(orderDate.getTime() + 4 * 86400000)
+  const deliveryExpectedDate = new Date(orderDate.getTime() + 10 * 86400000)
 
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
   const daysShort = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
   const isOrderToday = new Date().toDateString() === orderDate.toDateString()
   const step1DateStr = isOrderToday ? 'Today' : `${months[orderDate.getMonth()]} ${orderDate.getDate()}`
-  const shippedDateStr = `${months[tomorrowDate.getMonth()]} ${tomorrowDate.getDate()}`
-  const deliveryFullStr = `${daysShort[deliveryDate.getDay()]} ${months[deliveryDate.getMonth()]} ${deliveryDate.getDate()} by 11 PM`
-  const deliveryShortStr = `${months[deliveryDate.getMonth()]} ${String(deliveryDate.getDate()).padStart(2, '0')}`
+  const shippedDateStr = `${months[shippedExpectedDate.getMonth()]} ${shippedExpectedDate.getDate()}`
+  const deliveryFullStr = `${daysShort[deliveryExpectedDate.getDay()]} ${months[deliveryExpectedDate.getMonth()]} ${deliveryExpectedDate.getDate()} by 11 PM`
+  const deliveryShortStr = `${months[deliveryExpectedDate.getMonth()]} ${String(deliveryExpectedDate.getDate()).padStart(2, '0')}`
 
   // Ekart tracking code: e.g. FMPC5235648370
   const ekartTrackingId = `FMPC${String(hashStr(orderData?.order_number || 'TVH')).slice(0, 10).padEnd(10, '8')}`
@@ -868,63 +875,6 @@ export default function FlipkartOrderDetailsPage() {
                 )}
               </div>
             </div>
-
-            {/* ── Instant Digital Delivery & Access Card (For Paid Orders) ── */}
-            {orderData?.status === 'PAID' && (
-              <div style={{ padding: '0 16px 20px 16px' }}>
-                <div
-                  style={{
-                    background: 'linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)',
-                    border: '1.5px solid #86EFAC',
-                    borderRadius: '16px',
-                    padding: '16px 18px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '12px',
-                    boxShadow: '0 2px 8px rgba(16, 185, 129, 0.08)',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ fontSize: '1.2rem' }}>⚡</span>
-                    <div>
-                      <div style={{ fontWeight: 800, fontSize: '0.96rem', color: '#14532D' }}>
-                        Instant Digital Download Unlocked
-                      </div>
-                      <div style={{ fontSize: '0.78rem', color: '#166534' }}>
-                        Your product files and download links are ready
-                      </div>
-                    </div>
-                  </div>
-
-                  <a
-                    href={
-                      orderData.download_token
-                        ? `/download/${orderData.download_token}`
-                        : `/order-lookup?order=${encodeURIComponent(orderData.order_number || orderParam)}`
-                    }
-                    style={{
-                      textDecoration: 'none',
-                      background: '#16A34A',
-                      color: '#FFFFFF',
-                      fontWeight: 700,
-                      fontSize: '0.92rem',
-                      padding: '12px 18px',
-                      borderRadius: '10px',
-                      textAlign: 'center',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                      boxShadow: '0 2px 6px rgba(22, 163, 74, 0.3)',
-                    }}
-                  >
-                    <Download size={18} strokeWidth={2.5} />
-                    <span>Access / Download Product Assets</span>
-                  </a>
-                </div>
-              </div>
-            )}
-
             {/* ── 4. "Rate your experience" Section (Screenshot 1 bottom) ── */}
             <div style={{ padding: '0 16px 24px 16px' }}>
               <h3
@@ -978,7 +928,7 @@ export default function FlipkartOrderDetailsPage() {
         )}
 
         {/* ═══════════════════════════════════════════════════════════════════════
-            VIEW 2: SCREENSHOT 2 — DETAILED TRACKING UPDATES TIMELINE
+            VIEW 2: "See all updates" — EXACT SCREENSHOT TIMELINE
            ═══════════════════════════════════════════════════════════════════════ */}
         {activeView === 'updates' && (
           <motion.div
@@ -987,19 +937,15 @@ export default function FlipkartOrderDetailsPage() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 20 }}
             transition={{ duration: 0.2 }}
+            style={{ minHeight: '100dvh', background: '#FFFFFF' }}
           >
-            {/* Top Bar with Back Arrow */}
+            {/* Top Bar with Back Arrow (Exact Screenshot: Only Arrow, No text) */}
             <div
               style={{
+                padding: '16px 20px',
+                background: '#FFFFFF',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '14px',
-                padding: '14px 16px',
-                borderBottom: '1px solid #F3F4F6',
-                position: 'sticky',
-                top: 0,
-                background: '#FFFFFF',
-                zIndex: 30,
               }}
             >
               <button
@@ -1017,245 +963,211 @@ export default function FlipkartOrderDetailsPage() {
                   color: '#111827',
                 }}
               >
-                <ArrowLeft size={22} strokeWidth={2.4} />
+                <ArrowLeft size={24} strokeWidth={2.2} />
               </button>
-              <h1
-                style={{
-                  fontSize: '1.18rem',
-                  fontWeight: 700,
-                  margin: 0,
-                  color: '#111827',
-                  letterSpacing: '-0.01em',
-                }}
-              >
-                Tracking Updates
-              </h1>
             </div>
 
-            {/* Order ID Sub-Bar */}
-            {(orderData?.order_number || orderParam) && (
-              <div
-                style={{
-                  padding: '9px 16px',
-                  background: '#FFFFFF',
-                  borderBottom: '1px solid #F3F4F6',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                }}
-              >
-                <div style={{ fontSize: '0.84rem', color: '#6B7280', fontWeight: 500 }}>
-                  Order ID -{' '}
-                  <span style={{ color: '#111827', fontWeight: 700, fontFamily: 'monospace', letterSpacing: '0.02em' }}>
-                    {orderData?.order_number || orderParam}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Vertical Animated Timeline Container (Matching Screenshot 2) */}
-            <div style={{ padding: '24px 20px 30px 24px', position: 'relative' }}>
-              {/* Outer Relative Wrapper for the Continuous Vertical Green Line */}
-              <div style={{ position: 'relative' }}>
-                {/* ── Background Grey Track Line ── */}
+            {/* Vertical Timeline Container (Exact Screenshot Layout & Typography) */}
+            <div style={{ padding: '16px 24px 60px 24px' }}>
+              <div style={{ position: 'relative', paddingLeft: '28px' }}>
+                {/* Continuous Vertical Grey Line from Node 1 dot center to Node 4 dot center */}
                 <div
                   style={{
                     position: 'absolute',
-                    top: '12px',
-                    bottom: '24px',
-                    left: '8px',
-                    width: '3.5px',
+                    left: '5px',
+                    top: '8px',
+                    bottom: '12px',
+                    width: '1.5px',
                     background: '#E5E7EB',
-                    borderRadius: '2px',
                     zIndex: 1,
                   }}
                 />
 
-                {/* ── Animated Green Filled Line (Animates smoothly down through Node 1 events) ── */}
-                <motion.div
-                  initial={{ height: 0 }}
-                  animate={{ height: '175px' }}
-                  transition={{ duration: 0.9, ease: 'easeOut', delay: 0.15 }}
-                  style={{
-                    position: 'absolute',
-                    top: '12px',
-                    left: '8px',
-                    width: '3.5px',
-                    background: '#008444',
-                    borderRadius: '2px',
-                    zIndex: 2,
-                  }}
-                />
-
-                {/* ── SECTION 1: "Order Confirmed Mon, 22nd Sep '25" (Screenshot 2 Top Node - ACTIVE) ── */}
-                <div style={{ position: 'relative', paddingLeft: '32px', marginBottom: '36px' }}>
-                  {/* Green Solid Pulsing Dot */}
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: 'spring', stiffness: 500, damping: 25 }}
-                    style={{
-                      position: 'absolute',
-                      top: '2px',
-                      left: '0px',
-                      width: '19px',
-                      height: '19px',
-                      borderRadius: '50%',
-                      background: '#008444',
-                      zIndex: 3,
-                      boxShadow: '0 0 0 4px #FFFFFF, 0 0 0 7px rgba(0, 132, 68, 0.18)',
-                    }}
-                  />
-
-                  {/* Node Header Title: Order Confirmed + Real Date */}
-                  <h4
-                    style={{
-                      fontSize: '1.05rem',
-                      fontWeight: 800,
-                      color: '#111827',
-                      margin: '0 0 10px 0',
-                      lineHeight: 1.3,
-                    }}
-                  >
-                    Order Confirmed {formatFlipkartDate(orderDate)}
-                  </h4>
-
-                  {/* Sub-Events List (Screenshot 2 style with real timestamps and hubs) */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                    {/* Event 1 */}
-                    <div>
-                      <div style={{ fontSize: '0.88rem', color: '#1F2937', fontWeight: 600 }}>
-                        Your Order has been placed.
-                      </div>
-                      <div style={{ fontSize: '0.8rem', color: '#6B7280', marginTop: '2px' }}>
-                        {formatFlipkartDate(orderDate)} - {formatFlipkartTime(timePlaced)}
-                      </div>
-                    </div>
-
-                    {/* Event 2 */}
-                    <div>
-                      <div style={{ fontSize: '0.88rem', color: '#1F2937', fontWeight: 600 }}>
-                        Seller has processed your order.
-                      </div>
-                      <div style={{ fontSize: '0.8rem', color: '#6B7280', marginTop: '2px' }}>
-                        {formatFlipkartDate(orderDate)} - {formatFlipkartTime(timeSellerProcessed)}
-                      </div>
-                    </div>
-
-                    {/* Event 3 */}
-                    <div>
-                      <div style={{ fontSize: '0.88rem', color: '#1F2937', fontWeight: 600 }}>
-                        Order verified at Flipkart Facility
-                      </div>
-                      <div style={{ fontSize: '0.8rem', color: '#6B7280', marginTop: '2px' }}>
-                        {formatFlipkartDate(orderDate)} - {formatFlipkartTime(timeFacilityConfirmed)} -{' '}
-                        <strong style={{ color: '#111827' }}>{primaryHub}</strong>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* ── SECTION 2: "Shipped" (Pending Milestone - Grey circle, NO TICK) ── */}
-                <div style={{ position: 'relative', paddingLeft: '32px', marginBottom: '36px' }}>
-                  {/* Grey Outline Circle */}
+                {/* ── Node 1: Order Confirmed (Active / Solid Green Dot) ── */}
+                <div style={{ position: 'relative', marginBottom: '28px' }}>
+                  {/* Solid Green Dot */}
                   <div
                     style={{
                       position: 'absolute',
-                      top: '2px',
-                      left: '0px',
-                      width: '19px',
-                      height: '19px',
+                      left: '-28px',
+                      top: '4px',
+                      width: '12px',
+                      height: '12px',
                       borderRadius: '50%',
-                      background: '#FFFFFF',
-                      border: '2.5px solid #9CA3AF',
-                      zIndex: 3,
-                      boxShadow: '0 0 0 4px #FFFFFF',
+                      background: '#26A544',
+                      zIndex: 2,
                     }}
                   />
 
-                  {/* Node Header: Shipped + Expected Date */}
-                  <h4
+                  {/* Node 1 Header: Order Confirmed + Real Order Date */}
+                  <div
                     style={{
-                      fontSize: '1.05rem',
-                      fontWeight: 700,
-                      color: '#4B5563',
-                      margin: '0 0 8px 0',
-                      lineHeight: 1.3,
+                      fontSize: '1rem',
+                      lineHeight: 1.35,
+                      marginBottom: '14px',
                     }}
                   >
-                    Shipped (Expected {formatFlipkartDate(tomorrowDate)})
-                  </h4>
+                    <span style={{ fontWeight: 600, color: '#111827' }}>Order Confirmed </span>
+                    <span style={{ color: '#717478', fontWeight: 400 }}>{formatFlipkartDate(orderDate)}</span>
+                  </div>
 
-                  {/* Ekart Logistics Details */}
+                  {/* Sub-item 1: Order Placed */}
                   <div style={{ marginBottom: '14px' }}>
-                    <div style={{ fontSize: '0.94rem', fontWeight: 700, color: '#374151' }}>
-                      Ekart Logistics - {ekartTrackingId}
+                    <div style={{ fontSize: '0.94rem', color: '#111827', fontWeight: 400 }}>
+                      Your Order has been placed.
                     </div>
-                    <div style={{ fontSize: '0.86rem', color: '#4B5563', fontWeight: 500, marginTop: '3px' }}>
-                      Item is being packed & scheduled for dispatch from Flipkart Facility -{' '}
-                      <strong style={{ color: '#111827' }}>{primaryHub}</strong>.
+                    <div style={{ fontSize: '0.84rem', color: '#717478', marginTop: '3px' }}>
+                      {formatFlipkartDate(orderDate)} - {formatFlipkartTime(orderDate)}
                     </div>
-                    <div style={{ fontSize: '0.8rem', color: '#6B7280', marginTop: '2px' }}>
-                      Expected dispatch to {secondaryHub} Hub
+                  </div>
+
+                  {/* Sub-item 2: Seller processing */}
+                  <div style={{ marginBottom: '14px' }}>
+                    <div style={{ fontSize: '0.94rem', color: '#111827', fontWeight: 400 }}>
+                      Seller is processing your order.
+                    </div>
+                  </div>
+
+                  {/* Sub-item 3: Waiting to be picked up */}
+                  <div>
+                    <div style={{ fontSize: '0.94rem', color: '#111827', fontWeight: 400, lineHeight: 1.4 }}>
+                      Item waiting to be picked up by delivery partner.
+                    </div>
+                    <div style={{ fontSize: '0.84rem', color: '#717478', marginTop: '3px' }}>
+                      {formatFlipkartDate(pickupDate)} - 2:00pm
                     </div>
                   </div>
                 </div>
 
-                {/* ── SECTION 3: "Out for Delivery / Expected Delivery" (Pending Milestone) ── */}
-                <div style={{ position: 'relative', paddingLeft: '32px' }}>
-                  {/* Outline Pending Dot */}
+                {/* ── Node 2: Shipped Expected (Hollow Grey Dot) ── */}
+                <div style={{ position: 'relative', marginBottom: '28px' }}>
+                  {/* Hollow Grey Dot */}
                   <div
                     style={{
                       position: 'absolute',
-                      top: '2px',
-                      left: '0px',
-                      width: '19px',
-                      height: '19px',
+                      left: '-28px',
+                      top: '4px',
+                      width: '12px',
+                      height: '12px',
                       borderRadius: '50%',
+                      border: '1.8px solid #CBD5E1',
                       background: '#FFFFFF',
-                      border: '2.5px solid #9CA3AF',
-                      zIndex: 3,
-                      boxShadow: '0 0 0 4px #FFFFFF',
+                      boxSizing: 'border-box',
+                      zIndex: 2,
                     }}
                   />
 
-                  <h4
+                  {/* Node 2 Header */}
+                  <div
                     style={{
-                      fontSize: '1.02rem',
-                      fontWeight: 700,
-                      color: '#4B5563',
-                      margin: '0 0 6px 0',
+                      fontSize: '1rem',
+                      fontWeight: 500,
+                      color: '#717478',
+                      marginBottom: '12px',
+                      lineHeight: 1.35,
                     }}
                   >
-                    Delivery Expected by {formatFlipkartDate(deliveryDate)}
-                  </h4>
+                    Shipped Expected By {formatDayWithSuffixAndMonth(shippedExpectedDate)}
+                  </div>
 
-                  <div style={{ fontSize: '0.84rem', color: '#6B7280', lineHeight: 1.4 }}>
-                    Your item will be delivered to your address and dashboard by 11:00 PM.
+                  {/* Sub-item 1 */}
+                  <div style={{ marginBottom: '14px' }}>
+                    <div style={{ fontSize: '0.94rem', color: '#717478', fontWeight: 400 }}>
+                      Item yet to be shipped.
+                    </div>
+                    <div style={{ fontSize: '0.84rem', color: '#717478', marginTop: '3px' }}>
+                      Expected by {formatDayWithSuffixAndMonth(shippedExpectedDate, true)}
+                    </div>
+                  </div>
+
+                  {/* Sub-item 2 */}
+                  <div>
+                    <div style={{ fontSize: '0.94rem', color: '#717478', fontWeight: 400 }}>
+                      Item yet to reach hub nearest to you.
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Bottom Back Button */}
-              <div style={{ marginTop: '36px', textAlign: 'center' }}>
-                <button
-                  type="button"
-                  onClick={() => setActiveView('summary')}
-                  style={{
-                    padding: '12px 24px',
-                    borderRadius: '12px',
-                    background: '#2874F0',
-                    color: '#FFFFFF',
-                    border: 'none',
-                    fontWeight: 800,
-                    fontSize: '0.92rem',
-                    cursor: 'pointer',
-                    width: '100%',
-                    boxShadow: '0 3px 10px rgba(40, 116, 240, 0.25)',
-                  }}
-                >
-                  ← Back to Order Summary
-                </button>
+                {/* ── Node 3: Out For Delivery (Hollow Grey Dot) ── */}
+                <div style={{ position: 'relative', marginBottom: '28px' }}>
+                  {/* Hollow Grey Dot */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      left: '-28px',
+                      top: '4px',
+                      width: '12px',
+                      height: '12px',
+                      borderRadius: '50%',
+                      border: '1.8px solid #CBD5E1',
+                      background: '#FFFFFF',
+                      boxSizing: 'border-box',
+                      zIndex: 2,
+                    }}
+                  />
+
+                  {/* Node 3 Header */}
+                  <div
+                    style={{
+                      fontSize: '1rem',
+                      fontWeight: 500,
+                      color: '#717478',
+                      marginBottom: '12px',
+                      lineHeight: 1.35,
+                    }}
+                  >
+                    Out For Delivery
+                  </div>
+
+                  {/* Sub-item */}
+                  <div>
+                    <div style={{ fontSize: '0.94rem', color: '#717478', fontWeight: 400 }}>
+                      Item yet to be delivered.
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Node 4: Delivery Expected By (Hollow Grey Dot) ── */}
+                <div style={{ position: 'relative' }}>
+                  {/* Hollow Grey Dot */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      left: '-28px',
+                      top: '4px',
+                      width: '12px',
+                      height: '12px',
+                      borderRadius: '50%',
+                      border: '1.8px solid #CBD5E1',
+                      background: '#FFFFFF',
+                      boxSizing: 'border-box',
+                      zIndex: 2,
+                    }}
+                  />
+
+                  {/* Node 4 Header */}
+                  <div
+                    style={{
+                      fontSize: '1rem',
+                      fontWeight: 500,
+                      color: '#717478',
+                      marginBottom: '12px',
+                      lineHeight: 1.35,
+                    }}
+                  >
+                    Delivery Expected By {formatDayWithSuffixAndMonth(deliveryExpectedDate)}
+                  </div>
+
+                  {/* Sub-item */}
+                  <div>
+                    <div style={{ fontSize: '0.94rem', color: '#717478', fontWeight: 400 }}>
+                      Item yet to be delivered.
+                    </div>
+                    <div style={{ fontSize: '0.84rem', color: '#717478', marginTop: '3px' }}>
+                      Expected by {formatDayWithSuffixAndMonth(deliveryExpectedDate, true)}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </motion.div>
