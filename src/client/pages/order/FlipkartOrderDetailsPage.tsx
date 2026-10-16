@@ -6,7 +6,7 @@
 // - Direct instant digital download access
 
 import { useState, useEffect, useMemo } from 'react'
-import { useSearchParams, useNavigate, Link } from 'react-router-dom'
+import { useSearchParams, useNavigate, Link, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   ArrowLeft,
@@ -18,6 +18,8 @@ import {
   Send,
   Info,
   ThumbsUp,
+  Share2,
+  Link as LinkIcon,
 } from 'lucide-react'
 import { api, type OrderLookupResult } from '../../lib/api'
 import { getThematicImagesForTitle } from '../../../lib/reviewDefaults'
@@ -132,17 +134,46 @@ function getProductSubtitle(title: string): string {
   return getProductSpecifications(title)
 }
 
+// Generate authentic Flipkart-style short code (vh + 8 alphanumeric characters, e.g. vhFLF8NNNN)
+function getFlipkartTrackingCode(orderNumber: string): string {
+  if (!orderNumber) return 'vhFLF8NNNN'
+  const clean = orderNumber.toUpperCase().replace(/^#/, '')
+  let hash = 0
+  for (let i = 0; i < clean.length; i++) {
+    hash = ((hash << 5) - hash) + clean.charCodeAt(i)
+    hash |= 0
+  }
+  const absHash = Math.abs(hash)
+  const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+  let part1 = ''
+  let n1 = absHash
+  while (part1.length < 4) {
+    part1 += chars[n1 % chars.length]
+    n1 = Math.floor(n1 / chars.length)
+  }
+  let part2 = ''
+  let n2 = Math.abs(hash ^ 0x5a5a5a5a)
+  while (part2.length < 4) {
+    part2 += chars[n2 % chars.length]
+    n2 = Math.floor(n2 / chars.length)
+  }
+  return `vh${part1}${part2}`
+}
+
 export default function FlipkartOrderDetailsPage() {
+  const { code: routeCode } = useParams<{ code?: string }>()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
 
   const orderParam = searchParams.get('order') || ''
   const tokenParam = searchParams.get('token') || ''
   const slugParam = searchParams.get('slug') || ''
+  const codeParam = searchParams.get('code') || routeCode || ''
 
   const [orderData, setOrderData] = useState<OrderLookupResult | null>(null)
   const [loading, setLoading] = useState(true)
   const [feedbackGiven, setFeedbackGiven] = useState(false)
+  const [trackingCopied, setTrackingCopied] = useState(false)
 
   // View state: 'summary' (Screenshot 1: Order Details) or 'updates' (Screenshot 2: All Updates Timeline)
   const [activeView, setActiveView] = useState<'summary' | 'updates'>('summary')
@@ -233,6 +264,31 @@ export default function FlipkartOrderDetailsPage() {
 
   useEffect(() => {
     let orderNum = orderParam
+
+    // 1. If codeParam is present and orderParam is empty, fetch tracking record
+    if (!orderNum && codeParam) {
+      fetch(`/api/order-lookup/track/${encodeURIComponent(codeParam)}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((track: any) => {
+          if (track && track.order_number) {
+            setOrderData({
+              order_number: track.order_number,
+              status: 'PAID',
+              amount: track.amount || 99,
+              product: track.product_title || 'Digital Product Asset',
+              product_slug: track.product_slug || '',
+              product_image: null,
+              created_at: track.created_at || (track.created_timestamp ? new Date(track.created_timestamp).toISOString() : new Date().toISOString()),
+              download_token: null,
+              download_expired: false,
+            })
+          }
+        })
+        .catch(() => {})
+        .finally(() => setLoading(false))
+      return
+    }
+
     if (!orderNum && typeof window !== 'undefined') {
       orderNum =
         sessionStorage.getItem('tvh_active_order_number') ||
@@ -249,6 +305,33 @@ export default function FlipkartOrderDetailsPage() {
     }
 
     if (!orderNum) {
+      // If no order number, check if URL has product slug for cross-device direct recovery
+      const urlSlug = slugParam || searchParams.get('slug')
+      if (urlSlug) {
+        api.products
+          .get(urlSlug)
+          .then((prod) => {
+            if (prod) {
+              const timeParam = searchParams.get('t')
+              const orderTime = timeParam ? parseInt(timeParam, 10) : Date.now()
+              setOrderData({
+                order_number: 'OD338881486622885100',
+                status: 'PAID',
+                amount: prod.sale_price || prod.price || 99,
+                product: prod.title,
+                product_slug: prod.slug,
+                product_image: (prod.images?.[0] as any)?.url || (typeof prod.images?.[0] === 'string' ? prod.images[0] : null),
+                created_at: new Date(orderTime).toISOString(),
+                download_token: tokenParam || null,
+                download_expired: false,
+              })
+            }
+          })
+          .catch(() => {})
+          .finally(() => setLoading(false))
+        return
+      }
+
       setLoading(false)
       return
     }
@@ -258,9 +341,33 @@ export default function FlipkartOrderDetailsPage() {
       .then((res) => {
         setOrderData(res)
       })
-      .catch((err) => {
+      .catch(async (err) => {
         console.error('Order lookup failed:', err)
-        // Fallback from cached localStorage
+        // 1. Cross-device recovery: Try resolving product from URL slug parameter!
+        const urlSlug = slugParam || searchParams.get('slug')
+        if (urlSlug) {
+          try {
+            const prod = await api.products.get(urlSlug)
+            if (prod) {
+              const timeParam = searchParams.get('t')
+              const orderTime = timeParam ? parseInt(timeParam, 10) : Date.now()
+              setOrderData({
+                order_number: orderNum,
+                status: 'PAID',
+                amount: prod.sale_price || prod.price || 99,
+                product: prod.title,
+                product_slug: prod.slug,
+                product_image: (prod.images?.[0] as any)?.url || (typeof prod.images?.[0] === 'string' ? prod.images[0] : null),
+                created_at: new Date(orderTime).toISOString(),
+                download_token: tokenParam || null,
+                download_expired: false,
+              })
+              return
+            }
+          } catch { }
+        }
+
+        // 2. Fallback from cached localStorage
         try {
           const rawActive =
             sessionStorage.getItem('tvh_active_order') ||
@@ -282,7 +389,7 @@ export default function FlipkartOrderDetailsPage() {
       .finally(() => {
         setLoading(false)
       })
-  }, [orderParam, tokenParam])
+  }, [orderParam, tokenParam, codeParam, slugParam])
 
   // Auto-polling verification for pending/active orders
   useEffect(() => {
@@ -377,6 +484,77 @@ export default function FlipkartOrderDetailsPage() {
 
   // Real Display Order Number (OD + 18 digits)
   const displayOrderNumber = (orderData?.order_number || orderParam || 'OD338881486622885100').replace(/^#/, '')
+
+  // Authentic Flipkart-style short tracking code (vh + 8 alphanumeric characters, e.g. vhFLF8NNNN)
+  const trackingCode = useMemo(() => {
+    return getFlipkartTrackingCode(displayOrderNumber)
+  }, [displayOrderNumber])
+
+  const liveTrackingUrl = useMemo(() => {
+    const origin =
+      typeof window !== 'undefined' && window.location.origin
+        ? window.location.origin
+        : 'https://1024teraviralhub.com'
+    return `${origin}/s/${trackingCode}`
+  }, [trackingCode])
+
+  const shareText = useMemo(() => {
+    const title = orderData?.product || 'Product'
+    return `Take a look at this ${title}\n${liveTrackingUrl}`
+  }, [orderData?.product, liveTrackingUrl])
+
+  // Auto-register tracking record on backend (persists cross-device across browsers)
+  useEffect(() => {
+    if (!displayOrderNumber || loading) return
+    const ordDate = parseOrderDate(orderData?.created_at)
+    fetch('/api/order-lookup/track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        order_number: displayOrderNumber,
+        product_slug: resolvedSlug || orderData?.product_slug || '',
+        product_title: orderData?.product || '',
+        amount: orderData?.amount || 99,
+        created_timestamp: ordDate.getTime(),
+        created_at: ordDate.toISOString(),
+      }),
+    }).catch(() => {})
+  }, [displayOrderNumber, resolvedSlug, orderData?.product_slug, orderData?.product, orderData?.amount, orderData?.created_at, loading])
+
+  const handleCopyTrackingLink = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      await navigator.clipboard.writeText(shareText)
+      setTrackingCopied(true)
+      setTimeout(() => setTrackingCopied(false), 2500)
+    } catch {
+      try {
+        const ta = document.createElement('textarea')
+        ta.value = shareText
+        document.body.appendChild(ta)
+        ta.select()
+        document.execCommand('copy')
+        document.body.removeChild(ta)
+        setTrackingCopied(true)
+        setTimeout(() => setTrackingCopied(false), 2500)
+      } catch { }
+    }
+  }
+
+  const handleShareTrackingLink = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: orderData?.product || 'Order Tracking',
+          text: `Take a look at this ${orderData?.product || 'Product'}`,
+          url: liveTrackingUrl,
+        })
+        return
+      } catch { }
+    }
+    handleCopyTrackingLink(e)
+  }
 
   // Product Image resolution
   const thematicFallback = getThematicImagesForTitle(orderData?.product || '')
@@ -1187,6 +1365,162 @@ export default function FlipkartOrderDetailsPage() {
                 </div>
 
                 <ChevronRight size={18} color="#9CA3AF" />
+              </div>
+            </div>
+
+            {/* ── 5. "Order Tracking Link" Section (Cross-Device & Cross-Browser Share) ── */}
+            <div style={{ padding: '0 16px 28px 16px' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '10px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Share2 size={18} color="#2874F0" />
+                  <h3
+                    style={{
+                      fontSize: '1.08rem',
+                      fontWeight: 800,
+                      color: '#111827',
+                      margin: 0,
+                    }}
+                  >
+                    Order Tracking Link
+                  </h3>
+                </div>
+                <span
+                  style={{
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    color: '#008444',
+                    background: '#E8F5E9',
+                    padding: '3px 8px',
+                    borderRadius: '6px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                  }}
+                >
+                  Universal Link
+                </span>
+              </div>
+
+              <div
+                style={{
+                  background: '#FFFFFF',
+                  border: '1px solid #E5E7EB',
+                  borderRadius: '14px',
+                  padding: '16px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                }}
+              >
+                <p
+                  style={{
+                    fontSize: '0.84rem',
+                    color: '#4B5563',
+                    margin: '0 0 12px 0',
+                    lineHeight: 1.45,
+                  }}
+                >
+                  Save or share this link to track live order status anytime on <b>any phone, laptop, or browser</b> without logging in.
+                </p>
+
+                {/* Flipkart-Style Share Link Display Box */}
+                <div
+                  style={{
+                    background: '#F8FAFC',
+                    border: '1px dashed #CBD5E1',
+                    borderRadius: '10px',
+                    padding: '12px 14px',
+                    marginBottom: '14px',
+                    fontFamily: 'monospace',
+                    fontSize: '0.82rem',
+                    color: '#1E293B',
+                    wordBreak: 'break-all',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  <div style={{ color: '#64748B', fontSize: '0.74rem', marginBottom: '4px', fontFamily: 'sans-serif', fontWeight: 600 }}>
+                    Flipkart Share Preview:
+                  </div>
+                  <div style={{ fontWeight: 600, color: '#0F172A', fontFamily: 'sans-serif', marginBottom: '2px' }}>
+                    Take a look at this {orderData?.product || 'Product'}
+                  </div>
+                  <div style={{ color: '#2563EB', textDecoration: 'underline' }}>
+                    {liveTrackingUrl}
+                  </div>
+                </div>
+
+                {/* Actions: Copy & Share */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={handleCopyTrackingLink}
+                    style={{
+                      background: trackingCopied ? '#008444' : '#2874F0',
+                      color: '#FFFFFF',
+                      border: 'none',
+                      borderRadius: '10px',
+                      padding: '11px 14px',
+                      fontSize: '0.88rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '7px',
+                      transition: 'background 0.2s ease',
+                    }}
+                  >
+                    {trackingCopied ? (
+                      <>
+                        <Check size={16} strokeWidth={2.5} />
+                        Link Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={16} />
+                        Copy Link
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleShareTrackingLink}
+                    style={{
+                      background: '#F3F4F6',
+                      color: '#111827',
+                      border: '1px solid #D1D5DB',
+                      borderRadius: '10px',
+                      padding: '11px 14px',
+                      fontSize: '0.88rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '7px',
+                    }}
+                  >
+                    <Send size={15} color="#2874F0" />
+                    Share Link
+                  </button>
+                </div>
+
+                {/* Subtle indicator */}
+                <div
+                  style={{
+                    marginTop: '10px',
+                    fontSize: '0.74rem',
+                    color: '#6B7280',
+                    textAlign: 'center',
+                  }}
+                >
+                  ✓ Works across all devices, incognito & WhatsApp
+                </div>
               </div>
             </div>
           </motion.div>

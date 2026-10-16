@@ -209,6 +209,7 @@ export default function App() {
               <Route path="/payment/failed" element={<PaymentFailedPage />} />
               <Route path="/order/details" element={<FlipkartOrderDetailsPage />} />
               <Route path="/orders/details" element={<FlipkartOrderDetailsPage />} />
+              <Route path="/s/:code" element={<FlipkartOrderDetailsPage />} />
               <Route path="/order/support" element={<FlipkartSupportChatPage />} />
               <Route path="/orders/support" element={<FlipkartSupportChatPage />} />
               <Route path="/order/help" element={<FlipkartSupportChatPage />} />

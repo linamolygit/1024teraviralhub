@@ -72,6 +72,61 @@ app.get('/', async (c) => {
     `).bind(emailParam).first()
   }
 
+  // 4. Try lookup in order_tracking_links table (Cross-device / cross-browser order recovery)
+  if (!order && orderNumber) {
+    try {
+      await c.env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS order_tracking_links (
+          code TEXT PRIMARY KEY,
+          order_number TEXT NOT NULL,
+          product_slug TEXT NOT NULL,
+          product_title TEXT,
+          amount REAL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          created_timestamp INTEGER
+        )
+      `).run()
+
+      const tracking = await c.env.DB.prepare(`
+        SELECT * FROM order_tracking_links
+        WHERE order_number = ? OR order_number = ? OR code = ?
+        ORDER BY created_at DESC LIMIT 1
+      `).bind(orderNumber, odAlt, orderNumber).first() as any
+
+      if (tracking) {
+        let product = await c.env.DB.prepare(
+          `SELECT id, title, slug, price, sale_price FROM products WHERE slug = ? LIMIT 1`
+        ).bind(tracking.product_slug).first() as any
+
+        let productImage = null
+        if (product) {
+          const thumb = await c.env.DB.prepare(
+            `SELECT r2_key FROM product_images WHERE product_id = ? ORDER BY is_thumbnail DESC, sort_order ASC, id ASC LIMIT 1`
+          ).bind(product.id).first<{ r2_key: string }>()
+          if (thumb) productImage = `/api/images/${encodeURIComponent(thumb.r2_key)}`
+        }
+
+        return c.json({
+          order_number: tracking.order_number,
+          status: 'PAID',
+          amount: tracking.amount || product?.sale_price || product?.price || 99,
+          customer_name: 'Customer',
+          original_price: product?.price || 199,
+          sale_price: product?.sale_price || 99,
+          product: tracking.product_title || product?.title || 'Digital Product Asset',
+          product_slug: tracking.product_slug,
+          product_id: product?.id || 1,
+          product_image: productImage,
+          created_at: tracking.created_at || (tracking.created_timestamp ? new Date(tracking.created_timestamp).toISOString() : new Date().toISOString()),
+          download_token: null,
+          download_expired: false,
+        })
+      }
+    } catch (e) {
+      console.error('Tracking fallback lookup error:', e)
+    }
+  }
+
   if (!order) {
     return c.json({
       error: 'Order not found. Please double-check your Order Number or Mobile Number and try again.'
@@ -564,7 +619,130 @@ STRICT INSTRUCTIONS:
       },
     })
   } catch (err: any) {
-    return c.json({ error: err.message || 'Support chat service error' }, 500)
+    console.error('Order chat assistant error:', err)
+    return c.json({ error: err.message || 'Support assistant error' }, 500)
+  }
+})
+
+// Generate authentic Flipkart-style short code (vh + 8 uppercase/alphanumeric characters, e.g. vhFLF8NNNN)
+export function generateFlipkartTrackingCode(orderNumber: string): string {
+  if (!orderNumber) return 'vhFLF8NNNN'
+  const clean = orderNumber.toUpperCase().replace(/^#/, '')
+  let hash = 0
+  for (let i = 0; i < clean.length; i++) {
+    hash = ((hash << 5) - hash) + clean.charCodeAt(i)
+    hash |= 0
+  }
+  const absHash = Math.abs(hash)
+  const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+  let part1 = ''
+  let n1 = absHash
+  while (part1.length < 4) {
+    part1 += chars[n1 % chars.length]
+    n1 = Math.floor(n1 / chars.length)
+  }
+  let part2 = ''
+  let n2 = Math.abs(hash ^ 0x5a5a5a5a)
+  while (part2.length < 4) {
+    part2 += chars[n2 % chars.length]
+    n2 = Math.floor(n2 / chars.length)
+  }
+  return `vh${part1}${part2}`
+}
+
+// POST /api/order-lookup/track — Create or get an authentic Flipkart-style short tracking link
+app.post('/track', async (c) => {
+  try {
+    const body = (await c.req.json()) as any
+    const orderNumber = (body.order_number || '').trim().replace(/^#/, '')
+    const productSlug = (body.product_slug || '').trim()
+    const productTitle = (body.product_title || '').trim()
+    const amount = Number(body.amount) || 99
+    const createdTimestamp = Number(body.created_timestamp) || Date.now()
+    const createdAt = body.created_at || new Date(createdTimestamp).toISOString()
+
+    if (!orderNumber) {
+      return c.json({ error: 'order_number is required' }, 400)
+    }
+
+    await c.env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS order_tracking_links (
+        code TEXT PRIMARY KEY,
+        order_number TEXT NOT NULL,
+        product_slug TEXT NOT NULL,
+        product_title TEXT,
+        amount REAL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        created_timestamp INTEGER
+      )
+    `).run()
+
+    // Check if code already exists for this order
+    const existing = await c.env.DB.prepare(
+      `SELECT * FROM order_tracking_links WHERE order_number = ? LIMIT 1`
+    ).bind(orderNumber).first() as any
+
+    if (existing) {
+      return c.json({
+        code: existing.code,
+        order_number: existing.order_number,
+        product_slug: existing.product_slug,
+        product_title: existing.product_title,
+        amount: existing.amount,
+        created_at: existing.created_at,
+        created_timestamp: existing.created_timestamp,
+      })
+    }
+
+    const code = generateFlipkartTrackingCode(orderNumber)
+
+    await c.env.DB.prepare(`
+      INSERT OR REPLACE INTO order_tracking_links (code, order_number, product_slug, product_title, amount, created_at, created_timestamp)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).bind(code, orderNumber, productSlug, productTitle, amount, createdAt, createdTimestamp).run()
+
+    return c.json({
+      code,
+      order_number: orderNumber,
+      product_slug: productSlug,
+      product_title: productTitle,
+      amount,
+      created_at: createdAt,
+      created_timestamp: createdTimestamp,
+    })
+  } catch (err: any) {
+    console.error('Error generating tracking link:', err)
+    return c.json({ error: err.message || 'Failed to generate tracking link' }, 500)
+  }
+})
+
+// GET /api/order-lookup/track/:code — Retrieve tracking link data
+app.get('/track/:code', async (c) => {
+  const code = c.req.param('code').trim()
+  try {
+    await c.env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS order_tracking_links (
+        code TEXT PRIMARY KEY,
+        order_number TEXT NOT NULL,
+        product_slug TEXT NOT NULL,
+        product_title TEXT,
+        amount REAL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        created_timestamp INTEGER
+      )
+    `).run()
+
+    const tracking = await c.env.DB.prepare(
+      `SELECT * FROM order_tracking_links WHERE code = ? OR order_number = ? LIMIT 1`
+    ).bind(code, code).first() as any
+
+    if (!tracking) {
+      return c.json({ error: 'Tracking link not found' }, 404)
+    }
+
+    return c.json(tracking)
+  } catch (err: any) {
+    return c.json({ error: err.message }, 500)
   }
 })
 

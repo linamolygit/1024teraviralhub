@@ -1010,6 +1010,94 @@ app.get('*', async (c) => {
     }
   }
 
+  // 3.6 Flipkart-Style Order Tracking Short Link: /s/:code
+  const shortMatch = path.match(/^\/s\/([^/?#]+)/)
+  if (shortMatch) {
+    const code = decodeURIComponent(shortMatch[1]).trim()
+    try {
+      await c.env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS order_tracking_links (
+          code TEXT PRIMARY KEY,
+          order_number TEXT NOT NULL,
+          product_slug TEXT NOT NULL,
+          product_title TEXT,
+          amount REAL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          created_timestamp INTEGER
+        )
+      `).run()
+
+      const tracking = await c.env.DB.prepare(`
+        SELECT t.*, p.title as prod_title, p.price, p.sale_price,
+          (SELECT r2_key FROM product_images WHERE product_id = p.id ORDER BY is_thumbnail DESC, sort_order ASC, id ASC LIMIT 1) as thumbnail_key
+        FROM order_tracking_links t
+        LEFT JOIN products p ON t.product_slug = p.slug
+        WHERE t.code = ? OR t.order_number = ?
+        LIMIT 1
+      `).bind(code, code).first<any>()
+
+      if (tracking) {
+        const userAgent = c.req.header('user-agent') || ''
+        const isCrawler = /facebookexternalhit|Facebot|WhatsApp|Twitterbot|TelegramBot|LinkedInBot|Discordbot/i.test(userAgent)
+        const tParam = tracking.created_timestamp ? `&t=${tracking.created_timestamp}` : ''
+        const targetUrl = `${siteOrigin}/order/details?order=${encodeURIComponent(tracking.order_number)}&slug=${encodeURIComponent(tracking.product_slug)}${tParam}`
+
+        if (!isCrawler) {
+          return new Response(null, {
+            status: 302,
+            headers: {
+              'Location': targetUrl,
+              'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+            },
+          })
+        }
+
+        // For crawlers (WhatsApp preview card, etc.)
+        const title = `Track Order: ${tracking.product_title || tracking.prod_title || 'Your Order'} — Flipkart Delivery`
+        const desc = `Track order #${tracking.order_number} status and delivery updates live.`
+        const ogImageUrl = tracking.thumbnail_key ? `${siteOrigin}/api/images/${encodeURIComponent(tracking.thumbnail_key)}` : `${siteOrigin}/assets/collection-section-image.png`
+
+        html = injectSeoTags(html, {
+          title,
+          description: desc,
+          url: `${siteOrigin}/s/${code}`,
+          imageUrl: ogImageUrl,
+          imageType: 'image/jpeg',
+          type: 'website',
+          siteName: 'Flipkart',
+        })
+
+        return new Response(html, {
+          headers: {
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'public, max-age=60',
+          },
+        })
+      }
+    } catch (e) {
+      console.error('[Short Tracking Link Error]', e)
+    }
+
+    // Direct fallback for OD numbers
+    if (code.toUpperCase().startsWith('OD') || code.toUpperCase().startsWith('TVH')) {
+      return new Response(null, {
+        status: 302,
+        headers: {
+          'Location': `${siteOrigin}/order/details?order=${encodeURIComponent(code)}`,
+          'Cache-Control': 'no-store, no-cache',
+        },
+      })
+    }
+
+    return new Response(null, {
+      status: 302,
+      headers: {
+        'Location': `${siteOrigin}/order/details?code=${encodeURIComponent(code)}`,
+        'Cache-Control': 'no-store, no-cache',
+      },
+    })
+  }
+
   // 4. Dynamic Blog Post Preview: /blog/:slug
   const blogMatch = path.match(/^\/blog\/([^/?#]+)/)
   if (blogMatch) {
