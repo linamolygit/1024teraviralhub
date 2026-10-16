@@ -12,7 +12,7 @@ import { formatPrice, getSavedUtmParams, trackPixelEvent } from '../../lib/utils
 import { PhonePeIcon, GPayIcon } from '../../components/ui/UpiIcons'
 import { detectInAppBrowser, triggerChromeBreakout } from '../../lib/inAppBrowser'
 import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
-import { saveOrderSession } from '../../lib/orderSession'
+import { saveOrderSession, getSavedOrders } from '../../lib/orderSession'
 import { trackPageView, trackUserClick } from '../../lib/analytics-tracker'
 import { getProductSpecifications, getProductRatingData } from '../../lib/product-specs'
 
@@ -194,6 +194,30 @@ export default function FlipkartCheckoutPage() {
   // Real Product Specifications & Rating Data (Matching Screenshots 1, 2, 4 & ProductGallery)
   const productSpec = useMemo(() => getProductSpecifications(product), [product])
   const productRatingData = useMemo(() => getProductRatingData(product), [product])
+
+  // Paid User Cache Detection & Instant Redirect to Order Details
+  useEffect(() => {
+    if (!product || !slug) return
+    const backedKey = 'tvh_backed_from_order_' + slug
+    if (sessionStorage.getItem(backedKey) === '1') return
+
+    const savedOrders = getSavedOrders()
+    const directPurchasedOrder = localStorage.getItem('tvh_purchased_' + slug)
+    const matchingOrder = savedOrders.find(
+      (o) =>
+        (o.productSlug && o.productSlug === slug) ||
+        (o.productTitle && o.productTitle.trim().toLowerCase() === product.title.trim().toLowerCase()) ||
+        (o.productId && String(o.productId) === String(product.id)) ||
+        (directPurchasedOrder && o.orderNumber === directPurchasedOrder)
+    ) || (directPurchasedOrder ? { orderNumber: directPurchasedOrder, productTitle: product.title } : null)
+
+    if (matchingOrder?.orderNumber) {
+      navigate(`/order/details?order=${encodeURIComponent(matchingOrder.orderNumber)}&slug=${encodeURIComponent(slug)}`, {
+        replace: true,
+        state: { fromProduct: true, slug }
+      })
+    }
+  }, [product, slug, navigate])
 
   // Handle Dynamic Delivery Date (3-4 days ahead realistic calendar date)
   const deliveryDateString = useMemo(() => {
@@ -425,9 +449,14 @@ export default function FlipkartCheckoutPage() {
       saveOrderSession({
         orderNumber: orderRes.order_number,
         productTitle: product.title,
+        productSlug: product.slug || slug,
+        productId: product.id,
         amount: totalAmount,
         createdAt: Date.now(),
       })
+      if (product.slug || slug) {
+        localStorage.setItem('tvh_purchased_' + (product.slug || slug), orderRes.order_number)
+      }
 
       // 💾 SNAPSHOT ACTIVE ORDER for return verification
       const pendingOrderData = {

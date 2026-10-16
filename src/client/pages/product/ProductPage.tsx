@@ -88,19 +88,36 @@ export default function ProductPage() {
     enabled: Boolean(slug),
   })
 
-  // 1. Check if user already owns this product from past session / orders
+  // 1. Paid User Cache Detection & Instant Redirect to Order Details (Flipkart Flow)
   useEffect(() => {
-    if (!product) return
-    const saved = getSavedOrders().find(
-      (o) => o.token && (
-        o.productTitle?.toLowerCase() === product.title?.toLowerCase() ||
-        (o as any).productId === product.id
-      )
-    )
-    if (saved) {
-      setExistingPaidOrder(saved)
+    if (!product || !slug) return
+
+    // If user explicitly pressed back from order details page, honor it and stay on product page!
+    const backedKey = 'tvh_backed_from_order_' + slug
+    const hasBackedOut = sessionStorage.getItem(backedKey) === '1'
+    if (hasBackedOut) {
+      return
     }
-  }, [product])
+
+    const savedOrders = getSavedOrders()
+    const directPurchasedOrder = localStorage.getItem('tvh_purchased_' + slug)
+
+    const matchingOrder = savedOrders.find(
+      (o) =>
+        (o.productSlug && o.productSlug === slug) ||
+        (o.productTitle && o.productTitle.trim().toLowerCase() === product.title.trim().toLowerCase()) ||
+        (o.productId && String(o.productId) === String(product.id)) ||
+        (directPurchasedOrder && o.orderNumber === directPurchasedOrder)
+    ) || (directPurchasedOrder ? { orderNumber: directPurchasedOrder, productTitle: product.title } : null)
+
+    if (matchingOrder?.orderNumber) {
+      setExistingPaidOrder(matchingOrder as any)
+      navigate(`/order/details?order=${encodeURIComponent(matchingOrder.orderNumber)}&slug=${encodeURIComponent(slug)}`, {
+        replace: true,
+        state: { fromProduct: true, slug }
+      })
+    }
+  }, [product, slug, navigate])
 
   // 2. 🔄 ACTIVE ORDER RESUME & AUTOMATIC PAYMENT DETECTION:
   // When user returns from PhonePe / UPI app (or if page is restored / focused),
@@ -471,10 +488,15 @@ export default function ProductPage() {
         saveOrderSession({
           orderNumber: orderRes.order_number,
           productTitle: product.title,
+          productSlug: product.slug || slug,
+          productId: product.id,
           amount: effectivePrice,
           thumbnailUrl: product.thumbnail_url || product.images?.[0]?.r2_key,
           createdAt: Date.now(),
         })
+        if (product.slug || slug) {
+          localStorage.setItem('tvh_purchased_' + (product.slug || slug), orderRes.order_number)
+        }
         document.cookie = `tvh_last_order=${encodeURIComponent(orderRes.order_number)}; path=/; max-age=31536000; SameSite=Lax`
       } catch { }
 
@@ -670,8 +692,11 @@ export default function ProductPage() {
       const { isInApp, isAndroid } = detectInAppBrowser()
 
       // 🚀 FACEBOOK & INSTAGRAM IN-APP BROWSER (Android):
-      if (isMobile && isInApp && isAndroid && (upiDeepLink || orderRes.payment_url)) {
-        triggerChromeBreakout(upiDeepLink || orderRes.payment_url)
+      if (isMobile && isInApp && isAndroid) {
+        const breakoutUrl = (orderRes.payment_url && orderRes.payment_url.startsWith('http'))
+          ? orderRes.payment_url
+          : (orderRes.upi_intent?.web || window.location.href)
+        triggerChromeBreakout(breakoutUrl)
         setTimeout(() => {
           setIsProcessing(false)
         }, 3500)
@@ -700,20 +725,41 @@ export default function ProductPage() {
         return
       }
 
-      // Cashfree Checkout (Native browser fallback or In-App Browser safe flow)
-      if (window.Cashfree) {
-        const mode = publicSettings?.cashfree_mode || 'sandbox'
-        const cashfree = window.Cashfree({ mode })
+      // Cashfree Checkout (Desktop Popup Modal with whitelisted returnUrl & fallback)
+      if (!(window as any).Cashfree) {
+        const script = document.createElement('script')
+        script.src = 'https://sdk.cashfree.com/js/v3/cashfree.js'
+        await new Promise((res) => {
+          script.onload = res
+          script.onerror = res
+          document.head.appendChild(script)
+        })
+      }
+
+      if ((window as any).Cashfree) {
+        const mode = publicSettings?.cashfree_mode || 'production'
+        const cashfree = (window as any).Cashfree({ mode })
+        const returnUrl = `https://1024teraviralhub.com/payment/processing?order=${encodeURIComponent(orderRes.order_number)}`
+
         cashfree.checkout({
           paymentSessionId: orderRes.payment_session_id,
-          returnUrl: `${window.location.origin}/payment/processing?order=${orderRes.order_number}`,
+          returnUrl,
           redirectTarget: (isMobile || isInApp) ? '_self' : '_modal',
+        }).then((result: any) => {
+          if (result?.error) {
+            console.warn('[Cashfree Modal Error, falling back to direct redirect]', result.error)
+            cashfree.checkout({
+              paymentSessionId: orderRes.payment_session_id,
+              returnUrl,
+              redirectTarget: '_self',
+            })
+          }
         })
         setTimeout(() => {
           setIsProcessing(false)
         }, 1500)
       } else {
-        navigate(`/payment/processing?order=${orderRes.order_number}`)
+        window.location.href = `https://1024teraviralhub.com/payment/processing?order=${encodeURIComponent(orderRes.order_number)}`
       }
     } catch (err) {
       console.error('Instant Checkout Error:', err)

@@ -5,7 +5,7 @@
 // - Interactive "See all updates" toggle showing vertical animated green timeline with pulsing dots
 // - Direct instant digital download access
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useSearchParams, useNavigate, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
@@ -115,6 +115,18 @@ function formatFlipkartTime(d: Date): string {
   return `${hours}:${minStr}${ampm}`
 }
 
+// Format short date with "Today" fallback: e.g. "Today, Oct 14" or "Wed, Oct 14" (Matching Screenshot 1)
+function formatShortDateWithToday(d: Date): string {
+  const now = new Date()
+  const isToday = now.toDateString() === d.toDateString()
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  const daysShort = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  if (isToday) {
+    return `Today, ${months[d.getMonth()]} ${d.getDate()}`
+  }
+  return `${daysShort[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}`
+}
+
 // Generate authentic Flipkart-style subtitle based on real product type
 function getProductSubtitle(title: string): string {
   return getProductSpecifications(title)
@@ -126,6 +138,7 @@ export default function FlipkartOrderDetailsPage() {
 
   const orderParam = searchParams.get('order') || ''
   const tokenParam = searchParams.get('token') || ''
+  const slugParam = searchParams.get('slug') || ''
 
   const [orderData, setOrderData] = useState<OrderLookupResult | null>(null)
   const [loading, setLoading] = useState(true)
@@ -135,6 +148,55 @@ export default function FlipkartOrderDetailsPage() {
   const [activeView, setActiveView] = useState<'summary' | 'updates'>('summary')
   const [orderCopied, setOrderCopied] = useState(false)
   const [isAccordionOpen, setIsAccordionOpen] = useState(true)
+
+  // Resolve product slug for back navigation to product page
+  const resolvedSlug = useMemo(() => {
+    if (slugParam) return slugParam
+
+    const ordNum = orderData?.order_number || orderParam
+    if (ordNum) {
+      const saved = getSavedOrders()
+      const match = saved.find((o) => o.orderNumber === ordNum)
+      if (match?.productSlug) return match.productSlug
+    }
+
+    try {
+      return (
+        sessionStorage.getItem('tvh_active_product_slug') ||
+        localStorage.getItem('tvh_active_product_slug') ||
+        ''
+      )
+    } catch {
+      return ''
+    }
+  }, [slugParam, orderData?.order_number, orderParam])
+
+  // Explicit back navigation to product page (Honors user request to view product page without bouncing back)
+  const handleBackToProduct = () => {
+    if (resolvedSlug) {
+      try {
+        sessionStorage.setItem(`tvh_backed_from_order_${resolvedSlug}`, '1')
+      } catch { }
+      navigate(`/product/${resolvedSlug}`)
+    } else if (window.history.length > 1) {
+      navigate(-1)
+    } else {
+      navigate('/')
+    }
+  }
+
+  // Intercept browser back button (hardware back or browser UI)
+  useEffect(() => {
+    const handlePopState = () => {
+      if (resolvedSlug) {
+        try {
+          sessionStorage.setItem(`tvh_backed_from_order_${resolvedSlug}`, '1')
+        } catch { }
+      }
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [resolvedSlug])
 
   const handleShare = async () => {
     if (typeof navigator !== 'undefined' && navigator.share) {
@@ -263,6 +325,53 @@ export default function FlipkartOrderDetailsPage() {
   const deliveryFullStr = `${daysShort[deliveryExpectedDate.getDay()]} ${months[deliveryExpectedDate.getMonth()]} ${deliveryExpectedDate.getDate()} by 11 PM`
   const deliveryShortStr = `${months[deliveryExpectedDate.getMonth()]} ${String(deliveryExpectedDate.getDate()).padStart(2, '0')}`
 
+  // Next-Day Order Cancellation Detection (UI Simulation Matching Screenshot 1 & 2)
+  const isCancelled = useMemo(() => {
+    const statusParam = searchParams.get('status')?.toLowerCase()
+    const testCancel =
+      searchParams.get('test_cancel') === '1' ||
+      searchParams.get('cancelled') === '1' ||
+      searchParams.get('next_day') === '1'
+    if (testCancel || statusParam === 'cancelled') return true
+    if (orderData?.status === 'CANCELLED') return true
+
+    // Next day detection: order placed on an earlier calendar day or >= 12 hours ago
+    if (orderData?.created_at) {
+      const oDate = parseOrderDate(orderData.created_at)
+      const nowD = new Date()
+      const diffHours = (nowD.getTime() - oDate.getTime()) / (1000 * 60 * 60)
+      const isDifferentDay = nowD.toDateString() !== oDate.toDateString()
+      if (isDifferentDay || diffHours >= 12) {
+        return true
+      }
+    }
+
+    const ordNum = orderData?.order_number || orderParam
+    if (ordNum && typeof window !== 'undefined') {
+      try {
+        if (localStorage.getItem(`tvh_order_cancelled_${ordNum}`) === '1') {
+          return true
+        }
+      } catch { }
+    }
+
+    return false
+  }, [searchParams, orderData?.status, orderData?.created_at, orderData?.order_number, orderParam])
+
+  // Realistic cancellation timestamp
+  const cancelDate = useMemo(() => {
+    const nowD = new Date()
+    const diffHours = (nowD.getTime() - orderDate.getTime()) / (1000 * 60 * 60)
+    if (diffHours >= 12) {
+      return new Date(Math.min(nowD.getTime(), orderDate.getTime() + 14 * 3600 * 1000))
+    }
+    // Same day test simulation: 4 minutes after order
+    return new Date(orderDate.getTime() + 4 * 60 * 1000)
+  }, [orderDate])
+
+  const step1ShortDate = formatShortDateWithToday(orderDate)
+  const cancelShortDate = formatShortDateWithToday(cancelDate)
+
   // Ekart tracking code: e.g. FMPC5235648370
   const ekartTrackingId = `FMPC${String(hashStr(orderData?.order_number || 'TVH')).slice(0, 10).padEnd(10, '8')}`
 
@@ -361,13 +470,7 @@ export default function FlipkartOrderDetailsPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (window.history.length > 1) {
-                      navigate(-1)
-                    } else {
-                      navigate('/my-orders')
-                    }
-                  }}
+                  onClick={handleBackToProduct}
                   aria-label="Back to store"
                   style={{
                     background: 'none',
@@ -598,7 +701,7 @@ export default function FlipkartOrderDetailsPage() {
                       letterSpacing: '-0.02em',
                     }}
                   >
-                    {orderData?.status === 'FAILED' ? 'Payment Failed' : 'Order Confirmed'}
+                    {isCancelled ? 'Order Cancelled' : orderData?.status === 'FAILED' ? 'Payment Failed' : 'Order Confirmed'}
                   </h3>
 
                   <button
@@ -623,236 +726,417 @@ export default function FlipkartOrderDetailsPage() {
                 </div>
 
                 {isAccordionOpen && (
-                  <div>
-                    {/* Subtitle location text */}
-                    <p
-                      style={{
-                        fontSize: '0.98rem',
-                        color: '#111827',
-                        margin: '12px 0 24px 0',
-                        fontWeight: 400,
-                      }}
-                    >
-                      {orderData?.status === 'PAID'
-                        ? 'Your Order has been placed.'
-                        : orderData?.status === 'FAILED'
-                        ? 'Payment was declined or cancelled.'
-                        : 'Your Order has been placed.'}
-                    </p>
-
-                    {/* Horizontal Delivery Tracker (Matching Screenshot Layout & Alignment) */}
-                    <div style={{ position: 'relative', marginBottom: '24px' }}>
-                      {/* Step Circles & Connecting Lines Row */}
-                      <div
+                  isCancelled ? (
+                    <div>
+                      {/* Subtitle reason text & refund guarantee (Matching Screenshot 1) */}
+                      <p
                         style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          width: '100%',
-                          height: '22px',
-                          position: 'relative',
-                        }}
-                      >
-                        {/* Step 1 Circle: Order Confirmed (Green circle with Checkmark) */}
-                        <div
-                          style={{
-                            width: 22,
-                            height: 22,
-                            borderRadius: '50%',
-                            background: '#008444',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            flexShrink: 0,
-                            zIndex: 2,
-                          }}
-                        >
-                          <Check size={13} color="#FFFFFF" strokeWidth={3.5} />
-                        </div>
-
-                        {/* Connecting Line 1 */}
-                        <div
-                          style={{
-                            flex: 1,
-                            height: '2px',
-                            background: '#9CA3AF',
-                            zIndex: 1,
-                          }}
-                        />
-
-                        {/* Step 2 Circle: Shipped (Empty Circle Outline) */}
-                        <div
-                          style={{
-                            width: 22,
-                            height: 22,
-                            borderRadius: '50%',
-                            border: '1.8px solid #9CA3AF',
-                            background: '#FFFFFF',
-                            flexShrink: 0,
-                            zIndex: 2,
-                            boxSizing: 'border-box',
-                          }}
-                        />
-
-                        {/* Connecting Line 2 */}
-                        <div
-                          style={{
-                            flex: 1,
-                            height: '2px',
-                            background: '#9CA3AF',
-                            zIndex: 1,
-                          }}
-                        />
-
-                        {/* Step 3 Circle: Delivery (Empty Circle Outline) */}
-                        <div
-                          style={{
-                            width: 22,
-                            height: 22,
-                            borderRadius: '50%',
-                            border: '1.8px solid #9CA3AF',
-                            background: '#FFFFFF',
-                            flexShrink: 0,
-                            zIndex: 2,
-                            boxSizing: 'border-box',
-                          }}
-                        />
-                      </div>
-
-                      {/* Labels Row (Matching Screenshot: Left, Center, Right) */}
-                      <div
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'flex-start',
-                          marginTop: '10px',
-                        }}
-                      >
-                        {/* Step 1 Label (Left aligned) */}
-                        <div style={{ textAlign: 'left' }}>
-                          <div
-                            style={{
-                              fontSize: '0.86rem',
-                              color: '#374151',
-                              fontWeight: 500,
-                            }}
-                          >
-                            Order Confirmed
-                          </div>
-                          <div
-                            style={{
-                              fontSize: '0.82rem',
-                              color: '#717478',
-                              marginTop: '2px',
-                            }}
-                          >
-                            {step1DateStr}
-                          </div>
-                        </div>
-
-                        {/* Step 2 Label (Centered) */}
-                        <div style={{ textAlign: 'center' }}>
-                          <div
-                            style={{
-                              fontSize: '0.86rem',
-                              color: '#374151',
-                              fontWeight: 500,
-                            }}
-                          >
-                            Shipped
-                          </div>
-                          <div
-                            style={{
-                              fontSize: '0.82rem',
-                              color: '#717478',
-                              marginTop: '2px',
-                            }}
-                          >
-                            {shippedDateStr}
-                          </div>
-                        </div>
-
-                        {/* Step 3 Label (Right aligned) */}
-                        <div style={{ textAlign: 'right' }}>
-                          <div
-                            style={{
-                              fontSize: '0.86rem',
-                              color: '#374151',
-                              fontWeight: 500,
-                            }}
-                          >
-                            Delivery
-                          </div>
-                          <div
-                            style={{
-                              fontSize: '0.82rem',
-                              color: '#717478',
-                              marginTop: '2px',
-                            }}
-                          >
-                            {deliveryFullStr}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Delivery Executive Info Callout Box (Grey Pill Box from Screenshot) */}
-                    <div
-                      style={{
-                        background: '#F4F5F7',
-                        borderRadius: '12px',
-                        padding: '12px 14px',
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: '10px',
-                        marginBottom: '16px',
-                      }}
-                    >
-                      <Info size={18} color="#6B7280" style={{ flexShrink: 0, marginTop: 1 }} />
-                      <span
-                        style={{
-                          fontSize: '0.84rem',
-                          color: '#374151',
+                          fontSize: '0.98rem',
+                          color: '#111827',
+                          margin: '12px 0 6px 0',
+                          fontWeight: 400,
                           lineHeight: 1.45,
                         }}
                       >
-                        Delivery Executive details will be available once the order is out for delivery
-                      </span>
-                    </div>
-
-                    {/* Divider line across the card */}
-                    <div
-                      style={{
-                        height: '1px',
-                        background: '#F0F1F3',
-                        margin: '16px -20px 0 -20px',
-                      }}
-                    />
-
-                    {/* ── Clickable Blue Link: "See all updates" (Opens Screenshot 2 view) ── */}
-                    <div
-                      style={{
-                        paddingTop: '14px',
-                        textAlign: 'center',
-                      }}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => setActiveView('updates')}
+                        Your order was cancelled: Item is out of stock / delivery partner unable to service your address.
+                      </p>
+                      <p
                         style={{
-                          background: 'none',
-                          border: 'none',
-                          color: '#1C74E9',
-                          fontSize: '1.04rem',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          padding: '4px 12px',
-                          letterSpacing: '0.01em',
+                          fontSize: '0.88rem',
+                          color: '#008444',
+                          margin: '0 0 24px 0',
+                          fontWeight: 600,
+                          lineHeight: 1.4,
                         }}
                       >
-                        See all updates
-                      </button>
+                        Full refund of ₹{orderData?.amount || 99} will be credited to your original payment mode within 7 business days.
+                      </p>
+
+                      {/* Horizontal 2-Node Delivery Tracker (Matching Screenshot 1 EXACTLY) */}
+                      <div style={{ position: 'relative', marginBottom: '24px' }}>
+                        {/* Step Circles & Connecting Line Row */}
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            width: '100%',
+                            height: '22px',
+                            position: 'relative',
+                          }}
+                        >
+                          {/* Step 1 Circle: Order Confirmed (Green circle with Checkmark) */}
+                          <div
+                            style={{
+                              width: 22,
+                              height: 22,
+                              borderRadius: '50%',
+                              background: '#26A544',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                              zIndex: 2,
+                            }}
+                          >
+                            <Check size={13} color="#FFFFFF" strokeWidth={3.5} />
+                          </div>
+
+                          {/* Solid Green Connecting Line */}
+                          <div
+                            style={{
+                              flex: 1,
+                              height: '2.5px',
+                              background: '#26A544',
+                              zIndex: 1,
+                            }}
+                          />
+
+                          {/* Step 2 Circle: Cancelled (Red circle with white inner dot) */}
+                          <div
+                            style={{
+                              width: 22,
+                              height: 22,
+                              borderRadius: '50%',
+                              background: '#D32F2F',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                              zIndex: 2,
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: 7,
+                                height: 7,
+                                borderRadius: '50%',
+                                background: '#FFFFFF',
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Labels Row (Order Confirmed on Left, Cancelled on Right) */}
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'flex-start',
+                            marginTop: '10px',
+                          }}
+                        >
+                          {/* Step 1 Label (Left aligned) */}
+                          <div style={{ textAlign: 'left' }}>
+                            <div
+                              style={{
+                                fontSize: '0.88rem',
+                                color: '#374151',
+                                fontWeight: 500,
+                              }}
+                            >
+                              Order Confirmed
+                            </div>
+                            <div
+                              style={{
+                                fontSize: '0.82rem',
+                                color: '#717478',
+                                marginTop: '2px',
+                              }}
+                            >
+                              {step1ShortDate}
+                            </div>
+                          </div>
+
+                          {/* Step 2 Label (Right aligned) */}
+                          <div style={{ textAlign: 'right' }}>
+                            <div
+                              style={{
+                                fontSize: '0.88rem',
+                                color: '#374151',
+                                fontWeight: 500,
+                              }}
+                            >
+                              Cancelled
+                            </div>
+                            <div
+                              style={{
+                                fontSize: '0.82rem',
+                                color: '#717478',
+                                marginTop: '2px',
+                              }}
+                            >
+                              {cancelShortDate}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Divider line across the card */}
+                      <div
+                        style={{
+                          height: '1px',
+                          background: '#F0F1F3',
+                          margin: '16px -20px 0 -20px',
+                        }}
+                      />
+
+                      {/* Clickable Blue Link: "See all updates" */}
+                      <div
+                        style={{
+                          paddingTop: '14px',
+                          textAlign: 'center',
+                        }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setActiveView('updates')}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#1C74E9',
+                            fontSize: '1.04rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            padding: '4px 12px',
+                            letterSpacing: '0.01em',
+                          }}
+                        >
+                          See all updates
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div>
+                      {/* Subtitle location text */}
+                      <p
+                        style={{
+                          fontSize: '0.98rem',
+                          color: '#111827',
+                          margin: '12px 0 24px 0',
+                          fontWeight: 400,
+                        }}
+                      >
+                        {orderData?.status === 'PAID'
+                          ? 'Your Order has been placed.'
+                          : orderData?.status === 'FAILED'
+                          ? 'Payment was declined or cancelled.'
+                          : 'Your Order has been placed.'}
+                      </p>
+
+                      {/* Horizontal Delivery Tracker (Matching Screenshot Layout & Alignment) */}
+                      <div style={{ position: 'relative', marginBottom: '24px' }}>
+                        {/* Step Circles & Connecting Lines Row */}
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            width: '100%',
+                            height: '22px',
+                            position: 'relative',
+                          }}
+                        >
+                          {/* Step 1 Circle: Order Confirmed (Green circle with Checkmark) */}
+                          <div
+                            style={{
+                              width: 22,
+                              height: 22,
+                              borderRadius: '50%',
+                              background: '#008444',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                              zIndex: 2,
+                            }}
+                          >
+                            <Check size={13} color="#FFFFFF" strokeWidth={3.5} />
+                          </div>
+
+                          {/* Connecting Line 1 */}
+                          <div
+                            style={{
+                              flex: 1,
+                              height: '2px',
+                              background: '#9CA3AF',
+                              zIndex: 1,
+                            }}
+                          />
+
+                          {/* Step 2 Circle: Shipped (Empty Circle Outline) */}
+                          <div
+                            style={{
+                              width: 22,
+                              height: 22,
+                              borderRadius: '50%',
+                              border: '1.8px solid #9CA3AF',
+                              background: '#FFFFFF',
+                              flexShrink: 0,
+                              zIndex: 2,
+                              boxSizing: 'border-box',
+                            }}
+                          />
+
+                          {/* Connecting Line 2 */}
+                          <div
+                            style={{
+                              flex: 1,
+                              height: '2px',
+                              background: '#9CA3AF',
+                              zIndex: 1,
+                            }}
+                          />
+
+                          {/* Step 3 Circle: Delivery (Empty Circle Outline) */}
+                          <div
+                            style={{
+                              width: 22,
+                              height: 22,
+                              borderRadius: '50%',
+                              border: '1.8px solid #9CA3AF',
+                              background: '#FFFFFF',
+                              flexShrink: 0,
+                              zIndex: 2,
+                              boxSizing: 'border-box',
+                            }}
+                          />
+                        </div>
+
+                        {/* Labels Row (Matching Screenshot: Left, Center, Right) */}
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'flex-start',
+                            marginTop: '10px',
+                          }}
+                        >
+                          {/* Step 1 Label (Left aligned) */}
+                          <div style={{ textAlign: 'left' }}>
+                            <div
+                              style={{
+                                fontSize: '0.86rem',
+                                color: '#374151',
+                                fontWeight: 500,
+                              }}
+                            >
+                              Order Confirmed
+                            </div>
+                            <div
+                              style={{
+                                fontSize: '0.82rem',
+                                color: '#717478',
+                                marginTop: '2px',
+                              }}
+                            >
+                              {step1DateStr}
+                            </div>
+                          </div>
+
+                          {/* Step 2 Label (Centered) */}
+                          <div style={{ textAlign: 'center' }}>
+                            <div
+                              style={{
+                                fontSize: '0.86rem',
+                                color: '#374151',
+                                fontWeight: 500,
+                              }}
+                            >
+                              Shipped
+                            </div>
+                            <div
+                              style={{
+                                fontSize: '0.82rem',
+                                color: '#717478',
+                                marginTop: '2px',
+                              }}
+                            >
+                              {shippedDateStr}
+                            </div>
+                          </div>
+
+                          {/* Step 3 Label (Right aligned) */}
+                          <div style={{ textAlign: 'right' }}>
+                            <div
+                              style={{
+                                fontSize: '0.86rem',
+                                color: '#374151',
+                                fontWeight: 500,
+                              }}
+                            >
+                              Delivery
+                            </div>
+                            <div
+                              style={{
+                                fontSize: '0.82rem',
+                                color: '#717478',
+                                marginTop: '2px',
+                              }}
+                            >
+                              {deliveryFullStr}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Delivery Executive Info Callout Box (Grey Pill Box from Screenshot) */}
+                      <div
+                        style={{
+                          background: '#F4F5F7',
+                          borderRadius: '12px',
+                          padding: '12px 14px',
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '10px',
+                          marginBottom: '16px',
+                        }}
+                      >
+                        <Info size={18} color="#6B7280" style={{ flexShrink: 0, marginTop: 1 }} />
+                        <span
+                          style={{
+                            fontSize: '0.84rem',
+                            color: '#374151',
+                            lineHeight: 1.45,
+                          }}
+                        >
+                          Delivery Executive details will be available once the order is out for delivery
+                        </span>
+                      </div>
+
+                      {/* Divider line across the card */}
+                      <div
+                        style={{
+                          height: '1px',
+                          background: '#F0F1F3',
+                          margin: '16px -20px 0 -20px',
+                        }}
+                      />
+
+                      {/* ── Clickable Blue Link: "See all updates" (Opens Screenshot 2 view) ── */}
+                      <div
+                        style={{
+                          paddingTop: '14px',
+                          textAlign: 'center',
+                        }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setActiveView('updates')}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#1C74E9',
+                            fontSize: '1.04rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            padding: '4px 12px',
+                            letterSpacing: '0.01em',
+                          }}
+                        >
+                          See all updates
+                        </button>
+                      </div>
+                    </div>
+                  )
                 )}
               </div>
             </div>
@@ -950,206 +1234,306 @@ export default function FlipkartOrderDetailsPage() {
 
             {/* Vertical Timeline Container (Exact Screenshot Layout & Typography) */}
             <div style={{ padding: '16px 24px 60px 24px' }}>
-              <div style={{ position: 'relative', paddingLeft: '28px' }}>
-                {/* Continuous Vertical Grey Line from Node 1 dot center to Node 4 dot center */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: '5px',
-                    top: '8px',
-                    bottom: '12px',
-                    width: '1.5px',
-                    background: '#E5E7EB',
-                    zIndex: 1,
-                  }}
-                />
-
-                {/* ── Node 1: Order Confirmed (Active / Solid Green Dot) ── */}
-                <div style={{ position: 'relative', marginBottom: '28px' }}>
-                  {/* Solid Green Dot */}
+              {isCancelled ? (
+                /* ── SCREENSHOT 2: EXACT CANCELLED TIMELINE ── */
+                <div style={{ position: 'relative', paddingLeft: '28px' }}>
+                  {/* Continuous Vertical Green Line from Node 1 dot to Node 2 dot (Matching Screenshot 2) */}
                   <div
                     style={{
                       position: 'absolute',
-                      left: '-28px',
-                      top: '4px',
-                      width: '12px',
-                      height: '12px',
-                      borderRadius: '50%',
+                      left: '5px',
+                      top: '8px',
+                      bottom: '12px',
+                      width: '2px',
                       background: '#26A544',
-                      zIndex: 2,
+                      zIndex: 1,
                     }}
                   />
 
-                  {/* Node 1 Header: Order Confirmed + Real Order Date */}
-                  <div
-                    style={{
-                      fontSize: '1rem',
-                      lineHeight: 1.35,
-                      marginBottom: '14px',
-                    }}
-                  >
-                    <span style={{ fontWeight: 600, color: '#111827' }}>Order Confirmed </span>
-                    <span style={{ color: '#717478', fontWeight: 400 }}>{formatFlipkartDate(orderDate)}</span>
+                  {/* ── Node 1: Order Confirmed (Solid Green Dot) ── */}
+                  <div style={{ position: 'relative', marginBottom: '32px' }}>
+                    {/* Solid Green Dot */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        left: '-28px',
+                        top: '4px',
+                        width: '12px',
+                        height: '12px',
+                        borderRadius: '50%',
+                        background: '#26A544',
+                        zIndex: 2,
+                      }}
+                    />
+
+                    {/* Node 1 Header: Order Confirmed + Real Order Date */}
+                    <div
+                      style={{
+                        fontSize: '1rem',
+                        lineHeight: 1.35,
+                        marginBottom: '8px',
+                      }}
+                    >
+                      <span style={{ fontWeight: 600, color: '#111827' }}>Order Confirmed </span>
+                      <span style={{ color: '#717478', fontWeight: 400 }}>{formatFlipkartDate(orderDate)}</span>
+                    </div>
+
+                    {/* Sub-item: Order Placed */}
+                    <div>
+                      <div style={{ fontSize: '0.94rem', color: '#111827', fontWeight: 400 }}>
+                        Your Order has been placed.
+                      </div>
+                      <div style={{ fontSize: '0.84rem', color: '#717478', marginTop: '3px' }}>
+                        {formatFlipkartDate(orderDate)} - {formatFlipkartTime(orderDate)}
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Sub-item 1: Order Placed */}
-                  <div style={{ marginBottom: '14px' }}>
-                    <div style={{ fontSize: '0.94rem', color: '#111827', fontWeight: 400 }}>
-                      Your Order has been placed.
-                    </div>
-                    <div style={{ fontSize: '0.84rem', color: '#717478', marginTop: '3px' }}>
-                      {formatFlipkartDate(orderDate)} - {formatFlipkartTime(orderDate)}
-                    </div>
-                  </div>
+                  {/* ── Node 2: Cancelled (Solid Red Dot) ── */}
+                  <div style={{ position: 'relative' }}>
+                    {/* Solid Red Dot */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        left: '-28px',
+                        top: '4px',
+                        width: '12px',
+                        height: '12px',
+                        borderRadius: '50%',
+                        background: '#D32F2F',
+                        zIndex: 2,
+                      }}
+                    />
 
-                  {/* Sub-item 2: Seller processing */}
-                  <div style={{ marginBottom: '14px' }}>
-                    <div style={{ fontSize: '0.94rem', color: '#111827', fontWeight: 400 }}>
-                      Seller is processing your order.
+                    {/* Node 2 Header: Cancelled + Date */}
+                    <div
+                      style={{
+                        fontSize: '1rem',
+                        lineHeight: 1.35,
+                        marginBottom: '8px',
+                      }}
+                    >
+                      <span style={{ fontWeight: 600, color: '#111827' }}>Cancelled </span>
+                      <span style={{ color: '#717478', fontWeight: 400 }}>{formatFlipkartDate(cancelDate)}</span>
                     </div>
-                  </div>
 
-                  {/* Sub-item 3: Waiting to be picked up */}
-                  <div>
-                    <div style={{ fontSize: '0.94rem', color: '#111827', fontWeight: 400, lineHeight: 1.4 }}>
-                      Item waiting to be picked up by delivery partner.
-                    </div>
-                    <div style={{ fontSize: '0.84rem', color: '#717478', marginTop: '3px' }}>
-                      {formatFlipkartDate(pickupDate)} - 2:00pm
+                    {/* Sub-item: Cancellation Reason + 7 business days refund note */}
+                    <div style={{ marginBottom: '8px' }}>
+                      <div style={{ fontSize: '0.94rem', color: '#111827', fontWeight: 400, lineHeight: 1.45 }}>
+                        Your order was cancelled: Item is out of stock / delivery partner unable to service your address.
+                      </div>
+                      <div style={{ fontSize: '0.88rem', color: '#008444', fontWeight: 500, marginTop: '4px' }}>
+                        Full refund of ₹{orderData?.amount || 99} will be credited to your original payment mode within 7 business days.
+                      </div>
+                      <div style={{ fontSize: '0.84rem', color: '#717478', marginTop: '4px' }}>
+                        {formatFlipkartDate(cancelDate)} - {formatFlipkartTime(cancelDate)}
+                      </div>
                     </div>
                   </div>
                 </div>
-
-                {/* ── Node 2: Shipped Expected (Hollow Grey Dot) ── */}
-                <div style={{ position: 'relative', marginBottom: '28px' }}>
-                  {/* Hollow Grey Dot */}
+              ) : (
+                /* ── ACTIVE ORDER: 4-NODE TIMELINE ── */
+                <div style={{ position: 'relative', paddingLeft: '28px' }}>
+                  {/* Continuous Vertical Grey Line from Node 1 dot center to Node 4 dot center */}
                   <div
                     style={{
                       position: 'absolute',
-                      left: '-28px',
-                      top: '4px',
-                      width: '12px',
-                      height: '12px',
-                      borderRadius: '50%',
-                      border: '1.8px solid #CBD5E1',
-                      background: '#FFFFFF',
-                      boxSizing: 'border-box',
-                      zIndex: 2,
+                      left: '5px',
+                      top: '8px',
+                      bottom: '12px',
+                      width: '1.5px',
+                      background: '#E5E7EB',
+                      zIndex: 1,
                     }}
                   />
 
-                  {/* Node 2 Header */}
-                  <div
-                    style={{
-                      fontSize: '1rem',
-                      fontWeight: 500,
-                      color: '#717478',
-                      marginBottom: '12px',
-                      lineHeight: 1.35,
-                    }}
-                  >
-                    Shipped Expected By {formatDayWithSuffixAndMonth(shippedExpectedDate)}
+                  {/* ── Node 1: Order Confirmed (Active / Solid Green Dot) ── */}
+                  <div style={{ position: 'relative', marginBottom: '28px' }}>
+                    {/* Solid Green Dot */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        left: '-28px',
+                        top: '4px',
+                        width: '12px',
+                        height: '12px',
+                        borderRadius: '50%',
+                        background: '#26A544',
+                        zIndex: 2,
+                      }}
+                    />
+
+                    {/* Node 1 Header: Order Confirmed + Real Order Date */}
+                    <div
+                      style={{
+                        fontSize: '1rem',
+                        lineHeight: 1.35,
+                        marginBottom: '14px',
+                      }}
+                    >
+                      <span style={{ fontWeight: 600, color: '#111827' }}>Order Confirmed </span>
+                      <span style={{ color: '#717478', fontWeight: 400 }}>{formatFlipkartDate(orderDate)}</span>
+                    </div>
+
+                    {/* Sub-item 1: Order Placed */}
+                    <div style={{ marginBottom: '14px' }}>
+                      <div style={{ fontSize: '0.94rem', color: '#111827', fontWeight: 400 }}>
+                        Your Order has been placed.
+                      </div>
+                      <div style={{ fontSize: '0.84rem', color: '#717478', marginTop: '3px' }}>
+                        {formatFlipkartDate(orderDate)} - {formatFlipkartTime(orderDate)}
+                      </div>
+                    </div>
+
+                    {/* Sub-item 2: Seller processing */}
+                    <div style={{ marginBottom: '14px' }}>
+                      <div style={{ fontSize: '0.94rem', color: '#111827', fontWeight: 400 }}>
+                        Seller is processing your order.
+                      </div>
+                    </div>
+
+                    {/* Sub-item 3: Waiting to be picked up */}
+                    <div>
+                      <div style={{ fontSize: '0.94rem', color: '#111827', fontWeight: 400, lineHeight: 1.4 }}>
+                        Item waiting to be picked up by delivery partner.
+                      </div>
+                      <div style={{ fontSize: '0.84rem', color: '#717478', marginTop: '3px' }}>
+                        {formatFlipkartDate(pickupDate)} - 2:00pm
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Sub-item 1 */}
-                  <div style={{ marginBottom: '14px' }}>
-                    <div style={{ fontSize: '0.94rem', color: '#717478', fontWeight: 400 }}>
-                      Item yet to be shipped.
+                  {/* ── Node 2: Shipped Expected (Hollow Grey Dot) ── */}
+                  <div style={{ position: 'relative', marginBottom: '28px' }}>
+                    {/* Hollow Grey Dot */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        left: '-28px',
+                        top: '4px',
+                        width: '12px',
+                        height: '12px',
+                        borderRadius: '50%',
+                        border: '1.8px solid #CBD5E1',
+                        background: '#FFFFFF',
+                        boxSizing: 'border-box',
+                        zIndex: 2,
+                      }}
+                    />
+
+                    {/* Node 2 Header */}
+                    <div
+                      style={{
+                        fontSize: '1rem',
+                        fontWeight: 500,
+                        color: '#717478',
+                        marginBottom: '12px',
+                        lineHeight: 1.35,
+                      }}
+                    >
+                      Shipped Expected By {formatDayWithSuffixAndMonth(shippedExpectedDate)}
                     </div>
-                    <div style={{ fontSize: '0.84rem', color: '#717478', marginTop: '3px' }}>
-                      Expected by {formatDayWithSuffixAndMonth(shippedExpectedDate, true)}
+
+                    {/* Sub-item 1 */}
+                    <div style={{ marginBottom: '14px' }}>
+                      <div style={{ fontSize: '0.94rem', color: '#717478', fontWeight: 400 }}>
+                        Item yet to be shipped.
+                      </div>
+                      <div style={{ fontSize: '0.84rem', color: '#717478', marginTop: '3px' }}>
+                        Expected by {formatDayWithSuffixAndMonth(shippedExpectedDate, true)}
+                      </div>
+                    </div>
+
+                    {/* Sub-item 2 */}
+                    <div>
+                      <div style={{ fontSize: '0.94rem', color: '#717478', fontWeight: 400 }}>
+                        Item yet to reach hub nearest to you.
+                      </div>
                     </div>
                   </div>
 
-                  {/* Sub-item 2 */}
-                  <div>
-                    <div style={{ fontSize: '0.94rem', color: '#717478', fontWeight: 400 }}>
-                      Item yet to reach hub nearest to you.
+                  {/* ── Node 3: Out For Delivery (Hollow Grey Dot) ── */}
+                  <div style={{ position: 'relative', marginBottom: '28px' }}>
+                    {/* Hollow Grey Dot */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        left: '-28px',
+                        top: '4px',
+                        width: '12px',
+                        height: '12px',
+                        borderRadius: '50%',
+                        border: '1.8px solid #CBD5E1',
+                        background: '#FFFFFF',
+                        boxSizing: 'border-box',
+                        zIndex: 2,
+                      }}
+                    />
+
+                    {/* Node 3 Header */}
+                    <div
+                      style={{
+                        fontSize: '1rem',
+                        fontWeight: 500,
+                        color: '#717478',
+                        marginBottom: '12px',
+                        lineHeight: 1.35,
+                      }}
+                    >
+                      Out For Delivery
+                    </div>
+
+                    {/* Sub-item */}
+                    <div>
+                      <div style={{ fontSize: '0.94rem', color: '#717478', fontWeight: 400 }}>
+                        Item yet to be delivered.
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ── Node 4: Delivery Expected By (Hollow Grey Dot) ── */}
+                  <div style={{ position: 'relative' }}>
+                    {/* Hollow Grey Dot */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        left: '-28px',
+                        top: '4px',
+                        width: '12px',
+                        height: '12px',
+                        borderRadius: '50%',
+                        border: '1.8px solid #CBD5E1',
+                        background: '#FFFFFF',
+                        boxSizing: 'border-box',
+                        zIndex: 2,
+                      }}
+                    />
+
+                    {/* Node 4 Header */}
+                    <div
+                      style={{
+                        fontSize: '1rem',
+                        fontWeight: 500,
+                        color: '#717478',
+                        marginBottom: '12px',
+                        lineHeight: 1.35,
+                      }}
+                    >
+                      Delivery Expected By {formatDayWithSuffixAndMonth(deliveryExpectedDate)}
+                    </div>
+
+                    {/* Sub-item */}
+                    <div>
+                      <div style={{ fontSize: '0.94rem', color: '#717478', fontWeight: 400 }}>
+                        Item yet to be delivered.
+                      </div>
+                      <div style={{ fontSize: '0.84rem', color: '#717478', marginTop: '3px' }}>
+                        Expected by {formatDayWithSuffixAndMonth(deliveryExpectedDate, true)}
+                      </div>
                     </div>
                   </div>
                 </div>
-
-                {/* ── Node 3: Out For Delivery (Hollow Grey Dot) ── */}
-                <div style={{ position: 'relative', marginBottom: '28px' }}>
-                  {/* Hollow Grey Dot */}
-                  <div
-                    style={{
-                      position: 'absolute',
-                      left: '-28px',
-                      top: '4px',
-                      width: '12px',
-                      height: '12px',
-                      borderRadius: '50%',
-                      border: '1.8px solid #CBD5E1',
-                      background: '#FFFFFF',
-                      boxSizing: 'border-box',
-                      zIndex: 2,
-                    }}
-                  />
-
-                  {/* Node 3 Header */}
-                  <div
-                    style={{
-                      fontSize: '1rem',
-                      fontWeight: 500,
-                      color: '#717478',
-                      marginBottom: '12px',
-                      lineHeight: 1.35,
-                    }}
-                  >
-                    Out For Delivery
-                  </div>
-
-                  {/* Sub-item */}
-                  <div>
-                    <div style={{ fontSize: '0.94rem', color: '#717478', fontWeight: 400 }}>
-                      Item yet to be delivered.
-                    </div>
-                  </div>
-                </div>
-
-                {/* ── Node 4: Delivery Expected By (Hollow Grey Dot) ── */}
-                <div style={{ position: 'relative' }}>
-                  {/* Hollow Grey Dot */}
-                  <div
-                    style={{
-                      position: 'absolute',
-                      left: '-28px',
-                      top: '4px',
-                      width: '12px',
-                      height: '12px',
-                      borderRadius: '50%',
-                      border: '1.8px solid #CBD5E1',
-                      background: '#FFFFFF',
-                      boxSizing: 'border-box',
-                      zIndex: 2,
-                    }}
-                  />
-
-                  {/* Node 4 Header */}
-                  <div
-                    style={{
-                      fontSize: '1rem',
-                      fontWeight: 500,
-                      color: '#717478',
-                      marginBottom: '12px',
-                      lineHeight: 1.35,
-                    }}
-                  >
-                    Delivery Expected By {formatDayWithSuffixAndMonth(deliveryExpectedDate)}
-                  </div>
-
-                  {/* Sub-item */}
-                  <div>
-                    <div style={{ fontSize: '0.94rem', color: '#717478', fontWeight: 400 }}>
-                      Item yet to be delivered.
-                    </div>
-                    <div style={{ fontSize: '0.84rem', color: '#717478', marginTop: '3px' }}>
-                      Expected by {formatDayWithSuffixAndMonth(deliveryExpectedDate, true)}
-                    </div>
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
           </motion.div>
         )}

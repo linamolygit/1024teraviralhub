@@ -5,6 +5,8 @@ export interface SavedOrderSession {
   orderNumber: string
   token?: string
   productTitle?: string
+  productSlug?: string
+  productId?: number | string
   amount?: number
   thumbnailUrl?: string
   createdAt?: string | number
@@ -77,6 +79,8 @@ export function getSavedOrders(): SavedOrderSession[] {
         ...item,
         token: item.token || existing.token,
         productTitle: item.productTitle || existing.productTitle,
+        productSlug: item.productSlug || existing.productSlug,
+        productId: item.productId || existing.productId,
         amount: item.amount || existing.amount,
         thumbnailUrl: item.thumbnailUrl || existing.thumbnailUrl,
         createdAt: item.createdAt || existing.createdAt || Date.now(),
@@ -118,6 +122,8 @@ export function saveOrderSession(order: SavedOrderSession): SavedOrderSession[] 
       ...order,
       orderNumber: order.orderNumber?.trim() || '',
       token: order.token?.trim() || '',
+      productSlug: order.productSlug?.trim() || '',
+      productId: order.productId,
       createdAt: order.createdAt || Date.now(),
     },
     ...filtered,
@@ -128,6 +134,12 @@ export function saveOrderSession(order: SavedOrderSession): SavedOrderSession[] 
   // Write to LocalStorage
   try {
     localStorage.setItem(STORAGE_KEY, jsonStr)
+    if (order.productSlug && order.orderNumber) {
+      localStorage.setItem('tvh_purchased_' + order.productSlug, order.orderNumber)
+    }
+    if (order.orderNumber) {
+      localStorage.setItem('tvh_last_purchased_order', order.orderNumber)
+    }
   } catch {
     // Ignore storage quota errors
   }
