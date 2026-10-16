@@ -14,6 +14,7 @@ import { detectInAppBrowser, triggerChromeBreakout } from '../../lib/inAppBrowse
 import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
 import { saveOrderSession } from '../../lib/orderSession'
 import { trackPageView, trackUserClick } from '../../lib/analytics-tracker'
+import { getProductSpecifications, getProductRatingData } from '../../lib/product-specs'
 
 interface ShippingAddress {
   name: string
@@ -186,6 +187,13 @@ export default function FlipkartCheckoutPage() {
   })
 
   const product = productData as ProductDetail | undefined
+
+  // Quantity Stepper State (Default 1, Matching Screenshot 3)
+  const [quantity, setQuantity] = useState(1)
+
+  // Real Product Specifications & Rating Data (Matching Screenshots 1, 2, 4 & ProductGallery)
+  const productSpec = useMemo(() => getProductSpecifications(product), [product])
+  const productRatingData = useMemo(() => getProductRatingData(product), [product])
 
   // Handle Dynamic Delivery Date (3-4 days ahead realistic calendar date)
   const deliveryDateString = useMemo(() => {
@@ -943,52 +951,143 @@ export default function FlipkartCheckoutPage() {
               boxShadow: '0 1px 3px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', gap: 12
             }}>
               <div style={{ display: 'flex', gap: 14 }}>
-                {/* Left: Real Thumbnail + Stepper */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 84, flexShrink: 0 }}>
-                  <img
-                    src={product.thumbnail_url || product.images?.[0]?.url || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=200'}
-                    alt={product.title}
-                    style={{
-                      width: 80, height: 80, objectFit: 'cover', borderRadius: 8,
-                      border: '1px solid #ECECEC'
-                    }}
-                  />
-                  {/* Quantity Stepper (1) */}
+                {/* Left: Product Image Card with Integrated Stepper (Matching Screenshot 3) */}
+                <div style={{
+                  width: 96,
+                  flexShrink: 0,
+                  borderRadius: 12,
+                  border: '1px solid #E0E0E0',
+                  background: '#FFFFFF',
+                  overflow: 'hidden',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
+                }}>
+                  {/* Top: Product Image */}
                   <div style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    width: 78, height: 26, border: '1px solid #DCDCDC', borderRadius: 4,
-                    marginTop: 8, padding: '0 4px', background: '#FAFAFA'
+                    width: '100%',
+                    height: 92,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: '#FFFFFF',
+                    padding: '6px',
+                    boxSizing: 'border-box'
                   }}>
-                    <span style={{ fontSize: '0.9rem', color: '#BBB', fontWeight: 700, cursor: 'default' }}>−</span>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#212121' }}>1</span>
-                    <span style={{ fontSize: '0.9rem', color: '#BBB', fontWeight: 700, cursor: 'default' }}>+</span>
+                    <img
+                      src={product.thumbnail_url || product.images?.[0]?.url || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=200'}
+                      alt={product.title}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'contain',
+                        borderRadius: 8
+                      }}
+                    />
+                  </div>
+
+                  {/* Bottom: Integrated Stepper (-  1  +) Matching Screenshot 3 */}
+                  <div style={{
+                    width: '100%',
+                    height: 34,
+                    borderTop: '1px solid #F0F0F0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '0 10px',
+                    boxSizing: 'border-box',
+                    background: '#FFFFFF'
+                  }}>
+                    <button
+                      type="button"
+                      onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                      disabled={quantity <= 1}
+                      aria-label="Decrease quantity"
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        outline: 'none',
+                        padding: 0,
+                        fontSize: '1.2rem',
+                        fontWeight: 600,
+                        color: quantity > 1 ? '#212121' : '#B0B0B0',
+                        cursor: quantity > 1 ? 'pointer' : 'default',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        lineHeight: 1
+                      }}
+                    >
+                      −
+                    </button>
+                    <span style={{
+                      fontSize: '1.05rem',
+                      fontWeight: 800,
+                      color: '#212121',
+                      userSelect: 'none',
+                      lineHeight: 1
+                    }}>
+                      {quantity}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setQuantity(q => Math.min(5, q + 1))}
+                      disabled={quantity >= 5}
+                      aria-label="Increase quantity"
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        outline: 'none',
+                        padding: 0,
+                        fontSize: '1.25rem',
+                        fontWeight: 600,
+                        color: quantity < 5 ? '#212121' : '#B0B0B0',
+                        cursor: quantity < 5 ? 'pointer' : 'default',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        lineHeight: 1
+                      }}
+                    >
+                      +
+                    </button>
                   </div>
                 </div>
 
                 {/* Right: Real Product Details */}
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                   <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#108934', marginBottom: 2 }}>
                     Top Discount of the Sale
                   </div>
+
+                  {/* Title (e.g. COINCASTLE Krishna Lotus ...) */}
                   <div style={{
-                    fontSize: '0.95rem', fontWeight: 600, color: '#212121', lineHeight: 1.3,
+                    fontSize: '0.94rem', fontWeight: 600, color: '#212121', lineHeight: 1.3,
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
                   }}>
                     {product.title}
                   </div>
-                  <div style={{ fontSize: '0.78rem', color: '#666', marginTop: 2 }}>
-                    {product.category_name || 'Verified Digital Asset, Instant Delivery'}
+
+                  {/* Flipkart Specification / Highlights Subtitle (Screenshots 1, 2, 4) */}
+                  <div style={{
+                    fontSize: '0.80rem', color: '#666', marginTop: 3, lineHeight: 1.35,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                  }}>
+                    {productSpec}
                   </div>
 
-                  {/* Rating Pill */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                  {/* Rating Pill: Matching Screenshot 2 & Product Gallery (4.4 ★ 1.1K+) */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
                     <span style={{
-                      background: '#108934', color: '#FFF', fontSize: '0.72rem', fontWeight: 800,
-                      padding: '1px 6px', borderRadius: 4, display: 'inline-flex', alignItems: 'center', gap: 2
+                      background: '#108934', color: '#FFF', fontSize: '0.72rem', fontWeight: 700,
+                      padding: '1.5px 6px', borderRadius: 4, display: 'inline-flex', alignItems: 'center', gap: 2,
+                      lineHeight: 1.1
                     }}>
-                      4.1 ★
+                      {productRatingData.rating} ★
                     </span>
-                    <span style={{ fontSize: '0.74rem', color: '#666' }}>5.1L+</span>
+                    <span style={{ fontSize: '0.75rem', color: '#878787', fontWeight: 500 }}>
+                      {productRatingData.reviewCount}
+                    </span>
                   </div>
 
                   {/* Pricing Row */}

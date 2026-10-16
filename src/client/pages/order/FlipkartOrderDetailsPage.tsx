@@ -22,6 +22,7 @@ import {
 import { api, type OrderLookupResult } from '../../lib/api'
 import { getThematicImagesForTitle } from '../../../lib/reviewDefaults'
 import { getSavedOrders } from '../../lib/orderSession'
+import { getProductSpecifications } from '../../lib/product-specs'
 
 // Curated list of major Indian e-commerce fulfillment / hub locations (Flipkart & Ekart hubs)
 const MAJOR_HUBS = [
@@ -116,27 +117,7 @@ function formatFlipkartTime(d: Date): string {
 
 // Generate authentic Flipkart-style subtitle based on real product type
 function getProductSubtitle(title: string): string {
-  if (!title) return 'Format: Digital Pack • Instant Access'
-  const lower = title.toLowerCase()
-  if (lower.includes('shoe') || lower.includes('canvas') || lower.includes('sneaker') || lower.includes('footwear')) {
-    return 'Size: 7 • Color: Black,White'
-  }
-  if (lower.includes('iphone') || lower.includes('vivo') || lower.includes('phone') || lower.includes('mobile')) {
-    return 'RAM: 8 GB • Storage: 128 GB'
-  }
-  if (lower.includes('murti') || lower.includes('idol') || lower.includes('statue')) {
-    return 'Material: Brass/Polyresin • Standard Size'
-  }
-  if (lower.includes('stove') || lower.includes('cooker') || lower.includes('appliance') || lower.includes('steamer')) {
-    return 'Color: Black • Warranty: 1 Year'
-  }
-  if (lower.includes('light') || lower.includes('jhalar')) {
-    return 'Pack of 3 • Color: Warm White'
-  }
-  if (lower.includes('wallpaper') || lower.includes('pack')) {
-    return 'Format: Ultra HD 4K • Instant Delivery'
-  }
-  return 'Format: Digital Pack • Instant Access'
+  return getProductSpecifications(title)
 }
 
 export default function FlipkartOrderDetailsPage() {
