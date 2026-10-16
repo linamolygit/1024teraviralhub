@@ -1368,43 +1368,27 @@ export default function FlipkartOrderDetailsPage() {
               </div>
             </div>
 
-            {/* ── 5. "Order Tracking Link" Section (Cross-Device & Cross-Browser Share) ── */}
+            {/* ── 5. "Order Tracking Link" Section (Clean & Minimal: Copy & Share Buttons) ── */}
             <div style={{ padding: '0 16px 28px 16px' }}>
               <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: '10px',
+                  gap: '8px',
+                  marginBottom: '12px',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Share2 size={18} color="#2874F0" />
-                  <h3
-                    style={{
-                      fontSize: '1.08rem',
-                      fontWeight: 800,
-                      color: '#111827',
-                      margin: 0,
-                    }}
-                  >
-                    Order Tracking Link
-                  </h3>
-                </div>
-                <span
+                <Share2 size={18} color="#2874F0" />
+                <h3
                   style={{
-                    fontSize: '0.72rem',
-                    fontWeight: 700,
-                    color: '#008444',
-                    background: '#E8F5E9',
-                    padding: '3px 8px',
-                    borderRadius: '6px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.04em',
+                    fontSize: '1.08rem',
+                    fontWeight: 800,
+                    color: '#111827',
+                    margin: 0,
                   }}
                 >
-                  Universal Link
-                </span>
+                  Order Tracking Link
+                </h3>
               </div>
 
               <div
@@ -1412,48 +1396,11 @@ export default function FlipkartOrderDetailsPage() {
                   background: '#FFFFFF',
                   border: '1px solid #E5E7EB',
                   borderRadius: '14px',
-                  padding: '16px',
+                  padding: '14px',
                   boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
                 }}
               >
-                <p
-                  style={{
-                    fontSize: '0.84rem',
-                    color: '#4B5563',
-                    margin: '0 0 12px 0',
-                    lineHeight: 1.45,
-                  }}
-                >
-                  Save or share this link to track live order status anytime on <b>any phone, laptop, or browser</b> without logging in.
-                </p>
-
-                {/* Flipkart-Style Share Link Display Box */}
-                <div
-                  style={{
-                    background: '#F8FAFC',
-                    border: '1px dashed #CBD5E1',
-                    borderRadius: '10px',
-                    padding: '12px 14px',
-                    marginBottom: '14px',
-                    fontFamily: 'monospace',
-                    fontSize: '0.82rem',
-                    color: '#1E293B',
-                    wordBreak: 'break-all',
-                    lineHeight: 1.5,
-                  }}
-                >
-                  <div style={{ color: '#64748B', fontSize: '0.74rem', marginBottom: '4px', fontFamily: 'sans-serif', fontWeight: 600 }}>
-                    Flipkart Share Preview:
-                  </div>
-                  <div style={{ fontWeight: 600, color: '#0F172A', fontFamily: 'sans-serif', marginBottom: '2px' }}>
-                    Take a look at this {orderData?.product || 'Product'}
-                  </div>
-                  <div style={{ color: '#2563EB', textDecoration: 'underline' }}>
-                    {liveTrackingUrl}
-                  </div>
-                </div>
-
-                {/* Actions: Copy & Share */}
+                {/* Actions: Copy & Share only */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <button
                     type="button"
@@ -1463,25 +1410,25 @@ export default function FlipkartOrderDetailsPage() {
                       color: '#FFFFFF',
                       border: 'none',
                       borderRadius: '10px',
-                      padding: '11px 14px',
-                      fontSize: '0.88rem',
+                      padding: '12px 14px',
+                      fontSize: '0.92rem',
                       fontWeight: 700,
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: '7px',
+                      gap: '8px',
                       transition: 'background 0.2s ease',
                     }}
                   >
                     {trackingCopied ? (
                       <>
-                        <Check size={16} strokeWidth={2.5} />
+                        <Check size={17} strokeWidth={2.5} />
                         Link Copied!
                       </>
                     ) : (
                       <>
-                        <Copy size={16} />
+                        <Copy size={17} />
                         Copy Link
                       </>
                     )}
@@ -1495,31 +1442,19 @@ export default function FlipkartOrderDetailsPage() {
                       color: '#111827',
                       border: '1px solid #D1D5DB',
                       borderRadius: '10px',
-                      padding: '11px 14px',
-                      fontSize: '0.88rem',
+                      padding: '12px 14px',
+                      fontSize: '0.92rem',
                       fontWeight: 700,
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: '7px',
+                      gap: '8px',
                     }}
                   >
-                    <Send size={15} color="#2874F0" />
+                    <Send size={16} color="#2874F0" />
                     Share Link
                   </button>
-                </div>
-
-                {/* Subtle indicator */}
-                <div
-                  style={{
-                    marginTop: '10px',
-                    fontSize: '0.74rem',
-                    color: '#6B7280',
-                    textAlign: 'center',
-                  }}
-                >
-                  ✓ Works across all devices, incognito & WhatsApp
                 </div>
               </div>
             </div>
