@@ -420,9 +420,9 @@ export default function FlipkartOrderDetailsPage() {
 
   // Resolve Real Order Dates
   const orderDate = parseOrderDate(orderData?.created_at)
-  const pickupDate = new Date(orderDate.getTime() + 3 * 86400000)
-  const shippedExpectedDate = new Date(orderDate.getTime() + 4 * 86400000)
-  const deliveryExpectedDate = new Date(orderDate.getTime() + 10 * 86400000)
+  const pickupDate = new Date(orderDate.getTime() + 2 * 86400000)
+  const shippedExpectedDate = new Date(orderDate.getTime() + 3 * 86400000)
+  const deliveryExpectedDate = new Date(orderDate.getTime() + 7 * 86400000)
 
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
   const daysShort = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']

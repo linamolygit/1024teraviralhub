@@ -571,8 +571,15 @@ STRICT INSTRUCTIONS:
         const monthsShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
         let orderDate = new Date()
         if (order?.created_at) {
-          const parsed = new Date(order.created_at)
+          const raw = String(order.created_at).trim()
+          const withT = raw.replace(' ', 'T')
+          const withZ = withT.endsWith('Z') ? withT : `${withT}Z`
+          const parsed = new Date(withZ)
           if (!isNaN(parsed.getTime())) orderDate = parsed
+          else {
+            const fallback = new Date(raw)
+            if (!isNaN(fallback.getTime())) orderDate = fallback
+          }
         }
         const deliveryDate = new Date(orderDate.getTime() + 7 * 86400000)
         const deliveryStr = `${deliveryDate.getDate()} ${monthsShort[deliveryDate.getMonth()]}`

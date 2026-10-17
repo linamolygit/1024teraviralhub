@@ -19,13 +19,28 @@ interface ChatMessage {
   options?: ChatOption[]
 }
 
+function parseOrderDate(rawDate?: string | number | null): Date {
+  if (!rawDate) return new Date()
+  if (typeof rawDate === 'number') return new Date(rawDate)
+  if (typeof rawDate === 'string') {
+    const s = rawDate.trim()
+    if (s.includes('T')) {
+      const d = new Date(s)
+      if (!isNaN(d.getTime())) return d
+    }
+    const withT = s.replace(' ', 'T')
+    const withZ = withT.endsWith('Z') ? withT : `${withT}Z`
+    const d = new Date(withZ)
+    if (!isNaN(d.getTime())) return d
+    const fallback = new Date(s)
+    if (!isNaN(fallback.getTime())) return fallback
+  }
+  return new Date()
+}
+
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const getEstimatedDeliveryDateStr = (baseDate?: string | number | null) => {
-  let d = new Date()
-  if (baseDate) {
-    const parsed = new Date(baseDate)
-    if (!isNaN(parsed.getTime())) d = parsed
-  }
+  const d = parseOrderDate(baseDate)
   const target = new Date(d.getTime() + 7 * 86400000)
   return `${target.getDate()} ${MONTHS_SHORT[target.getMonth()]}`
 }
