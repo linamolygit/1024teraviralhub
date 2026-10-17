@@ -2,8 +2,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { X, Send, Image as ImageIcon } from 'lucide-react'
+import { X, Send, Image as ImageIcon, ChevronRight } from 'lucide-react'
 import { api } from '../../lib/api'
+
+interface ChatOption {
+  label: string
+  action: string
+}
 
 interface ChatMessage {
   id: string
@@ -11,6 +16,18 @@ interface ChatMessage {
   content: string
   time: string
   isProductCard?: boolean
+  options?: ChatOption[]
+}
+
+const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const getEstimatedDeliveryDateStr = (baseDate?: string | number | null) => {
+  let d = new Date()
+  if (baseDate) {
+    const parsed = new Date(baseDate)
+    if (!isNaN(parsed.getTime())) d = parsed
+  }
+  const target = new Date(d.getTime() + 7 * 86400000)
+  return `${target.getDate()} ${MONTHS_SHORT[target.getMonth()]}`
 }
 
 export default function FlipkartSupportChatPage() {
@@ -38,7 +55,7 @@ export default function FlipkartSupportChatPage() {
     staleTime: 30000,
   })
 
-  // Format current time: e.g. "10:20 am"
+  // Format current time: e.g. "3:55 pm"
   const getCurrentTime = () => {
     const now = new Date()
     return now
@@ -61,45 +78,46 @@ export default function FlipkartSupportChatPage() {
     scrollToBottom()
   }, [messages, isTyping])
 
-  // Initialize starting assistant messages when order details load
+  // Initialize starting assistant messages when order details load (Matching Screenshot 100%)
   useEffect(() => {
     if (!orderData) return
 
     const initialTime = getCurrentTime()
-    const customerName = orderData.customer_name || 'there'
-    const isPaid = orderData.status === 'PAID'
+    const orderNum = (orderData.order_number || activeOrderNum || 'OD392232266636002862').replace(/^#/, '')
+    const deliveryDateStr = getEstimatedDeliveryDateStr(orderData.created_at)
 
     const initialBubbles: ChatMessage[] = [
       {
-        id: 'init-1',
+        id: 'init-product',
         role: 'assistant',
-        content: `Hey ${customerName} 👋, I'm your Support Assistant`,
-        time: initialTime,
-      },
-      {
-        id: 'init-2',
-        role: 'assistant',
-        content: orderData.product || 'Digital Product Pack',
+        content: orderData.product || 'Product Asset',
         time: initialTime,
         isProductCard: true,
       },
       {
-        id: 'init-3',
+        id: 'init-tracking',
         role: 'assistant',
-        content: isPaid
-          ? 'I see that your product is delivered to you'
-          : 'I see that your order has been placed and is currently being verified',
+        content: `Your order ${orderNum} is SHIPPED and currently moving towards your city. The latest update shows it at the Delhi facility. It is on track to be delivered by ${deliveryDateStr}.`,
         time: initialTime,
+      },
+      {
+        id: 'init-options',
+        role: 'assistant',
+        content: 'Can I help you with anything else?',
+        time: initialTime,
+        options: [
+          { label: 'No, I am good', action: 'no_good' },
+          { label: 'Yes, I still need help', action: 'need_help' },
+        ],
       },
     ]
 
     setMessages(initialBubbles)
   }, [orderData])
 
-  // Send user message and fetch AI reply in matching language
-  const handleSendMessage = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault()
-    const text = inputMsg.trim()
+  // Send message or handle option click
+  const handleSendMessage = async (customText?: string, customAction?: string) => {
+    const text = (typeof customText === 'string' ? customText : inputMsg).trim()
     if (!text || isTyping) return
 
     const userTime = getCurrentTime()
@@ -114,6 +132,189 @@ export default function FlipkartSupportChatPage() {
     setInputMsg('')
     setIsTyping(true)
 
+    const orderNum = (orderData?.order_number || activeOrderNum || 'OD392232266636002862').replace(/^#/, '')
+    const deliveryDateStr = getEstimatedDeliveryDateStr(orderData?.created_at)
+    const lower = text.toLowerCase()
+
+    // 1. "No, I am good" Option
+    if (customAction === 'no_good' || lower === 'no, i am good' || lower === 'no i am good') {
+      setTimeout(() => {
+        setIsTyping(false)
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `bot-${Date.now()}`,
+            role: 'assistant',
+            content: 'Great! Glad I could help. Have a wonderful day! Feel free to reach out anytime if you need anything else.',
+            time: getCurrentTime(),
+          },
+        ])
+      }, 450)
+      return
+    }
+
+    // 2. "Yes, I still need help" Option
+    if (customAction === 'need_help' || lower === 'yes, i still need help' || lower === 'yes i still need help') {
+      setTimeout(() => {
+        setIsTyping(false)
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `bot-${Date.now()}`,
+            role: 'assistant',
+            content: `Please select how we can assist you with Order #${orderNum}:`,
+            time: getCurrentTime(),
+            options: [
+              { label: 'When will the delivery agent call me?', action: 'agent_call' },
+              { label: 'Can I change the delivery address?', action: 'change_address' },
+              { label: 'Instant digital invoice & files', action: 'digital_files' },
+              { label: 'Connect with support executive', action: 'support_exec' },
+            ],
+          },
+        ])
+      }, 450)
+      return
+    }
+
+    // 3. Agent Call Timing
+    if (customAction === 'agent_call') {
+      setTimeout(() => {
+        setIsTyping(false)
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `bot-${Date.now()}`,
+            role: 'assistant',
+            content: `Our Ekart logistics delivery partner will call you on your registered mobile number on the day of delivery (${deliveryDateStr}) between 9:00 AM and 7:00 PM before arriving at your doorstep.`,
+            time: getCurrentTime(),
+          },
+          {
+            id: `bot-fu-${Date.now()}`,
+            role: 'assistant',
+            content: 'Can I help you with anything else?',
+            time: getCurrentTime(),
+            options: [
+              { label: 'No, I am good', action: 'no_good' },
+              { label: 'Yes, I still need help', action: 'need_help' },
+            ],
+          },
+        ])
+      }, 450)
+      return
+    }
+
+    // 4. Change Delivery Address
+    if (customAction === 'change_address') {
+      setTimeout(() => {
+        setIsTyping(false)
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `bot-${Date.now()}`,
+            role: 'assistant',
+            content: `Since your order is already SHIPPED and in transit from the Delhi facility, the address cannot be edited in the system. However, when the delivery partner calls you on ${deliveryDateStr}, you can instruct them to deliver to your nearby preferred landmark.`,
+            time: getCurrentTime(),
+          },
+          {
+            id: `bot-fu-${Date.now()}`,
+            role: 'assistant',
+            content: 'Can I help you with anything else?',
+            time: getCurrentTime(),
+            options: [
+              { label: 'No, I am good', action: 'no_good' },
+              { label: 'Yes, I still need help', action: 'need_help' },
+            ],
+          },
+        ])
+      }, 450)
+      return
+    }
+
+    // 5. Digital Files & Invoice
+    if (customAction === 'digital_files') {
+      const dlLink = orderData?.download_token
+        ? `https://1024teraviralhub.com/download/${orderData.download_token}`
+        : `https://1024teraviralhub.com/order/details?order=${encodeURIComponent(orderNum)}`
+      setTimeout(() => {
+        setIsTyping(false)
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `bot-${Date.now()}`,
+            role: 'assistant',
+            content: `Your instant digital files & official invoice are ready:\n\n${dlLink}\n\nYou can click above to download anytime.`,
+            time: getCurrentTime(),
+          },
+          {
+            id: `bot-fu-${Date.now()}`,
+            role: 'assistant',
+            content: 'Can I help you with anything else?',
+            time: getCurrentTime(),
+            options: [
+              { label: 'No, I am good', action: 'no_good' },
+              { label: 'Yes, I still need help', action: 'need_help' },
+            ],
+          },
+        ])
+      }, 450)
+      return
+    }
+
+    // 6. Connect with Support Exec
+    if (customAction === 'support_exec') {
+      setTimeout(() => {
+        setIsTyping(false)
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `bot-${Date.now()}`,
+            role: 'assistant',
+            content: `Our customer care team is available 24x7 at support@1024teraviralhub.com. Please mention Order #${orderNum} for instant priority resolution.`,
+            time: getCurrentTime(),
+          },
+          {
+            id: `bot-fu-${Date.now()}`,
+            role: 'assistant',
+            content: 'Can I help you with anything else?',
+            time: getCurrentTime(),
+            options: [
+              { label: 'No, I am good', action: 'no_good' },
+              { label: 'Yes, I still need help', action: 'need_help' },
+            ],
+          },
+        ])
+      }, 450)
+      return
+    }
+
+    // 7. Order Status / Where is my order / Shipped question
+    if (/status|kaha|kahan|delivery|deliver|pahucha|aaya|kab tak|shipped|tracking|order|location/i.test(lower)) {
+      setTimeout(() => {
+        setIsTyping(false)
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `bot-${Date.now()}`,
+            role: 'assistant',
+            content: `Your order ${orderNum} is SHIPPED and currently moving towards your city. The latest update shows it at the Delhi facility. It is on track to be delivered by ${deliveryDateStr}.`,
+            time: getCurrentTime(),
+          },
+          {
+            id: `bot-fu-${Date.now()}`,
+            role: 'assistant',
+            content: 'Can I help you with anything else?',
+            time: getCurrentTime(),
+            options: [
+              { label: 'No, I am good', action: 'no_good' },
+              { label: 'Yes, I still need help', action: 'need_help' },
+            ],
+          },
+        ])
+      }, 450)
+      return
+    }
+
+    // 8. General AI / Backend Lookup
     try {
       const historyForApi = messages
         .filter((m) => !m.isProductCard)
@@ -126,7 +327,7 @@ export default function FlipkartSupportChatPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          order_number: orderData?.order_number || activeOrderNum,
+          order_number: orderNum,
           message: text,
           history: historyForApi,
         }),
@@ -141,24 +342,36 @@ export default function FlipkartSupportChatPage() {
           content: botReply,
           time: getCurrentTime(),
         }
-        setMessages((prev) => [...prev, botMsgObj])
+        const followUpObj: ChatMessage = {
+          id: `bot-fu-${Date.now()}`,
+          role: 'assistant',
+          content: 'Can I help you with anything else?',
+          time: getCurrentTime(),
+          options: [
+            { label: 'No, I am good', action: 'no_good' },
+            { label: 'Yes, I still need help', action: 'need_help' },
+          ],
+        }
+        setMessages((prev) => [...prev, botMsgObj, followUpObj])
       } else {
         throw new Error('Failed to get bot reply')
       }
     } catch {
-      // Natural fallback if offline or network drops
-      const fallbackReply =
-        orderData?.status === 'PAID' && orderData.download_token
-          ? `Aapke order ka download link active hai: https://1024teraviralhub.com/download/${orderData.download_token}\n\nAap is link se direct files download kar sakte hain. Koi bhi dikkat ho toh support@1024teraviralhub.com par contact karein.`
-          : `Aapke order #${orderData?.order_number || activeOrderNum} ke regarding koi bhi sahayata chahiye ho toh hum poori madad karenge. Aap support@1024teraviralhub.com par bhi likh sakte hain.`
-
-      const botMsgObj: ChatMessage = {
-        id: `bot-${Date.now()}`,
-        role: 'assistant',
-        content: fallbackReply,
-        time: getCurrentTime(),
-      }
-      setMessages((prev) => [...prev, botMsgObj])
+      // Natural fallback
+      const fallbackReply = `Aapke order #${orderNum} ke regarding koi bhi sahayata chahiye ho toh hum poori madad karenge. Aap support@1024teraviralhub.com par bhi likh sakte hain.`
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `bot-${Date.now()}`,
+          role: 'assistant',
+          content: fallbackReply,
+          time: getCurrentTime(),
+          options: [
+            { label: 'No, I am good', action: 'no_good' },
+            { label: 'Yes, I still need help', action: 'need_help' },
+          ],
+        },
+      ])
     } finally {
       setIsTyping(false)
     }
@@ -466,7 +679,7 @@ export default function FlipkartSupportChatPage() {
               )
             }
 
-            // Normal Assistant Message bubble (Left aligned, White with border)
+            // Normal Assistant Message bubble (Left aligned, soft light container matching Flipkart Screenshot)
             return (
               <div
                 key={msg.id}
@@ -474,36 +687,69 @@ export default function FlipkartSupportChatPage() {
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'flex-start',
-                  maxWidth: '85%',
+                  maxWidth: '88%',
                   alignSelf: 'flex-start',
                 }}
               >
                 <div
                   style={{
-                    background: '#FFFFFF',
-                    border: '1px solid #E5E7EB',
+                    background: '#F2F5F9',
+                    border: '1px solid #E2E8F0',
                     borderRadius: '16px 16px 16px 4px',
-                    padding: '12px 14px',
-                    fontSize: '0.93rem',
+                    padding: '12px 14px 8px 14px',
+                    fontSize: '0.94rem',
                     color: '#111827',
                     lineHeight: 1.5,
-                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.02)',
                     wordBreak: 'break-word',
                     whiteSpace: 'pre-line',
+                    width: '100%',
+                    boxSizing: 'border-box',
                   }}
                 >
-                  {renderMessageContent(msg.content)}
+                  <div style={{ color: '#1F2937', fontWeight: 500 }}>
+                    {renderMessageContent(msg.content)}
+                  </div>
+
+                  {/* Interactive Options Box (Matching Screenshot 100%) */}
+                  {msg.options && msg.options.length > 0 && (
+                    <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+                      {msg.options.map((opt, optIdx) => (
+                        <button
+                          key={optIdx}
+                          type="button"
+                          onClick={() => handleSendMessage(opt.label, opt.action)}
+                          style={{
+                            width: '100%',
+                            background: '#FFFFFF',
+                            border: '1.5px solid #D5DDE5',
+                            borderRadius: 10,
+                            padding: '11px 14px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          <span style={{ fontSize: '0.94rem', fontWeight: 600, color: '#2874F0' }}>
+                            {opt.label}
+                          </span>
+                          <ChevronRight size={18} color="#2874F0" strokeWidth={2.4} />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Timestamp at bottom right */}
+                  <div style={{ textAlign: 'right', marginTop: 6, lineHeight: 1 }}>
+                    <span style={{ fontSize: '0.72rem', color: '#9CA3AF' }}>
+                      {msg.time}
+                    </span>
+                  </div>
                 </div>
-                <span
-                  style={{
-                    fontSize: '0.7rem',
-                    color: '#9CA3AF',
-                    marginTop: '3px',
-                    paddingLeft: '4px',
-                  }}
-                >
-                  {msg.time}
-                </span>
               </div>
             )
           })}
@@ -546,7 +792,10 @@ export default function FlipkartSupportChatPage() {
           }}
         >
           <form
-            onSubmit={handleSendMessage}
+            onSubmit={(e) => {
+              e.preventDefault()
+              handleSendMessage()
+            }}
             style={{
               display: 'flex',
               alignItems: 'center',
