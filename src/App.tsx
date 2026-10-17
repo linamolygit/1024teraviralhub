@@ -49,6 +49,7 @@ const BlogArticlePage = lazyWithRetry(() => import('./client/pages/blog/BlogArti
 const PrivacyPage = lazyWithRetry(() => import('./client/pages/legal/PrivacyPage'))
 const TermsPage = lazyWithRetry(() => import('./client/pages/legal/TermsPage'))
 const RefundPage = lazyWithRetry(() => import('./client/pages/legal/RefundPage'))
+const RefundRequestPage = lazyWithRetry(() => import('./client/pages/order/RefundRequestPage'))
 const DisclaimerPage = lazyWithRetry(() => import('./client/pages/legal/DisclaimerPage'))
 const CookiePolicyPage = lazyWithRetry(() => import('./client/pages/legal/CookiePolicyPage'))
 const PricingProductsPage = lazyWithRetry(() => import('./client/pages/legal/PricingProductsPage'))
@@ -187,6 +188,9 @@ export default function App() {
               <Route path="/privacy-policy" element={<LegalRoute enabled={legalPages.privacyPolicy} element={<PrivacyPage />} />} />
               <Route path="/terms-and-conditions" element={<LegalRoute enabled={legalPages.termsConditions} element={<TermsPage />} />} />
               <Route path="/refund-policy" element={<LegalRoute enabled={legalPages.refundPolicy} element={<RefundPage />} />} />
+              <Route path="/refund-request" element={<RefundRequestPage />} />
+              <Route path="/refund" element={<RefundRequestPage />} />
+              <Route path="/dispute" element={<RefundRequestPage />} />
               <Route path="/shipping-policy" element={<ShippingPolicyPage />} />
               <Route path="/shipping-and-delivery-policy" element={<ShippingPolicyPage />} />
               <Route path="/disclaimer" element={<LegalRoute enabled={legalPages.disclaimer} element={<DisclaimerPage />} />} />

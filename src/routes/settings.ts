@@ -37,7 +37,7 @@ app.get('/public', async (c) => {
     getSetting<string>(c.env.DB, 'announcement_text', ''),
     getSetting<string>(c.env.DB, 'site_name', (c.env as any).SITE_NAME || 'Digital Store'),
     getSetting<string>(c.env.DB, 'site_url', c.env.SITE_URL || ''),
-    getSetting<string>(c.env.DB, 'support_email', (c.env as any).SUPPORT_EMAIL || 'rishavsrivastawa9162@gmail.com'),
+    getSetting<string>(c.env.DB, 'support_email', (c.env as any).SUPPORT_EMAIL || 'support@1024teraviralhub.com'),
     getSetting<string>(c.env.DB, 'site_tagline', 'Premium Digital Downloads & Assets'),
     getSetting<string>(c.env.DB, 'currency_symbol', '₹'),
     getSetting<string>(c.env.DB, 'site_theme', 'dark'),
@@ -90,8 +90,8 @@ app.get('/public', async (c) => {
     getSetting<string>(c.env.DB, 'site_shutdown_message', ''),
     // Official Business & Legal Compliance Details
     getSetting<string>(c.env.DB, 'business_name', 'RISHAV MEDIA'),
-    getSetting<string>(c.env.DB, 'proprietor', 'RISHAV SRIVASTAWA'),
-    getSetting<string>(c.env.DB, 'contact_phone', '+91 9801947855'),
+    getSetting<string>(c.env.DB, 'proprietor', 'Customer Grievance Redressal Officer, RISHAV MEDIA'),
+    getSetting<string>(c.env.DB, 'contact_phone', 'Digital In-App Chat Support'),
   ])
 
   return c.json({
@@ -103,9 +103,9 @@ app.get('/public', async (c) => {
     site_url: siteUrl,
     support_email: supportEmail,
     business_name: businessName ?? 'RISHAV MEDIA',
-    proprietor: 'Available upon Order Verification',
+    proprietor: 'Customer Grievance Redressal Officer, RISHAV MEDIA',
     legal_name: 'RISHAV MEDIA',
-    contact_phone: '+91 98019 ••••• (Order Required)',
+    contact_phone: 'Digital In-App Chat Support',
     site_tagline: siteTagline,
     currency_symbol: currencySymbol,
     site_theme: siteTheme ?? 'dark',

@@ -1,6 +1,6 @@
 // src/client/components/contact/ContactInfoSidebar.tsx — Real Contact Details & Support Channels
 import { useState } from 'react'
-import { Mail, Clock, ShieldCheck, FileQuestion, Building2, UserCheck, MapPin, Phone, Lock } from 'lucide-react'
+import { Mail, Clock, ShieldCheck, FileQuestion, Building2, UserCheck, MapPin, Phone, Lock, MessageSquare } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useSiteConfig, BUSINESS_CONFIG } from '../../lib/site-config'
 import { useOrderVerification } from '../../lib/orderVerification'
@@ -47,7 +47,7 @@ export default function ContactInfoSidebar() {
               {BUSINESS_CONFIG.legalName}
             </h3>
             <div style={{ fontSize: '0.8rem', color: isVerified ? '#10B981' : '#9CA3AF', fontWeight: 700, marginTop: '2px' }}>
-              {isVerified ? `✓ Verified Order: Proprietor ${proprietor}` : 'Govt. of India MSME Registered Enterprise'}
+              {isVerified ? '✓ Verified Customer Order' : 'Govt. of India MSME Registered Enterprise'}
             </div>
           </div>
         </div>
@@ -58,57 +58,53 @@ export default function ContactInfoSidebar() {
             <strong style={{ color: 'var(--text-primary)' }}>{BUSINESS_CONFIG.legalName}</strong>
           </div>
           <div>
-            <span style={{ color: 'var(--text-muted)' }}>Proprietor (Legal Name):</span>{' '}
-            {isVerified ? (
-              <strong style={{ color: 'var(--text-primary)' }}>{proprietor}</strong>
-            ) : (
-              <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                Unlocks upon Order Verification
-              </span>
-            )}
+            <span style={{ color: 'var(--text-muted)' }}>Operations Desk:</span>{' '}
+            <strong style={{ color: 'var(--text-primary)' }}>Customer Grievance Redressal Officer, RISHAV MEDIA</strong>
           </div>
           <div>
             <span style={{ color: 'var(--text-muted)' }}>Trading / Brand Name:</span>{' '}
             <strong style={{ color: 'var(--text-primary)' }}>{siteName || BUSINESS_CONFIG.brandName}</strong>
           </div>
           <div>
-            <span style={{ color: 'var(--text-muted)' }}>Helpline Phone / WhatsApp:</span>{' '}
-            {isVerified ? (
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <a
-                  href={`tel:${rawPhone}`}
-                  style={{ color: '#1162F2', fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                >
-                  <Phone size={13} /> {rawPhone}
-                </a>
-                <span style={{ fontSize: '0.7rem', background: 'rgba(16, 185, 129, 0.15)', color: '#10B981', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
-                  ✓ Unlocked
-                </span>
-              </div>
-            ) : (
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '2px' }}>
-                <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)', fontWeight: 600 }}>{maskedPhone}</span>
-                <button
-                  type="button"
-                  onClick={() => setShowVerifyModal(true)}
-                  style={{
-                    background: 'rgba(255, 210, 0, 0.15)',
-                    border: '1px solid rgba(255, 210, 0, 0.4)',
-                    color: '#FFD200',
-                    fontSize: '0.72rem',
-                    fontWeight: 700,
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                  }}
-                >
-                  <Lock size={11} /> Enter Order # to Reveal
-                </button>
-              </div>
-            )}
+            <span style={{ color: 'var(--text-muted)' }}>Primary Support:</span>{' '}
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '2px' }}>
+              <Link
+                to="/order/support"
+                style={{
+                  background: 'rgba(17, 98, 242, 0.15)',
+                  border: '1px solid rgba(17, 98, 242, 0.4)',
+                  color: '#93C5FD',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  padding: '3px 10px',
+                  borderRadius: '6px',
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                <MessageSquare size={12} /> 24x7 Support Chat
+              </Link>
+              <Link
+                to="/refund-request"
+                style={{
+                  background: 'rgba(239, 68, 68, 0.12)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  color: '#FCA5A5',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  padding: '3px 10px',
+                  borderRadius: '6px',
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                File Refund (UTR)
+              </Link>
+            </div>
           </div>
           <div>
             <span style={{ color: 'var(--text-muted)' }}>Support Email:</span>{' '}
@@ -262,16 +258,12 @@ export default function ContactInfoSidebar() {
             In accordance with IT Rules and Consumer Protection regulations:
           </p>
           <div style={{ fontSize: '0.78125rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-            <div><strong>Officer:</strong> {isVerified ? `RISHAV SRIVASTAWA (Nodal Grievance Officer)` : 'Customer Grievance Redressal Officer, RISHAV MEDIA'}</div>
+            <div><strong>Officer:</strong> Customer Grievance Redressal Officer, RISHAV MEDIA</div>
             <div>
-              <strong>Helpline:</strong>{' '}
-              {isVerified ? (
-                <a href={`tel:${rawPhone}`} style={{ color: '#1162F2', fontWeight: 600, textDecoration: 'none' }}>
-                  {rawPhone}
-                </a>
-              ) : (
-                <span style={{ color: 'var(--text-muted)' }}>{maskedPhone} (Requires Order #)</span>
-              )}
+              <strong>Support Desk:</strong>{' '}
+              <Link to="/order/support" style={{ color: '#1162F2', fontWeight: 600, textDecoration: 'none' }}>
+                24x7 Digital In-App Support Chat
+              </Link>
             </div>
             <div><strong>Email:</strong> <a href={`mailto:${BUSINESS_CONFIG.supportEmail}`} style={{ color: '#1162F2', fontWeight: 600 }}>{BUSINESS_CONFIG.supportEmail}</a></div>
             <div><strong>Response Time:</strong> Acknowledged within 24–48 hours</div>

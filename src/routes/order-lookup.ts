@@ -174,8 +174,9 @@ app.get('/', async (c) => {
     created_at: order.created_at,
     download_token,
     download_expired: finalStatus === 'PAID' && !download_token,
-    direct_support_phone: '+91 9801947855',
-    proprietor_name: 'RISHAV SRIVASTAWA',
+    support_email: 'support@1024teraviralhub.com',
+    support_mode: 'Digital In-App Chat Support',
+    business_name: 'RISHAV MEDIA',
   })
 })
 
@@ -594,14 +595,40 @@ STRICT INSTRUCTIONS:
       else if (/yes, i still need help|yes i still need help|still need help|aur madad|help chahiye/i.test(lower)) {
         reply = `Please let me know how else we can assist you with Order #${orderNumber}. You can ask about delivery agent calls, address queries, or invoice receipts.`
       }
-      // 5. Refund / Return / Cancellation (Matching Flipkart Order Workflow)
+      // Check if user provided a Refund Reference or UTR in message
+      const refMatch = rawMsg.match(/REF-\d{8}-\d{4}/i)
+      const utrMatch = rawMsg.match(/\b\d{10,18}\b/)
+      let existingRefund: any = null
+
+      if (refMatch || (utrMatch && /refund|utr|status|paise|claim/i.test(lower))) {
+        try {
+          const qVal = refMatch ? refMatch[0].toUpperCase() : utrMatch![0]
+          existingRefund = await c.env.DB.prepare(`
+            SELECT refund_id, order_number, utr_number, upi_id, amount, status, created_at
+            FROM refund_requests
+            WHERE refund_id = ? OR utr_number = ? OR order_number = ?
+            ORDER BY created_at DESC LIMIT 1
+          `).bind(qVal, qVal, orderNumber).first()
+        } catch {}
+      }
+
+      if (existingRefund) {
+        if (isDevanagari) {
+          reply = `✅ आपके रिफंड टिकट #${existingRefund.refund_id} की स्थिति: ${existingRefund.status} है। सत्यापन के अनुसार आपकी राशि ₹${existingRefund.amount || 99} आपके UPI ID (${existingRefund.upi_id}) पर 5-7 कार्य दिवसों में सीधे ट्रांसफर हो जाएगी।`
+        } else if (isHinglish) {
+          reply = `✅ Aapka Refund Ticket #${existingRefund.refund_id} mil gaya hai! Status: ${existingRefund.status}. Aapka ₹${existingRefund.amount || 99} refund aapke UPI ID (${existingRefund.upi_id}) par agle 5-7 business days ke andar credit ho jayega.`
+        } else {
+          reply = `✅ Verified Refund Claim #${existingRefund.refund_id}! Current Status: ${existingRefund.status}. Your refund of ₹${existingRefund.amount || 99} will be deposited directly to your UPI ID (${existingRefund.upi_id}) within 5-7 business days.`
+        }
+      }
+      // 5. Refund / Return / Cancellation -> Automated UTR + UPI Portal
       else if (/refund|return|cancel|cancellation|wapas|paise wapas|nahi chahiye/i.test(lower)) {
         if (isDevanagari) {
-          reply = `चूंकि आपका ऑर्डर #${orderNumber} पहले ही डिस्पैच (SHIPPED) हो चुका है और दिल्ली फैसिलिटी से आपके शहर की तरफ बढ़ रहा है, इसलिए इसे बीच रास्ते में नहीं रोका जा सकता। डिलीवरी के समय जब हमारा डिलीवरी एजेंट आपके पास पहुंचे, तो आप पार्सल लेने से मना (Refuse Delivery) कर सकते हैं। डिलीवरी मना करते ही ऑर्डर कैंसिल हो जाएगा और आपकी 100% राशि (${amount || 'भुगतान'}) 5-7 कार्य दिवसों में सीधे आपके बैंक/UPI खाते में वापस रिफंड हो जाएगी।`
+          reply = `ऑर्डर #${orderNumber} के 100% रिफंड के लिए आप हमारे ऑटोमेटेड रिफंड पोर्टल (${siteUrl}/refund-request?order=${encodeURIComponent(orderNumber)}) पर अपना 12-अंकीय बैंक UTR नंबर और UPI ID दर्ज कर सकते हैं। सत्यापन के बाद 5-7 कार्य दिवसों में राशि सीधे आपके UPI खाते में क्रेडिट हो जाएगी।`
         } else if (isHinglish) {
-          reply = `Aapka order #${orderNumber} already SHIPPED ho chuka hai aur Delhi facility se aapke city ke liye transit me hai. Transit ke dauran parcel beech me ruka nahi ja sakta, lekin delivery day par jab delivery agent aaye, toh aap parcel lene se mana (refuse delivery) kar sakte hain. Delivery refuse hote hi order CANCELLED mark ho jayega aur aapka 100% refund ${amount ? `(${amount})` : ''} agle 5-7 business days me aapke bank/UPI account me credit ho jayega.`
+          reply = `Aapke order #${orderNumber} ke 100% refund ke liye aap hamare automated Refund Portal (${siteUrl}/refund-request?order=${encodeURIComponent(orderNumber)}) par jaakar apna 12-digit Bank/UPI UTR Number aur destination UPI ID enter karein. Verification ke baad agle 5-7 business days me aapka refund seedhe aapke UPI ID me credit ho jayega.`
         } else {
-          reply = `As your order #${orderNumber} has already been SHIPPED and is in transit from the Delhi facility, it cannot be stopped while in transit. When our Ekart delivery partner arrives at your address, you can simply refuse the parcel. Once refused, your order is marked cancelled and a 100% refund of ${amount || 'your payment'} will be automatically credited to your original payment mode within 5-7 business days.`
+          reply = `To claim a 100% refund for Order #${orderNumber}, please submit your 12-digit Bank UTR and destination UPI ID on our automated Refund Portal: ${siteUrl}/refund-request?order=${encodeURIComponent(orderNumber)}. Once verified against transaction logs, payout will be credited to your UPI ID within 5-7 business days.`
         }
       }
       // 6. Human Support / Call / Email
@@ -666,6 +693,164 @@ app.post('/cancel', async (c) => {
     })
   } catch (err: any) {
     return c.json({ error: err?.message || 'Failed to cancel order' }, 500)
+  }
+})
+
+// POST /api/order-lookup/refund-request — Automated Self-Service Refund Filing (Requires Order Number + UTR Number + UPI ID)
+app.post('/refund-request', async (c) => {
+  try {
+    const body = await c.req.json<{
+      order_number?: string
+      utr_number?: string
+      upi_id?: string
+      reason?: string
+      details?: string
+      customer_name?: string
+      customer_email?: string
+      customer_phone?: string
+    }>()
+
+    const rawOrder = (body.order_number || '').trim().toUpperCase().replace(/^#/, '')
+    const rawUtr = (body.utr_number || '').trim().replace(/\s+/g, '')
+    const rawUpi = (body.upi_id || '').trim().toLowerCase()
+    const reason = (body.reason || 'General Refund Request').trim()
+    const details = (body.details || '').trim()
+
+    if (!rawOrder) {
+      return c.json({ error: 'Order Number is required to process your refund.' }, 400)
+    }
+    if (!rawUtr || rawUtr.length < 8) {
+      return c.json({ error: 'Valid 12-digit Bank/UPI UTR Number is required for payment verification.' }, 400)
+    }
+    if (!rawUpi || !rawUpi.includes('@') || rawUpi.length < 5) {
+      return c.json({ error: 'Valid UPI ID (e.g. user@okhdfcbank or number@paytm) is required for refund payout.' }, 400)
+    }
+
+    const odAlt = rawOrder.startsWith('OD') ? rawOrder : `OD${rawOrder}`
+    const tvhAlt = rawOrder.startsWith('TVH-') ? rawOrder : `TVH-${rawOrder}`
+
+    let order: any = await c.env.DB.prepare(`
+      SELECT id, order_number, amount, customer_name, customer_email, customer_phone, status
+      FROM orders
+      WHERE (order_number = ? OR order_number = ? OR order_number = ?)
+      ORDER BY created_at DESC LIMIT 1
+    `).bind(rawOrder, odAlt, tvhAlt).first()
+
+    const refundAmount = order?.amount ?? 99
+    const custName = body.customer_name?.trim() || order?.customer_name || 'Customer'
+    const custEmail = body.customer_email?.trim() || order?.customer_email || ''
+    const custPhone = body.customer_phone?.trim() || order?.customer_phone || ''
+
+    await c.env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS refund_requests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        refund_id TEXT UNIQUE NOT NULL,
+        order_number TEXT NOT NULL,
+        utr_number TEXT NOT NULL,
+        upi_id TEXT NOT NULL,
+        reason TEXT NOT NULL,
+        details TEXT,
+        amount REAL DEFAULT 0,
+        customer_name TEXT,
+        customer_email TEXT,
+        customer_phone TEXT,
+        status TEXT DEFAULT 'UNDER_REVIEW',
+        admin_notes TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `).run()
+
+    // Check if an identical refund request already exists
+    const existing = await c.env.DB.prepare(`
+      SELECT * FROM refund_requests
+      WHERE order_number = ? OR utr_number = ?
+      ORDER BY created_at DESC LIMIT 1
+    `).bind(rawOrder, rawUtr).first() as any
+
+    if (existing) {
+      return c.json({
+        success: true,
+        refund_id: existing.refund_id,
+        order_number: existing.order_number,
+        utr_number: existing.utr_number,
+        upi_id: existing.upi_id,
+        amount: existing.amount,
+        status: existing.status,
+        is_existing: true,
+        message: 'Your refund claim is already under active review.',
+        estimated_timeline: 'Review within 24–48 hours. Bank/UPI settlement in 5–7 business days.',
+      })
+    }
+
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000)
+    const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+    const refundId = `REF-${datePart}-${randomSuffix}`
+
+    await c.env.DB.prepare(`
+      INSERT INTO refund_requests (
+        refund_id, order_number, utr_number, upi_id, reason, details, amount,
+        customer_name, customer_email, customer_phone, status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'UNDER_REVIEW')
+    `).bind(
+      refundId,
+      rawOrder,
+      rawUtr,
+      rawUpi,
+      reason,
+      details,
+      refundAmount,
+      custName,
+      custEmail,
+      custPhone
+    ).run()
+
+    // Mark order status
+    if (order) {
+      await c.env.DB.prepare(`
+        UPDATE orders SET status = 'REFUND_REQUESTED'
+        WHERE (order_number = ? OR order_number = ? OR order_number = ?)
+      `).bind(rawOrder, odAlt, tvhAlt).run()
+    }
+
+    return c.json({
+      success: true,
+      refund_id: refundId,
+      order_number: rawOrder,
+      utr_number: rawUtr,
+      upi_id: rawUpi,
+      amount: refundAmount,
+      status: 'UNDER_REVIEW',
+      message: 'Refund claim registered successfully.',
+      estimated_timeline: 'Verification: 24–48 hours. Direct UPI payout: 5–7 business days.',
+    })
+  } catch (err: any) {
+    console.error('Refund request error:', err)
+    return c.json({ error: err?.message || 'Failed to submit refund claim' }, 500)
+  }
+})
+
+// GET /api/order-lookup/refund-status/:query — Live status of refund request
+app.get('/refund-status/:query', async (c) => {
+  try {
+    const q = c.req.param('query').trim().toUpperCase().replace(/^#/, '')
+    const odAlt = q.startsWith('OD') ? q : `OD${q}`
+    const tvhAlt = q.startsWith('TVH-') ? q : `TVH-${q}`
+
+    const refund = await c.env.DB.prepare(`
+      SELECT refund_id, order_number, utr_number, upi_id, reason, amount, status, created_at, updated_at
+      FROM refund_requests
+      WHERE refund_id = ? OR order_number = ? OR order_number = ? OR order_number = ? OR utr_number = ?
+      ORDER BY created_at DESC LIMIT 1
+    `).bind(q, q, odAlt, tvhAlt, q).first()
+
+    if (!refund) {
+      return c.json({ found: false, message: 'No refund claim found for this reference.' }, 404)
+    }
+
+    return c.json({ found: true, refund })
+  } catch (err: any) {
+    return c.json({ error: err.message }, 500)
   }
 })
 

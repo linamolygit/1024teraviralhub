@@ -10,10 +10,10 @@ export const VERIFIED_STORAGE_KEY = 'tvh_verified_order_number'
 export const VERIFICATION_EVENT = 'tvh_order_verification_changed'
 
 export const PRIVACY_CONFIG = {
-  rawPhone: '+91 9801947855',
-  maskedPhone: '+91 98019 •••••',
-  rawProprietor: 'RISHAV SRIVASTAWA',
-  maskedProprietor: 'Available upon Order Verification',
+  rawPhone: 'Digital In-App Chat Support',
+  maskedPhone: 'Digital In-App Chat Support',
+  rawProprietor: 'Customer Grievance Redressal Officer, RISHAV MEDIA',
+  maskedProprietor: 'Customer Grievance Redressal Officer, RISHAV MEDIA',
   businessName: 'RISHAV MEDIA',
   udyamRegistration: 'UDYAM-BR-11-0107325',
   supportEmail: 'support@1024teraviralhub.com',

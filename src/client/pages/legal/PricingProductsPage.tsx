@@ -217,16 +217,20 @@ export default function PricingProductsPage() {
             </p>
             <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.9rem' }}>
               <div><strong>Merchant Legal Entity:</strong> {BUSINESS_CONFIG.legalName}</div>
-              <div><strong>Proprietor:</strong> {isVerified ? rawProprietor : 'Available upon Order Verification (Order Lookup)'}</div>
+              <div><strong>Operations Desk:</strong> Customer Grievance Redressal Officer, RISHAV MEDIA</div>
               <div><strong>Brand Name:</strong> {siteName || BUSINESS_CONFIG.brandName}</div>
               <div><strong>Udyam Registration:</strong> <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--brand-purple-light)' }}>{BUSINESS_CONFIG.udyamRegistration}</span></div>
               <div>
-                <strong>Helpline Phone / WhatsApp:</strong>{' '}
-                {isVerified ? (
-                  <a href={`tel:${rawPhone}`} style={{ color: '#1162F2', fontWeight: 600 }}>{rawPhone}</a>
-                ) : (
-                  <Link to="/order-lookup" style={{ color: '#1162F2', fontWeight: 600 }}>{maskedPhone} (Submit Order # to Unlock)</Link>
-                )}
+                <strong>Support Channel:</strong>{' '}
+                <Link to="/order/support" style={{ color: '#1162F2', fontWeight: 600 }}>
+                  24x7 Digital In-App Support Chat
+                </Link>
+              </div>
+              <div>
+                <strong>Refund Portal:</strong>{' '}
+                <Link to="/refund-request" style={{ color: '#1162F2', fontWeight: 600 }}>
+                  Automated Dispute & Refund Desk (UTR + UPI)
+                </Link>
               </div>
               <div><strong>Customer Support Email:</strong> <a href={`mailto:${BUSINESS_CONFIG.supportEmail}`} style={{ color: '#1162F2', fontWeight: 600 }}>{BUSINESS_CONFIG.supportEmail}</a></div>
               <div><strong>Enterprise Category:</strong> {BUSINESS_CONFIG.registrationType}</div>

@@ -168,13 +168,72 @@ export default function RefundPage() {
               5. How to Submit a Refund Claim
             </h2>
             <p>
-              To file a refund or cancellation claim, please email our support desk at <a href={`mailto:${supportEmail}`} style={{ color: 'var(--brand-purple-light)', fontWeight: 700 }}>{supportEmail}</a> with:
+              To file a refund or cancellation claim, you can use our automated self-service refund desk or email our support team at <a href={`mailto:${supportEmail}`} style={{ color: 'var(--brand-purple-light)', fontWeight: 700 }}>{supportEmail}</a>:
             </p>
+
+            <div
+              style={{
+                marginTop: '14px',
+                marginBottom: '18px',
+                background: 'rgba(17, 98, 242, 0.08)',
+                border: '1px solid rgba(17, 98, 242, 0.25)',
+                borderRadius: '12px',
+                padding: '18px 20px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+              }}
+            >
+              <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#60A5FA' }}>
+                🚀 Automated Self-Service Refund Desk (Recommended)
+              </div>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                Have your Order Number, 12-digit Bank/UPI UTR Number, and destination UPI ID ready. Submissions are verified automatically within 24–48 hours, and refunds are credited in 5–7 business days.
+              </p>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <Link
+                  to="/refund-request"
+                  style={{
+                    padding: '10px 18px',
+                    borderRadius: '8px',
+                    background: 'linear-gradient(135deg, #1162F2 0%, #1D4ED8 100%)',
+                    color: '#FFFFFF',
+                    fontWeight: 700,
+                    fontSize: '0.875rem',
+                    textDecoration: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  File Instant Refund Claim (UTR) →
+                </Link>
+                <Link
+                  to="/order/support"
+                  style={{
+                    padding: '10px 18px',
+                    borderRadius: '8px',
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    color: '#FFFFFF',
+                    fontWeight: 700,
+                    fontSize: '0.875rem',
+                    textDecoration: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  Live Chat Assistant
+                </Link>
+              </div>
+            </div>
+
             <ol style={{ paddingLeft: 20, marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <li>Your Order Reference Number (e.g. <code>ORD-...</code>)</li>
-              <li>{gatewayName} Payment Transaction ID / UTR Number</li>
-              <li>Purchased Product Title</li>
-              <li>A clear description and screenshot/screen-recording of the defect or duplicate debit</li>
+              <li>Your Order Reference Number (e.g. <code>OD32876...</code> or <code>TVH-...</code>)</li>
+              <li>12-Digit Bank / UPI UTR Transaction Reference Number</li>
+              <li>Your Destination UPI ID for direct payout transfer</li>
+              <li>A clear description and reason for your claim</li>
             </ol>
           </section>
 
@@ -184,15 +243,13 @@ export default function RefundPage() {
             </h2>
             <div style={{ background: 'var(--bg-elevated)', padding: '16px 20px', borderRadius: 10, fontSize: '0.85rem' }}>
               <div><strong>Merchant Legal Entity:</strong> {BUSINESS_CONFIG.legalName}</div>
-              <div><strong>Proprietor:</strong> {isVerified ? rawProprietor : 'Available upon Order Verification (Order Lookup)'}</div>
+              <div><strong>Operations Desk:</strong> Customer Grievance Redressal Officer, RISHAV MEDIA</div>
               <div><strong>Registration:</strong> {BUSINESS_CONFIG.udyamRegistration} ({BUSINESS_CONFIG.registrationType})</div>
               <div>
-                <strong>Support Helpline:</strong>{' '}
-                {isVerified ? (
-                  <a href={`tel:${rawPhone}`} style={{ color: 'inherit' }}>{rawPhone}</a>
-                ) : (
-                  <Link to="/order-lookup" style={{ color: 'var(--brand-purple-light)', textDecoration: 'underline' }}>{maskedPhone} (Submit Order # to Unlock)</Link>
-                )}
+                <strong>Support Channel:</strong>{' '}
+                <Link to="/order/support" style={{ color: 'var(--brand-purple-light)', textDecoration: 'underline' }}>
+                  24x7 Digital In-App Support Chat & Automated Refund Desk
+                </Link>
               </div>
               <div><strong>Customer Support Email:</strong> <a href={`mailto:${BUSINESS_CONFIG.supportEmail}`} style={{ color: 'inherit' }}>{BUSINESS_CONFIG.supportEmail}</a></div>
               <div><strong>Support Working Hours:</strong> {BUSINESS_CONFIG.supportHours}</div>

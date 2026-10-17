@@ -40,7 +40,7 @@ export interface SiteConfig {
 export const BUSINESS_CONFIG = {
   legalName: 'RISHAV MEDIA',
   businessName: 'RISHAV MEDIA',
-  proprietor: 'RISHAV SRIVASTAWA',
+  proprietor: 'Customer Grievance Redressal Officer, RISHAV MEDIA',
   registeredEntity: 'RISHAV MEDIA',
   brandName: '1024TeraViralHub',
   registeredOffice: 'Flat No. 25, Rishav Media Office, Block Road, Ghorasahan, Motihari, Purbi Champaran, Bihar - 845303, India',
@@ -49,7 +49,7 @@ export const BUSINESS_CONFIG = {
   operatingState: 'Bihar, India',
   city: 'Motihari, Purbi Champaran',
   pincode: '845303',
-  phone: '+91 9801947855',
+  phone: 'Digital In-App Chat Support',
   supportEmail: 'support@1024teraviralhub.com',
   complianceEmail: 'support@1024teraviralhub.com',
   supportHours: 'Monday – Saturday: 10:00 AM – 6:00 PM IST',

@@ -1,7 +1,8 @@
 // src/client/components/contact/OrderVerificationModal.tsx
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ShieldCheck, Lock, Search, X, CheckCircle2, Phone, AlertCircle, ArrowRight } from 'lucide-react'
+import { ShieldCheck, Lock, Search, X, CheckCircle2, AlertCircle, ArrowRight, MessageSquare, RotateCcw, Mail } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { useOrderVerification } from '../../lib/orderVerification'
 
 interface OrderVerificationModalProps {
@@ -228,7 +229,7 @@ export default function OrderVerificationModal({ isOpen, onClose, onSuccess }: O
                     Order Verified Successfully!
                   </h3>
                   <div style={{ fontSize: '0.78rem', color: '#9CA3AF' }}>
-                    Direct Support Helpline is now unlocked
+                    Official Digital Support & Dispute Services Unlocked
                   </div>
                 </div>
               </div>
@@ -248,30 +249,31 @@ export default function OrderVerificationModal({ isOpen, onClose, onSuccess }: O
               >
                 <div>
                   <span style={{ color: '#9CA3AF' }}>Operating Entity:</span>{' '}
-                  <strong style={{ color: '#FFFFFF' }}>RISHAV MEDIA</strong>
+                  <strong style={{ color: '#FFFFFF' }}>RISHAV MEDIA</strong>{' '}
+                  <span style={{ fontSize: '0.75rem', color: '#9CA3AF' }}>(UDYAM-BR-11-0107325)</span>
                 </div>
                 <div>
-                  <span style={{ color: '#9CA3AF' }}>Proprietor:</span>{' '}
-                  <strong style={{ color: '#FFD200' }}>{rawProprietor}</strong>
+                  <span style={{ color: '#9CA3AF' }}>Redressal Officer:</span>{' '}
+                  <strong style={{ color: '#E2E8F0' }}>Customer Grievance Redressal Officer, RISHAV MEDIA</strong>
                 </div>
                 <div>
-                  <span style={{ color: '#9CA3AF' }}>Direct Helpline:</span>{' '}
-                  <strong style={{ color: '#93C5FD', fontSize: '1.05rem' }}>{rawPhone}</strong>
+                  <span style={{ color: '#9CA3AF' }}>Official Support Email:</span>{' '}
+                  <strong style={{ color: '#38BDF8' }}>support@1024teraviralhub.com</strong>
                 </div>
                 <div>
-                  <span style={{ color: '#9CA3AF' }}>Operating Hours:</span>{' '}
-                  <span style={{ color: '#FFFFFF' }}>Mon – Sat, 10:00 AM – 6:00 PM IST</span>
+                  <span style={{ color: '#9CA3AF' }}>Support Channel:</span>{' '}
+                  <strong style={{ color: '#93C5FD' }}>24x7 Digital In-App Chat & Helpdesk</strong>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: 10 }}>
-                <a
-                  href={`tel:${rawPhone}`}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <Link
+                  to={orderInput ? `/order/support?order=${encodeURIComponent(orderInput)}` : '/order/support'}
+                  onClick={onClose}
                   style={{
-                    flex: 1,
                     padding: '12px',
                     borderRadius: '10px',
-                    background: '#1162F2',
+                    background: 'linear-gradient(135deg, #1162F2 0%, #1D4ED8 100%)',
                     color: '#FFFFFF',
                     fontWeight: 700,
                     fontSize: '0.875rem',
@@ -282,18 +284,18 @@ export default function OrderVerificationModal({ isOpen, onClose, onSuccess }: O
                     gap: 6,
                   }}
                 >
-                  <Phone size={16} /> Call Now
-                </a>
-                <a
-                  href={`https://wa.me/919801947855?text=Hello%2C%20I%20have%20an%20order%20query`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  <MessageSquare size={16} /> Open In-App Support Chat
+                </Link>
+
+                <Link
+                  to={orderInput ? `/refund-request?order=${encodeURIComponent(orderInput)}` : '/refund-request'}
+                  onClick={onClose}
                   style={{
-                    flex: 1,
                     padding: '12px',
                     borderRadius: '10px',
-                    background: '#25D366',
-                    color: '#FFFFFF',
+                    background: 'rgba(239, 68, 68, 0.15)',
+                    border: '1px solid rgba(239, 68, 68, 0.35)',
+                    color: '#FCA5A5',
                     fontWeight: 700,
                     fontSize: '0.875rem',
                     textDecoration: 'none',
@@ -303,8 +305,8 @@ export default function OrderVerificationModal({ isOpen, onClose, onSuccess }: O
                     gap: 6,
                   }}
                 >
-                  Chat WhatsApp
-                </a>
+                  <RotateCcw size={16} /> File Refund / Dispute (UTR + UPI)
+                </Link>
               </div>
 
               <button

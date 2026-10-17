@@ -1509,8 +1509,8 @@ export default function AdminSettings() {
                       <strong style={{ color: 'var(--text-primary)' }}>RISHAV MEDIA</strong>
                     </div>
                     <div>
-                      <span style={{ color: 'var(--text-muted)' }}>Proprietor:</span>{' '}
-                      <strong style={{ color: '#FFD200' }}>RISHAV SRIVASTAWA</strong>
+                      <span style={{ color: 'var(--text-muted)' }}>Operations Desk:</span>{' '}
+                      <strong style={{ color: '#FFD200' }}>Customer Grievance Redressal Officer, RISHAV MEDIA</strong>
                     </div>
                     <div>
                       <span style={{ color: 'var(--text-muted)' }}>Udyam Reg. No.:</span>{' '}

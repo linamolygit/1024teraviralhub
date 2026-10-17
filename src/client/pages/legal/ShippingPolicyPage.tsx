@@ -103,7 +103,7 @@ export default function ShippingPolicyPage() {
               1. Electronic Digital Delivery Only
             </h2>
             <p>
-              All products offered on <strong>{siteName}</strong> (owned and operated by <strong>{BUSINESS_CONFIG.legalName}</strong>, Govt. of India MSME / Udyam Registration No: <strong>{BUSINESS_CONFIG.udyamRegistration}</strong>{isVerified ? `, Proprietor: ${rawProprietor}` : ''}) are strictly intangible digital assets. These include downloadable digital wallpapers, curated media bundles, high-resolution photo packs, and digital resource archives.
+              All products offered on <strong>{siteName}</strong> (owned and operated by <strong>{BUSINESS_CONFIG.legalName}</strong>, Govt. of India MSME / Udyam Registration No: <strong>{BUSINESS_CONFIG.udyamRegistration}</strong>) are strictly intangible digital assets. These include downloadable digital wallpapers, curated media bundles, high-resolution photo packs, and digital resource archives.
             </p>
             <p>
               <strong>No physical goods, parcels, parcels, or print shipments will be dispatched to your postal address.</strong> Consequently, no courier, shipping carrier, or physical tracking number applies.
@@ -185,16 +185,14 @@ export default function ShippingPolicyPage() {
               }}
             >
               <div><strong>Merchant Legal Entity:</strong> {BUSINESS_CONFIG.legalName}</div>
-              <div><strong>Proprietor:</strong> {isVerified ? rawProprietor : 'Available upon Order Verification (Order Lookup)'}</div>
+              <div><strong>Operations Desk:</strong> Customer Grievance Redressal Officer, RISHAV MEDIA</div>
               <div><strong>Brand Name:</strong> {siteName || BUSINESS_CONFIG.brandName}</div>
               <div><strong>Udyam Registration:</strong> <span style={{ fontFamily: 'monospace', color: 'var(--brand-purple-light)', fontWeight: 700 }}>{BUSINESS_CONFIG.udyamRegistration}</span></div>
               <div>
-                <strong>Helpline Phone / WhatsApp:</strong>{' '}
-                {isVerified ? (
-                  <a href={`tel:${rawPhone}`} style={{ color: 'inherit' }}>{rawPhone}</a>
-                ) : (
-                  <Link to="/order-lookup" style={{ color: 'var(--brand-purple-light)', textDecoration: 'underline' }}>{maskedPhone} (Submit Order # to Unlock)</Link>
-                )}
+                <strong>Support Channel:</strong>{' '}
+                <Link to="/order/support" style={{ color: 'var(--brand-purple-light)', textDecoration: 'underline' }}>
+                  24x7 Digital In-App Support Chat
+                </Link>
               </div>
               <div><strong>Support Email:</strong> <a href={`mailto:${BUSINESS_CONFIG.supportEmail}`} style={{ color: 'inherit' }}>{BUSINESS_CONFIG.supportEmail}</a></div>
               <div><strong>Registration Category:</strong> {BUSINESS_CONFIG.registrationType}</div>

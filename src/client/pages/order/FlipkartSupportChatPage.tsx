@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { X, Send, Image as ImageIcon, ChevronRight } from 'lucide-react'
 import { api } from '../../lib/api'
+import RefundRequestModal from '../../components/order/RefundRequestModal'
 
 interface ChatOption {
   label: string
@@ -80,6 +81,7 @@ export default function FlipkartSupportChatPage() {
 
   const [inputMsg, setInputMsg] = useState('')
   const [isTyping, setIsTyping] = useState(false)
+  const [showRefundModal, setShowRefundModal] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -115,17 +117,28 @@ export default function FlipkartSupportChatPage() {
         content: `Your order ${orderNum} is SHIPPED and currently moving towards your city. The latest update shows it at the Delhi facility. It is on track to be delivered by ${deliveryDateStr}.`,
         time: initialTime,
       },
-      {
-        id: 'init-options',
-        role: 'assistant',
-        content: 'Can I help you with anything else?',
-        time: initialTime,
-        options: [
-          { label: 'No, I am good', action: 'no_good' },
-          { label: 'Yes, I still need help', action: 'need_help' },
-        ],
-      },
     ]
+
+    const refundParam = searchParams.get('refund')
+    if (refundParam) {
+      initialBubbles.push({
+        id: 'init-refund-ack',
+        role: 'assistant',
+        content: `📋 **Refund Claim #${refundParam} Verified**\nYour refund claim for Order #${orderNum} has been received and registered with our operations settlement desk.\n\nStatus: **UNDER REVIEW**\nSLA: 24–48 hours verification, 5–7 business days direct UPI credit.`,
+        time: initialTime,
+      })
+    }
+
+    initialBubbles.push({
+      id: 'init-options',
+      role: 'assistant',
+      content: 'Can I help you with anything else?',
+      time: initialTime,
+      options: [
+        { label: 'No, I am good', action: 'no_good' },
+        { label: 'Yes, I still need help', action: 'need_help' },
+      ],
+    })
 
     setMessages(initialBubbles)
   }, [orderData])
@@ -180,6 +193,7 @@ export default function FlipkartSupportChatPage() {
             content: `Please select how we can assist you with Order #${orderNum}:`,
             time: getCurrentTime(),
             options: [
+              { label: 'Apply for Refund (Enter UTR & UPI)', action: 'apply_refund' },
               { label: 'I want to cancel my order', action: 'cancel_order' },
               { label: 'When will the delivery agent call me?', action: 'agent_call' },
               { label: 'Can I change the delivery address?', action: 'change_address' },
@@ -188,6 +202,34 @@ export default function FlipkartSupportChatPage() {
           },
         ])
       }, 450)
+      return
+    }
+
+    // 2a-2. Apply Refund Action (Opens UTR + UPI Verification Modal)
+    if (customAction === 'apply_refund' || /apply refund|file refund|upi refund|utr refund/i.test(lower)) {
+      setTimeout(() => {
+        setIsTyping(false)
+        setShowRefundModal(true)
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `bot-${Date.now()}`,
+            role: 'assistant',
+            content: `I have opened the **Automated Refund & Dispute Window** for Order #${orderNum}.\n\n🔑 **Required Details:**\n1. 12-digit Bank/UPI UTR Number (from PhonePe, GPay, Paytm, or bank SMS)\n2. Your recipient UPI ID for direct payout transfer\n\nPlease fill these in the modal window. Our settlement desk will process your claim within 5-7 business days.`,
+            time: getCurrentTime(),
+          },
+          {
+            id: `bot-fu-${Date.now()}`,
+            role: 'assistant',
+            content: 'Can I help you with anything else?',
+            time: getCurrentTime(),
+            options: [
+              { label: 'No, I am good', action: 'no_good' },
+              { label: 'Yes, I still need help', action: 'need_help' },
+            ],
+          },
+        ])
+      }, 350)
       return
     }
 
@@ -200,10 +242,11 @@ export default function FlipkartSupportChatPage() {
           {
             id: `bot-${Date.now()}`,
             role: 'assistant',
-            content: `As your order #${orderNum} has already been SHIPPED and is currently moving towards your city from the Delhi facility, it cannot be stopped mid-transit.\n\n📦 **How Cancellation & Refund Works:**\nWhen our Ekart delivery executive arrives at your doorstep, you can simply **refuse the parcel** (inform them you wish to cancel). Once refused, the order is immediately returned and 100% refund is credited back to your bank account within 5-7 business days.\n\nWould you like to register an advance cancellation request now?`,
+            content: `As your order #${orderNum} has already been SHIPPED and is currently moving towards your city from the Delhi facility, it cannot be stopped mid-transit.\n\n📦 **How Cancellation & Refund Works:**\nWhen our Ekart delivery executive arrives at your doorstep, you can simply **refuse the parcel** (inform them you wish to cancel). Once refused, the order is immediately returned and 100% refund is credited back to your bank account within 5-7 business days.\n\nWould you like to register an advance cancellation request or submit your UTR & UPI ID for refund now?`,
             time: getCurrentTime(),
             options: [
               { label: 'Confirm Cancellation Request', action: 'confirm_cancel' },
+              { label: 'Submit UTR & UPI for Direct Refund', action: 'apply_refund' },
               { label: 'No, Keep My Order Dispatched', action: 'keep_order' },
             ],
           },
@@ -953,6 +996,14 @@ export default function FlipkartSupportChatPage() {
           animation: typingBounce 1.2s infinite ease-in-out;
         }
       `}</style>
+
+      {/* Refund & Dispute Application Modal */}
+      <RefundRequestModal
+        isOpen={showRefundModal}
+        onClose={() => setShowRefundModal(false)}
+        initialOrderNumber={activeOrderNum}
+        initialAmount={orderData?.amount}
+      />
     </div>
   )
 }

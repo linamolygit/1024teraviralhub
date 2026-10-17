@@ -1,12 +1,13 @@
 // src/client/pages/order-lookup/OrderLookupPage.tsx
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Search, Download, Package, Clock, CheckCircle2, AlertCircle, Phone, MessageSquare } from 'lucide-react'
+import { Search, Download, Package, Clock, CheckCircle2, AlertCircle, MessageSquare, RotateCcw, Mail, ShieldCheck } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { api, type OrderLookupResult } from '../../lib/api'
 import { formatPrice, formatDate } from '../../lib/utils'
 import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
 import { setVerifiedOrder, PRIVACY_CONFIG } from '../../lib/orderVerification'
+import RefundRequestModal from '../../components/order/RefundRequestModal'
 
 export default function OrderLookupPage() {
   const { name: gatewayName } = usePaymentGatewayInfo()
@@ -16,6 +17,7 @@ export default function OrderLookupPage() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<OrderLookupResult | null>(null)
   const [error, setError] = useState('')
+  const [isRefundModalOpen, setIsRefundModalOpen] = useState(false)
 
   // Auto-search if order query param exists in URL
   useEffect(() => {
@@ -303,37 +305,38 @@ export default function OrderLookupPage() {
                   marginTop: 18,
                   padding: '18px 20px',
                   borderRadius: 14,
-                  background: 'rgba(255, 210, 0, 0.06)',
-                  border: '1px solid rgba(255, 210, 0, 0.25)',
+                  background: 'rgba(17, 98, 242, 0.08)',
+                  border: '1px solid rgba(17, 98, 242, 0.25)',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', fontWeight: 800, color: '#FFD200' }}>
-                    <CheckCircle2 size={16} color="#10B981" /> Verified Order Support Active
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', fontWeight: 800, color: '#60A5FA' }}>
+                    <ShieldCheck size={16} color="#60A5FA" /> Verified Digital Support & Dispute Desk
                   </div>
                   <span style={{ fontSize: '0.72rem', background: 'rgba(16, 185, 129, 0.15)', color: '#10B981', padding: '2px 8px', borderRadius: 4, fontWeight: 700 }}>
-                    VIP Help
+                    24x7 Active
                   </span>
                 </div>
 
                 <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
                   <div>
-                    <span style={{ color: 'var(--text-muted)' }}>Legal Entity:</span>{' '}
-                    <strong style={{ color: 'var(--text-primary)' }}>{PRIVACY_CONFIG.businessName}</strong>
+                    <span style={{ color: 'var(--text-muted)' }}>Operating Entity:</span>{' '}
+                    <strong style={{ color: 'var(--text-primary)' }}>{PRIVACY_CONFIG.businessName}</strong>{' '}
+                    <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>({PRIVACY_CONFIG.udyamRegistration})</span>
                   </div>
                   <div>
-                    <span style={{ color: 'var(--text-muted)' }}>Proprietor:</span>{' '}
-                    <strong style={{ color: '#FFD200' }}>{PRIVACY_CONFIG.rawProprietor}</strong>
+                    <span style={{ color: 'var(--text-muted)' }}>Redressal Officer:</span>{' '}
+                    <strong style={{ color: '#E2E8F0' }}>{PRIVACY_CONFIG.rawProprietor}</strong>
                   </div>
                   <div>
-                    <span style={{ color: 'var(--text-muted)' }}>Direct Helpline:</span>{' '}
-                    <strong style={{ color: '#93C5FD' }}>{PRIVACY_CONFIG.rawPhone}</strong>
+                    <span style={{ color: 'var(--text-muted)' }}>Support Channel:</span>{' '}
+                    <strong style={{ color: '#93C5FD' }}>In-App Digital Chat & Automated Settlement</strong>
                   </div>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <a
-                    href={`tel:${PRIVACY_CONFIG.rawPhone}`}
+                  <Link
+                    to={`/order/support?order=${encodeURIComponent(result.order_number)}`}
                     className="btn-ghost"
                     style={{
                       display: 'flex',
@@ -345,17 +348,18 @@ export default function OrderLookupPage() {
                       fontWeight: 700,
                       textDecoration: 'none',
                       borderRadius: 8,
-                      background: 'rgba(17, 98, 242, 0.12)',
-                      border: '1px solid rgba(17, 98, 242, 0.3)',
-                      color: '#93C5FD',
+                      background: 'linear-gradient(135deg, #1162F2 0%, #1D4ED8 100%)',
+                      border: 'none',
+                      color: '#FFFFFF',
+                      boxShadow: '0 2px 8px rgba(17, 98, 242, 0.3)',
                     }}
                   >
-                    <Phone size={14} /> Call Helpline
-                  </a>
-                  <a
-                    href={`https://wa.me/919801947855?text=${encodeURIComponent(`Hi, I need assistance with my order ${result.order_number}`)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    <MessageSquare size={14} /> Chat Assistant
+                  </Link>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsRefundModalOpen(true)}
                     className="btn-ghost"
                     style={{
                       display: 'flex',
@@ -365,15 +369,15 @@ export default function OrderLookupPage() {
                       padding: '10px 14px',
                       fontSize: '0.8125rem',
                       fontWeight: 700,
-                      textDecoration: 'none',
                       borderRadius: 8,
-                      background: 'rgba(37, 211, 102, 0.12)',
-                      border: '1px solid rgba(37, 211, 102, 0.3)',
-                      color: '#6EE7B7',
+                      background: 'rgba(239, 68, 68, 0.12)',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      color: '#FCA5A5',
+                      cursor: 'pointer',
                     }}
                   >
-                    <MessageSquare size={14} /> WhatsApp
-                  </a>
+                    <RotateCcw size={14} /> Request Refund
+                  </button>
                 </div>
               </div>
             </motion.div>
@@ -381,11 +385,25 @@ export default function OrderLookupPage() {
         </div>
 
         <div style={{ textAlign: 'center', marginTop: 28, color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-          Need assistance with your purchase?{' '}
-          <Link to="/contact" style={{ color: '#FFD200', fontWeight: 600, textDecoration: 'none' }}>
-            Contact Support →
+          Have a billing or order inquiry?{' '}
+          <Link to="/refund-request" style={{ color: '#FFD200', fontWeight: 600, textDecoration: 'none' }}>
+            Open Refund Portal →
+          </Link>
+          {' '}&bull;{' '}
+          <Link to="/contact" style={{ color: 'var(--text-secondary)', fontWeight: 600, textDecoration: 'none' }}>
+            Helpdesk
           </Link>
         </div>
+
+        {/* Automated Refund & Dispute Request Modal */}
+        {result && (
+          <RefundRequestModal
+            isOpen={isRefundModalOpen}
+            onClose={() => setIsRefundModalOpen(false)}
+            initialOrderNumber={result.order_number}
+            initialAmount={result.amount}
+          />
+        )}
       </div>
     </div>
   )

@@ -25,6 +25,8 @@ const productLinks = [
 const supportLinks = [
   { to: '/my-orders', label: 'My Orders & Downloads' },
   { to: '/order-lookup', label: 'Order Lookup' },
+  { to: '/order/support', label: 'Live Chat Support (24x7)' },
+  { to: '/refund-request', label: 'Refund & Dispute Portal' },
   { to: '/help', label: 'Help Center' },
   { to: '/faq', label: 'FAQ' },
   { to: '/affiliate', label: 'Affiliate Program (Earn 20%)' },
@@ -132,9 +134,9 @@ export default function Footer() {
                 <strong style={{ color: '#FFFFFF' }}>{BUSINESS_CONFIG.legalName}</strong>
               </div>
               <div>
-                <span style={{ color: '#9CA3AF' }}>Proprietor:</span>{' '}
-                <strong style={{ color: isVerified ? '#FFD200' : '#D1D5DB' }}>
-                  {isVerified ? rawProprietor : 'Govt. Registered Enterprise'}
+                <span style={{ color: '#9CA3AF' }}>Operations Desk:</span>{' '}
+                <strong style={{ color: '#D1D5DB' }}>
+                  Customer Grievance Redressal Officer, RISHAV MEDIA
                 </strong>
               </div>
               <div>
@@ -144,12 +146,8 @@ export default function Footer() {
                 </strong>
               </div>
               <div>
-                <span style={{ color: '#9CA3AF' }}>Helpline:</span>{' '}
-                {isVerified ? (
-                  <a href={`tel:${rawPhone}`} style={{ color: '#93C5FD', textDecoration: 'none', fontWeight: 600 }}>{rawPhone}</a>
-                ) : (
-                  <Link to="/order-lookup" style={{ color: '#93C5FD', textDecoration: 'underline', fontWeight: 600 }}>{maskedPhone} (Verify Order)</Link>
-                )}
+                <span style={{ color: '#9CA3AF' }}>Support Channel:</span>{' '}
+                <Link to="/order/support" style={{ color: '#93C5FD', textDecoration: 'none', fontWeight: 600 }}>24x7 Digital In-App Chat</Link>
               </div>
               <div>
                 <span style={{ color: '#9CA3AF' }}>Support:</span>{' '}
@@ -417,17 +415,14 @@ export default function Footer() {
             © {new Date().getFullYear()} <strong>{siteName || BUSINESS_CONFIG.brandName}</strong>. All rights reserved.
             {' • '}
             Owned, operated and managed by <strong>{BUSINESS_CONFIG.legalName}</strong> (Govt. of India MSME / Udyam Reg. No.:{' '}
-            <strong style={{ color: '#FFD200', fontFamily: 'monospace' }}>{BUSINESS_CONFIG.udyamRegistration}</strong>
-            {isVerified ? ` | Proprietor: ${rawProprietor}` : ''}).
+            <strong style={{ color: '#FFD200', fontFamily: 'monospace' }}>{BUSINESS_CONFIG.udyamRegistration}</strong>).
           </p>
           <p style={{ color: '#9CA3AF', fontSize: '0.735rem', margin: '0 0 6px', lineHeight: 1.5 }}>
             Support Desk: <a href={`mailto:${BUSINESS_CONFIG.supportEmail}`} style={{ color: '#FFD200', textDecoration: 'none', fontWeight: 700 }}>{BUSINESS_CONFIG.supportEmail}</a>
             {' | '}
-            Helpline: {isVerified ? (
-              <a href={`tel:${rawPhone}`} style={{ color: '#FFD200', textDecoration: 'none', fontWeight: 700 }}>{rawPhone}</a>
-            ) : (
-              <Link to="/order-lookup" style={{ color: '#FFD200', textDecoration: 'underline' }}>{maskedPhone} (Order Verification Required)</Link>
-            )}
+            Live Assistance: <Link to="/order/support" style={{ color: '#FFD200', textDecoration: 'none', fontWeight: 700 }}>24x7 In-App Chat Support</Link>
+            {' | '}
+            Disputes & Returns: <Link to="/refund-request" style={{ color: '#FFD200', textDecoration: 'none', fontWeight: 700 }}>Automated Refund Desk</Link>
           </p>
           <p style={{ color: '#6B7280', fontSize: '0.71875rem', margin: 0, lineHeight: 1.5 }}>
             All commercial contracts, digital fulfillment, and payment gateway transactions are processed under the registered legal entity <strong>{BUSINESS_CONFIG.legalName}</strong>.

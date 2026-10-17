@@ -108,18 +108,15 @@ export default function PrivacyPage() {
               In accordance with the Information Technology Act, 2000 and Digital Personal Data Protection Act, the details of our designated Grievance Officer are provided below:
             </p>
             <div style={{ background: 'var(--bg-elevated)', padding: '16px 20px', borderRadius: 10, fontSize: '0.85rem' }}>
-              <div><strong>Designation:</strong> {isVerified ? 'RISHAV SRIVASTAWA (Nodal Grievance Redressal Officer)' : 'Customer Grievance Redressal Officer, RISHAV MEDIA'}</div>
+              <div><strong>Designation:</strong> Customer Grievance Redressal Officer, RISHAV MEDIA</div>
               <div><strong>Organization / Entity:</strong> {BUSINESS_CONFIG.legalName}</div>
-              <div><strong>Proprietor:</strong> {isVerified ? rawProprietor : 'Available upon Order Verification (Order Lookup)'}</div>
               <div><strong>Physical Office:</strong> {BUSINESS_CONFIG.registeredOffice}</div>
               <div><strong>Udyam Registration:</strong> {BUSINESS_CONFIG.udyamRegistration}</div>
               <div>
-                <strong>Helpline Phone:</strong>{' '}
-                {isVerified ? (
-                  <a href={`tel:${rawPhone}`} style={{ color: 'inherit' }}>{rawPhone}</a>
-                ) : (
-                  <Link to="/order-lookup" style={{ color: 'var(--brand-purple-light)', textDecoration: 'underline' }}>{maskedPhone} (Submit Order # to Unlock)</Link>
-                )}
+                <strong>Support Channel:</strong>{' '}
+                <Link to="/order/support" style={{ color: 'var(--brand-purple-light)', textDecoration: 'underline' }}>
+                  24x7 Digital In-App Chat Support
+                </Link>
               </div>
               <div><strong>Grievance Email:</strong> <a href={`mailto:${BUSINESS_CONFIG.supportEmail}`} style={{ color: 'inherit' }}>{BUSINESS_CONFIG.supportEmail}</a></div>
               <div><strong>Jurisdiction:</strong> {BUSINESS_CONFIG.operatingState}</div>
