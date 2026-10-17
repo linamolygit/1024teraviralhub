@@ -27,7 +27,9 @@ app.get('/public', async (c) => {
     // Google Programmable Search (CSE)
     googleCseId, googleAutoReviewPhotosEnabled,
     // Emergency Site Shutdown
-    siteShutdownEnabled, siteShutdownMessage
+    siteShutdownEnabled, siteShutdownMessage,
+    // Official Business & Legal Compliance Details
+    legalName, contactPhone
   ] = await Promise.all([
     getSetting<boolean>(c.env.DB, 'upi_direct_launch', true),
     getSetting<string>(c.env.DB, 'preferred_upi_app', 'phonepe'),
@@ -35,7 +37,7 @@ app.get('/public', async (c) => {
     getSetting<string>(c.env.DB, 'announcement_text', ''),
     getSetting<string>(c.env.DB, 'site_name', (c.env as any).SITE_NAME || 'Digital Store'),
     getSetting<string>(c.env.DB, 'site_url', c.env.SITE_URL || ''),
-    getSetting<string>(c.env.DB, 'support_email', (c.env as any).SUPPORT_EMAIL || 'support@example.com'),
+    getSetting<string>(c.env.DB, 'support_email', (c.env as any).SUPPORT_EMAIL || 'rishavsrivastawa9162@gmail.com'),
     getSetting<string>(c.env.DB, 'site_tagline', 'Premium Digital Downloads & Assets'),
     getSetting<string>(c.env.DB, 'currency_symbol', '₹'),
     getSetting<string>(c.env.DB, 'site_theme', 'dark'),
@@ -86,6 +88,9 @@ app.get('/public', async (c) => {
     // Emergency Site Shutdown
     getSetting<boolean>(c.env.DB, 'site_shutdown_enabled', false),
     getSetting<string>(c.env.DB, 'site_shutdown_message', ''),
+    // Official Business & Legal Compliance Details
+    getSetting<string>(c.env.DB, 'legal_name', 'RISHAV SRIVASTAWA'),
+    getSetting<string>(c.env.DB, 'contact_phone', '+91 9801947855'),
   ])
 
   return c.json({
@@ -96,6 +101,8 @@ app.get('/public', async (c) => {
     site_name: siteName,
     site_url: siteUrl,
     support_email: supportEmail,
+    legal_name: legalName ?? 'RISHAV SRIVASTAWA',
+    contact_phone: contactPhone ?? '+91 9801947855',
     site_tagline: siteTagline,
     currency_symbol: currencySymbol,
     site_theme: siteTheme ?? 'dark',
