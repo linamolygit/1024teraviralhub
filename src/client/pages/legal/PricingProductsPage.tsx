@@ -214,12 +214,14 @@ export default function PricingProductsPage() {
               If you have any questions regarding our pricing, product specifications, or download access, please get in touch with our customer assistance team:
             </p>
             <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.9rem' }}>
-              <div><strong>Operating Entity:</strong> {BUSINESS_CONFIG.legalName}</div>
+              <div><strong>Merchant Legal Entity:</strong> {BUSINESS_CONFIG.legalName} (Proprietor, Rishav Media)</div>
+              <div><strong>Trading Firm:</strong> {BUSINESS_CONFIG.tradeName}</div>
               <div><strong>Brand Name:</strong> {siteName || BUSINESS_CONFIG.brandName}</div>
               <div><strong>Udyam Registration:</strong> <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--brand-purple-light)' }}>{BUSINESS_CONFIG.udyamRegistration}</span></div>
+              <div><strong>Support Helpline:</strong> <a href={`tel:${BUSINESS_CONFIG.phone}`} style={{ color: '#1162F2', fontWeight: 600 }}>{BUSINESS_CONFIG.phone}</a></div>
+              <div><strong>Support Email:</strong> <a href={`mailto:${BUSINESS_CONFIG.supportEmail}`} style={{ color: '#1162F2', fontWeight: 600 }}>{BUSINESS_CONFIG.supportEmail}</a></div>
               <div><strong>Enterprise Category:</strong> {BUSINESS_CONFIG.registrationType}</div>
               <div><strong>Operating Jurisdiction:</strong> {BUSINESS_CONFIG.operatingState}</div>
-              <div><strong>Support Email:</strong> <a href={`mailto:${supportEmail || BUSINESS_CONFIG.supportEmail}`} style={{ color: '#1162F2', fontWeight: 600 }}>{supportEmail || BUSINESS_CONFIG.supportEmail}</a></div>
               <div><strong>Support Hours:</strong> {BUSINESS_CONFIG.supportHours}</div>
               <div><strong>Order Lookup:</strong> <Link to="/order-lookup" style={{ color: '#1162F2', fontWeight: 600 }}>Access Existing Orders & Downloads</Link></div>
             </div>

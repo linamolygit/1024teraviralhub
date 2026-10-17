@@ -101,7 +101,7 @@ export default function ShippingPolicyPage() {
               1. Electronic Digital Delivery Only
             </h2>
             <p>
-              All products offered on <strong>{siteName}</strong> (owned and operated by <strong>{BUSINESS_CONFIG.legalName}</strong>, Udyam Registration No: <strong>{BUSINESS_CONFIG.udyamRegistration}</strong>) are strictly intangible digital assets. These include downloadable digital wallpapers, curated media bundles, high-resolution photo packs, and digital resource archives.
+              All products offered on <strong>{siteName}</strong> (owned and operated by <strong>{BUSINESS_CONFIG.legalName}</strong>, Proprietor: Rishav Media, Udyam Registration No: <strong>{BUSINESS_CONFIG.udyamRegistration}</strong>) are strictly intangible digital assets. These include downloadable digital wallpapers, curated media bundles, high-resolution photo packs, and digital resource archives.
             </p>
             <p>
               <strong>No physical goods, parcels, parcels, or print shipments will be dispatched to your postal address.</strong> Consequently, no courier, shipping carrier, or physical tracking number applies.
@@ -182,12 +182,14 @@ export default function ShippingPolicyPage() {
                 lineHeight: 1.6,
               }}
             >
-              <div><strong>Business Name:</strong> {BUSINESS_CONFIG.legalName}</div>
+              <div><strong>Merchant Legal Name:</strong> {BUSINESS_CONFIG.legalName} (Proprietor, Rishav Media)</div>
+              <div><strong>Firm / Trade Name:</strong> {BUSINESS_CONFIG.tradeName}</div>
               <div><strong>Brand Name:</strong> {siteName || BUSINESS_CONFIG.brandName}</div>
               <div><strong>Udyam Registration:</strong> <span style={{ fontFamily: 'monospace', color: 'var(--brand-purple-light)', fontWeight: 700 }}>{BUSINESS_CONFIG.udyamRegistration}</span></div>
+              <div><strong>Support Helpline:</strong> <a href={`tel:${BUSINESS_CONFIG.phone}`} style={{ color: 'inherit' }}>{BUSINESS_CONFIG.phone}</a></div>
+              <div><strong>Official Support:</strong> <a href={`mailto:${BUSINESS_CONFIG.supportEmail}`} style={{ color: 'inherit' }}>{BUSINESS_CONFIG.supportEmail}</a></div>
               <div><strong>Registration Category:</strong> {BUSINESS_CONFIG.registrationType}</div>
               <div><strong>Operating Jurisdiction:</strong> {BUSINESS_CONFIG.operatingState}</div>
-              <div><strong>Official Support:</strong> <a href={`mailto:${supportEmail}`} style={{ color: 'inherit' }}>{supportEmail}</a></div>
               <div><strong>Operating Hours:</strong> {BUSINESS_CONFIG.supportHours}</div>
             </div>
           </section>

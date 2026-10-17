@@ -1,5 +1,5 @@
 // src/client/components/contact/ContactInfoSidebar.tsx — Real Contact Details & Support Channels
-import { Mail, Clock, ShieldCheck, FileQuestion, Building2, UserCheck, MapPin } from 'lucide-react'
+import { Mail, Clock, ShieldCheck, FileQuestion, Building2, UserCheck, MapPin, Phone } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useSiteConfig, BUSINESS_CONFIG } from '../../lib/site-config'
 
@@ -36,18 +36,43 @@ export default function ContactInfoSidebar() {
           </div>
           <div>
             <div style={{ fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#1162F2' }}>
-              Registered Entity
+              Registered Legal Entity
             </div>
             <h3 style={{ fontSize: '1.1rem', fontWeight: 900, color: 'var(--text-primary)', margin: 0 }}>
               {BUSINESS_CONFIG.legalName}
             </h3>
+            <div style={{ fontSize: '0.78rem', color: '#D97706', fontWeight: 700 }}>
+              Proprietor, Rishav Media
+            </div>
           </div>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
           <div>
-            <span style={{ color: 'var(--text-muted)' }}>Trading / Brand Name:</span>{' '}
+            <span style={{ color: 'var(--text-muted)' }}>Trading / Firm Name:</span>{' '}
+            <strong style={{ color: 'var(--text-primary)' }}>{BUSINESS_CONFIG.tradeName}</strong>
+          </div>
+          <div>
+            <span style={{ color: 'var(--text-muted)' }}>Brand / Platform:</span>{' '}
             <strong style={{ color: 'var(--text-primary)' }}>{siteName || BUSINESS_CONFIG.brandName}</strong>
+          </div>
+          <div>
+            <span style={{ color: 'var(--text-muted)' }}>Helpline Phone / WhatsApp:</span>{' '}
+            <a
+              href={`tel:${BUSINESS_CONFIG.phone}`}
+              style={{ color: '#1162F2', fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+            >
+              <Phone size={13} /> {BUSINESS_CONFIG.phone}
+            </a>
+          </div>
+          <div>
+            <span style={{ color: 'var(--text-muted)' }}>Official Email:</span>{' '}
+            <a
+              href={`mailto:${BUSINESS_CONFIG.supportEmail}`}
+              style={{ color: '#1162F2', fontWeight: 700, textDecoration: 'none' }}
+            >
+              {BUSINESS_CONFIG.supportEmail}
+            </a>
           </div>
           <div>
             <span style={{ color: 'var(--text-muted)' }}>Physical Office & Support Address:</span>
@@ -79,7 +104,7 @@ export default function ContactInfoSidebar() {
         </div>
       </div>
 
-      {/* 2. Email Support Card */}
+      {/* 2. Customer Support Desk Card */}
       <div
         className="glass-card"
         style={{
@@ -112,25 +137,41 @@ export default function ContactInfoSidebar() {
           </div>
         </div>
 
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.6, marginBottom: '16px' }}>
-          Send us your inquiries, licensing questions, or download assistance requests.
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.6, marginBottom: '14px' }}>
+          Send us your inquiries, licensing questions, or order assistance requests.
         </p>
 
-        <a
-          href={`mailto:${supportEmail}`}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            color: 'var(--brand-purple-light)',
-            fontWeight: 700,
-            fontSize: '0.9rem',
-            textDecoration: 'none',
-            wordBreak: 'break-all',
-          }}
-        >
-          <Mail size={15} /> {supportEmail}
-        </a>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <a
+            href={`tel:${BUSINESS_CONFIG.phone}`}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              color: '#1162F2',
+              fontWeight: 700,
+              fontSize: '0.9rem',
+              textDecoration: 'none',
+            }}
+          >
+            <Phone size={15} /> {BUSINESS_CONFIG.phone}
+          </a>
+          <a
+            href={`mailto:${BUSINESS_CONFIG.supportEmail}`}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              color: 'var(--brand-purple-light)',
+              fontWeight: 700,
+              fontSize: '0.9rem',
+              textDecoration: 'none',
+              wordBreak: 'break-all',
+            }}
+          >
+            <Mail size={15} /> {BUSINESS_CONFIG.supportEmail}
+          </a>
+        </div>
       </div>
 
       {/* 3. Grievance Redressal Officer Card (RBI / Cashfree Mandatory Compliance) */}
@@ -170,7 +211,8 @@ export default function ContactInfoSidebar() {
           </p>
           <div style={{ fontSize: '0.78125rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
             <div><strong>Officer:</strong> {BUSINESS_CONFIG.grievanceOfficer}</div>
-            <div><strong>Email:</strong> <a href={`mailto:${BUSINESS_CONFIG.grievanceEmail}`} style={{ color: 'inherit' }}>{BUSINESS_CONFIG.grievanceEmail}</a></div>
+            <div><strong>Helpline:</strong> <a href={`tel:${BUSINESS_CONFIG.phone}`} style={{ color: '#1162F2', fontWeight: 600, textDecoration: 'none' }}>{BUSINESS_CONFIG.phone}</a></div>
+            <div><strong>Email:</strong> <a href={`mailto:${BUSINESS_CONFIG.grievanceEmail}`} style={{ color: '#1162F2', fontWeight: 600 }}>{BUSINESS_CONFIG.grievanceEmail}</a></div>
             <div><strong>Response Time:</strong> Acknowledged within 24–48 hours</div>
           </div>
         </div>

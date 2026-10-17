@@ -128,13 +128,22 @@ export default function Footer() {
                 </div>
                 <div>
                   <span style={{ color: '#9CA3AF' }}>Legal Entity:</span>{' '}
-                  <strong style={{ color: '#FFFFFF' }}>{BUSINESS_CONFIG.legalName}</strong>
+                  <strong style={{ color: '#FFFFFF' }}>{BUSINESS_CONFIG.legalName}</strong>{' '}
+                  <span style={{ color: '#FFD200', fontSize: '0.72rem' }}>(Proprietor, Rishav Media)</span>
                 </div>
                 <div>
                   <span style={{ color: '#9CA3AF' }}>Udyam Reg. No.:</span>{' '}
                   <strong style={{ color: '#FFD200', fontFamily: 'monospace', letterSpacing: '0.02em' }}>
                     {BUSINESS_CONFIG.udyamRegistration}
                   </strong>
+                </div>
+                <div>
+                  <span style={{ color: '#9CA3AF' }}>Helpline:</span>{' '}
+                  <a href={`tel:${BUSINESS_CONFIG.phone}`} style={{ color: '#93C5FD', textDecoration: 'none', fontWeight: 600 }}>{BUSINESS_CONFIG.phone}</a>
+                </div>
+                <div>
+                  <span style={{ color: '#9CA3AF' }}>Email:</span>{' '}
+                  <a href={`mailto:${BUSINESS_CONFIG.supportEmail}`} style={{ color: '#93C5FD', textDecoration: 'none', fontWeight: 600 }}>{BUSINESS_CONFIG.supportEmail}</a>
                 </div>
                 <div style={{ fontSize: '0.72rem', color: '#9CA3AF', marginTop: '6px', lineHeight: 1.45 }}>
                   <span style={{ color: '#D1D5DB' }}>Office:</span> {BUSINESS_CONFIG.registeredOffice}
@@ -400,13 +409,16 @@ export default function Footer() {
             {showMsmeBadge && (
               <>
                 {' • '}
-                Owned, operated and managed by <strong>{BUSINESS_CONFIG.legalName}</strong> (Govt. of India MSME / Udyam Reg. No.:{' '}
+                Owned, operated and managed by <strong>{BUSINESS_CONFIG.legalName}</strong> (Proprietor: Rishav Media | Govt. of India MSME / Udyam Reg. No.:{' '}
                 <strong style={{ color: '#FFD200', fontFamily: 'monospace' }}>{BUSINESS_CONFIG.udyamRegistration}</strong>)
               </>
             )}.
           </p>
+          <p style={{ color: '#9CA3AF', fontSize: '0.735rem', margin: '0 0 6px', lineHeight: 1.5 }}>
+            Direct Compliance Helpline: <a href={`tel:${BUSINESS_CONFIG.phone}`} style={{ color: '#FFD200', textDecoration: 'none', fontWeight: 700 }}>{BUSINESS_CONFIG.phone}</a> | Email: <a href={`mailto:${BUSINESS_CONFIG.supportEmail}`} style={{ color: '#FFD200', textDecoration: 'none', fontWeight: 700 }}>{BUSINESS_CONFIG.supportEmail}</a>
+          </p>
           <p style={{ color: '#6B7280', fontSize: '0.71875rem', margin: 0, lineHeight: 1.5 }}>
-            All commercial contracts, digital fulfillment, and payment gateway transactions are processed under the legal entity name <strong>{BUSINESS_CONFIG.legalName}</strong>.
+            All commercial contracts, digital fulfillment, and payment gateway transactions are processed under the registered legal entity <strong>{BUSINESS_CONFIG.legalName}</strong>.
             All digital downloads are subject to our verified{' '}
             {legalPages.termsConditions && (
               <><Link to="/terms-and-conditions" style={{ color: '#9CA3AF', textDecoration: 'underline' }}>Terms & Conditions</Link>,{' '}</>

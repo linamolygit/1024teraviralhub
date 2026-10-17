@@ -31,8 +31,11 @@ export default function AboutPage() {
             description: siteTagline || 'A digital platform focused on providing accessible digital products and creative resources.',
             publisher: {
               '@type': 'Organization',
-              name: 'Rishav Media',
+              name: 'RISHAV SRIVASTAWA (Rishav Media)',
+              legalName: 'RISHAV SRIVASTAWA',
               alternateName: siteName,
+              email: 'rishavsrivastawa9162@gmail.com',
+              telephone: '+919801947855',
               address: {
                 '@type': 'PostalAddress',
                 streetAddress: 'Flat No. 25, Rishav Media Office, Block Road, Ghorasahan',

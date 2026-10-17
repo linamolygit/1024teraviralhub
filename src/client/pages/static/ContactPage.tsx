@@ -27,9 +27,11 @@ export default function ContactPage() {
             description: `Contact ${siteName} for questions, product assistance, purchase support and general inquiries.`,
             mainEntity: {
               '@type': 'Organization',
-              name: 'Rishav Media',
+              name: 'RISHAV SRIVASTAWA (Rishav Media)',
+              legalName: 'RISHAV SRIVASTAWA',
               alternateName: siteName,
-              email: supportEmail,
+              email: 'rishavsrivastawa9162@gmail.com',
+              telephone: '+919801947855',
               address: {
                 '@type': 'PostalAddress',
                 streetAddress: 'Flat No. 25, Rishav Media Office, Block Road, Ghorasahan',
