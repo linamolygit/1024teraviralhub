@@ -103,12 +103,32 @@ app.use('*', secureHeaders({
   referrerPolicy: 'strict-origin-when-cross-origin',
   contentSecurityPolicy: {
     defaultSrc: ["'self'"],
-    scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'connect.facebook.net', 'challenges.cloudflare.com', 'sdk.cashfree.com', 'checkout.razorpay.com'],
+    scriptSrc: [
+      "'self'",
+      "'unsafe-inline'",
+      "'unsafe-eval'",
+      'https://pagead2.googlesyndication.com',
+      'https://*.googlesyndication.com',
+      'https://*.google.com',
+      'https://*.googleadservices.com',
+      'https://*.doubleclick.net',
+      'https://www.googletagmanager.com',
+      'connect.facebook.net',
+      'challenges.cloudflare.com',
+      'sdk.cashfree.com',
+      'checkout.razorpay.com',
+    ],
     styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
     fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
     imgSrc: ["'self'", 'data:', 'https:', 'blob:'],
     connectSrc: [
       "'self'",
+      'https://pagead2.googlesyndication.com',
+      'https://*.googlesyndication.com',
+      'https://*.google.com',
+      'https://*.googleadservices.com',
+      'https://*.doubleclick.net',
+      'https://*.google-analytics.com',
       'https://api.cashfree.com',
       'https://sandbox.cashfree.com',
       'https://api.razorpay.com',
@@ -121,7 +141,15 @@ app.use('*', secureHeaders({
       'https://*.firebaseapp.com',
       'https://*.firebaseio.com',
     ],
-    frameSrc: ["'self'", 'https://*.firebaseapp.com', 'https://api.razorpay.com'],
+    frameSrc: [
+      "'self'",
+      'https://googleads.g.doubleclick.net',
+      'https://*.googlesyndication.com',
+      'https://*.google.com',
+      'https://*.doubleclick.net',
+      'https://*.firebaseapp.com',
+      'https://api.razorpay.com',
+    ],
   },
 }))
 
@@ -561,6 +589,17 @@ app.get('/robots.txt', (c) => {
   })
 })
 
+// ─── Google AdSense: ads.txt ─────────────────
+app.get('/ads.txt', () => {
+  const adsTxt = `google.com, pub-2291828876695516, DIRECT, f08c47fec0942fa0\n`
+  return new Response(adsTxt, {
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Cache-Control': 'public, max-age=86400',
+    },
+  })
+})
+
 // ─── Health Check ────────────────────────────
 app.get('/api/health', (c) => {
   return c.json({ status: 'ok', ts: new Date().toISOString() })
@@ -704,15 +743,13 @@ async function injectGoogleSuite(html: string, db: D1Database): Promise<string> 
     }
 
     // 3. Google AdSense Auto-Ads Tag
-    if (settings.adsense_enabled && settings.adsense_publisher_id) {
-      let pubId = String(settings.adsense_publisher_id).trim()
-      if (pubId.startsWith('pub-') && !pubId.startsWith('ca-pub-')) pubId = `ca-${pubId}`
-      if (pubId.startsWith('ca-pub-')) {
-        headTags += `\n    <!-- Google AdSense -->\n    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${pubId}" crossorigin="anonymous"></script>`
-      }
-      if (settings.adsense_head_code) {
-        headTags += `\n    ${settings.adsense_head_code}`
-      }
+    const adsensePub = String(settings.adsense_publisher_id || 'ca-pub-2291828876695516').trim()
+    let pubId = adsensePub.startsWith('pub-') && !adsensePub.startsWith('ca-pub-') ? `ca-${adsensePub}` : adsensePub
+    if (pubId && !html.includes(pubId)) {
+      headTags += `\n    <!-- Google AdSense -->\n    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${pubId}" crossorigin="anonymous"></script>`
+    }
+    if (settings.adsense_head_code && !html.includes(settings.adsense_head_code)) {
+      headTags += `\n    ${settings.adsense_head_code}`
     }
 
     // 4. Google Ad Manager / AdX Tag
