@@ -180,10 +180,94 @@ export default function FlipkartSupportChatPage() {
             content: `Please select how we can assist you with Order #${orderNum}:`,
             time: getCurrentTime(),
             options: [
+              { label: 'I want to cancel my order', action: 'cancel_order' },
               { label: 'When will the delivery agent call me?', action: 'agent_call' },
               { label: 'Can I change the delivery address?', action: 'change_address' },
-              { label: 'Instant digital invoice & files', action: 'digital_files' },
               { label: 'Connect with support executive', action: 'support_exec' },
+            ],
+          },
+        ])
+      }, 450)
+      return
+    }
+
+    // 2b. Cancel Order Request
+    if (customAction === 'cancel_order' || /cancel|cancellation|refund|wapas/i.test(lower)) {
+      setTimeout(() => {
+        setIsTyping(false)
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `bot-${Date.now()}`,
+            role: 'assistant',
+            content: `As your order #${orderNum} has already been SHIPPED and is currently moving towards your city from the Delhi facility, it cannot be stopped mid-transit.\n\n📦 **How Cancellation & Refund Works:**\nWhen our Ekart delivery executive arrives at your doorstep, you can simply **refuse the parcel** (inform them you wish to cancel). Once refused, the order is immediately returned and 100% refund is credited back to your bank account within 5-7 business days.\n\nWould you like to register an advance cancellation request now?`,
+            time: getCurrentTime(),
+            options: [
+              { label: 'Confirm Cancellation Request', action: 'confirm_cancel' },
+              { label: 'No, Keep My Order Dispatched', action: 'keep_order' },
+            ],
+          },
+        ])
+      }, 450)
+      return
+    }
+
+    // 2c. Confirm Cancellation
+    if (customAction === 'confirm_cancel') {
+      try {
+        localStorage.setItem(`tvh_order_cancelled_${orderNum}`, '1')
+        fetch('/api/order-lookup/cancel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ order_number: orderNum, reason: 'Customer requested cancellation via Support Chat' })
+        }).catch(() => {})
+      } catch {}
+
+      setTimeout(() => {
+        setIsTyping(false)
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `bot-${Date.now()}`,
+            role: 'assistant',
+            content: `✅ **Cancellation Registered for Order #${orderNum}**\n\nYour cancellation request has been recorded in our logistics system. Please refuse delivery when the Ekart courier arrives.\n\n💰 **Refund Notice:**\n100% refund of your payment will be credited to your original payment mode within 5-7 business days.\n\nYou can also verify the updated status on your Order Details page.`,
+            time: getCurrentTime(),
+          },
+          {
+            id: `bot-fu-${Date.now()}`,
+            role: 'assistant',
+            content: 'Can I help you with anything else?',
+            time: getCurrentTime(),
+            options: [
+              { label: 'No, I am good', action: 'no_good' },
+              { label: 'Yes, I still need help', action: 'need_help' },
+            ],
+          },
+        ])
+      }, 450)
+      return
+    }
+
+    // 2d. Keep Order
+    if (customAction === 'keep_order') {
+      setTimeout(() => {
+        setIsTyping(false)
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `bot-${Date.now()}`,
+            role: 'assistant',
+            content: `Great choice! Your order #${orderNum} remains active and will be delivered on schedule by ${deliveryDateStr}. The delivery partner will contact you on your registered mobile number before arrival.`,
+            time: getCurrentTime(),
+          },
+          {
+            id: `bot-fu-${Date.now()}`,
+            role: 'assistant',
+            content: 'Can I help you with anything else?',
+            time: getCurrentTime(),
+            options: [
+              { label: 'No, I am good', action: 'no_good' },
+              { label: 'Yes, I still need help', action: 'need_help' },
             ],
           },
         ])

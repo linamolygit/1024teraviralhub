@@ -592,14 +592,14 @@ STRICT INSTRUCTIONS:
       else if (/yes, i still need help|yes i still need help|still need help|aur madad|help chahiye/i.test(lower)) {
         reply = `Please let me know how else we can assist you with Order #${orderNumber}. You can ask about delivery agent calls, address queries, or invoice receipts.`
       }
-      // 5. Refund / Return / Cancellation
-      else if (/refund|return|cancel|wapas|paise wapas/i.test(lower)) {
+      // 5. Refund / Return / Cancellation (Matching Flipkart Order Workflow)
+      else if (/refund|return|cancel|cancellation|wapas|paise wapas|nahi chahiye/i.test(lower)) {
         if (isDevanagari) {
-          reply = `डिजिटल उत्पाद होने के कारण फ़ाइलें तुरंत डिलीवर हो जाती हैं। यदि आपको फ़ाइलें डाउनलोड करने या इस्तेमाल करने में कोई भी परेशानी हो रही है, तो हम आपको तुरंत नया लिंक या समाधान प्रदान करेंगे। कृपया अपनी समस्या बताएं।`
+          reply = `चूंकि आपका ऑर्डर #${orderNumber} पहले ही डिस्पैच (SHIPPED) हो चुका है और दिल्ली फैसिलिटी से आपके शहर की तरफ बढ़ रहा है, इसलिए इसे बीच रास्ते में नहीं रोका जा सकता। डिलीवरी के समय जब हमारा डिलीवरी एजेंट आपके पास पहुंचे, तो आप पार्सल लेने से मना (Refuse Delivery) कर सकते हैं। डिलीवरी मना करते ही ऑर्डर कैंसिल हो जाएगा और आपकी 100% राशि (${amount || 'भुगतान'}) 5-7 कार्य दिवसों में सीधे आपके बैंक/UPI खाते में वापस रिफंड हो जाएगी।`
         } else if (isHinglish) {
-          reply = `Instant digital product hone ki wajah se files turant deliver ho jaati hain. Agar aapko files download karne ya open karne me koi bhi issue hai, toh hum aapko 100% full support aur alternate access provide karenge. Mujhe batayein kya dikkat aa rahi hai?`
+          reply = `Aapka order #${orderNumber} already SHIPPED ho chuka hai aur Delhi facility se aapke city ke liye transit me hai. Transit ke dauran parcel beech me ruka nahi ja sakta, lekin delivery day par jab delivery agent aaye, toh aap parcel lene se mana (refuse delivery) kar sakte hain. Delivery refuse hote hi order CANCELLED mark ho jayega aur aapka 100% refund ${amount ? `(${amount})` : ''} agle 5-7 business days me aapke bank/UPI account me credit ho jayega.`
         } else {
-          reply = `As this is an instant digital asset delivery, files are made accessible immediately upon payment. If you are experiencing any issue accessing, downloading, or using your files, our team guarantees full replacement support. Please let me know what difficulty you are facing.`
+          reply = `As your order #${orderNumber} has already been SHIPPED and is in transit from the Delhi facility, it cannot be stopped while in transit. When our Ekart delivery partner arrives at your address, you can simply refuse the parcel. Once refused, your order is marked cancelled and a 100% refund of ${amount || 'your payment'} will be automatically credited to your original payment mode within 5-7 business days.`
         }
       }
       // 6. Human Support / Call / Email
@@ -637,6 +637,33 @@ STRICT INSTRUCTIONS:
   } catch (err: any) {
     console.error('Order chat assistant error:', err)
     return c.json({ error: err.message || 'Support assistant error' }, 500)
+  }
+})
+
+// POST /api/order-lookup/cancel — Register Order Cancellation
+app.post('/cancel', async (c) => {
+  try {
+    const body = await c.req.json<{ order_number?: string; reason?: string }>()
+    const rawOrder = (body.order_number || '').trim().toUpperCase().replace(/^#/, '')
+    if (!rawOrder) return c.json({ error: 'Order number required' }, 400)
+
+    const odAlt = rawOrder.startsWith('OD') ? rawOrder : `OD${rawOrder}`
+    const tvhAlt = rawOrder.startsWith('TVH-') ? rawOrder : `TVH-${rawOrder}`
+
+    await c.env.DB.prepare(`
+      UPDATE orders
+      SET status = 'CANCELLED'
+      WHERE (order_number = ? OR order_number = ? OR order_number = ?)
+    `).bind(rawOrder, odAlt, tvhAlt).run()
+
+    return c.json({
+      success: true,
+      order_number: rawOrder,
+      status: 'CANCELLED',
+      message: 'Order cancellation successfully registered',
+    })
+  } catch (err: any) {
+    return c.json({ error: err?.message || 'Failed to cancel order' }, 500)
   }
 })
 
