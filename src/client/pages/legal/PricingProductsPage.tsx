@@ -238,6 +238,33 @@ export default function PricingProductsPage() {
               <div><strong>Support Hours:</strong> {BUSINESS_CONFIG.supportHours}</div>
               <div><strong>Order Lookup:</strong> <Link to="/order-lookup" style={{ color: '#1162F2', fontWeight: 600 }}>Access Existing Orders & Downloads</Link></div>
             </div>
+
+            {/* Statutory Cashfree Merchant & RBI Settlement Disclosure */}
+            <div
+              style={{
+                marginTop: 20,
+                background: '#F0FDF4',
+                border: '1.5px solid #86EFAC',
+                borderRadius: 12,
+                padding: '16px 20px',
+                color: '#14532D',
+                fontSize: '0.825rem',
+                lineHeight: 1.6,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#166534', fontWeight: 800, fontSize: '0.925rem', marginBottom: '8px' }}>
+                <ShieldCheck size={18} color="#16A34A" />
+                <span>Authorized Cashfree Merchant & RBI Payment Settlement Disclosure</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '8px', background: '#FFFFFF', padding: '12px 14px', borderRadius: '8px', border: '1px solid #DCFCE7' }}>
+                <div><span style={{ color: '#64748B' }}>Registered Merchant Entity:</span> <strong style={{ color: '#0F172A' }}>RISHAV MEDIA</strong></div>
+                <div><span style={{ color: '#64748B' }}>Trade & Website:</span> <strong style={{ color: '#0F172A' }}>1024 Tera Viral Hub</strong> (1024teraviralhub.com)</div>
+                <div><span style={{ color: '#64748B' }}>MSME / Udyam Reg.:</span> <strong style={{ color: '#D97706', fontFamily: 'monospace' }}>UDYAM-BR-11-0107325</strong></div>
+                <div><span style={{ color: '#64748B' }}>Payment Partner:</span> <strong style={{ color: '#1D4ED8' }}>Cashfree Payments India Pvt. Ltd. (PCI-DSS Level 1)</strong></div>
+                <div><span style={{ color: '#64748B' }}>Currency & Pricing:</span> <strong style={{ color: '#15803D' }}>Indian National Rupees (INR / ₹)</strong></div>
+                <div><span style={{ color: '#64748B' }}>Registered Office:</span> <span>Flat No. 25, Rishav Media Office, Block Road, Ghorasahan, Motihari, Bihar - 845303</span></div>
+              </div>
+            </div>
           </section>
         </div>
       </div>

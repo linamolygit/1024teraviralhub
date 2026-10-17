@@ -107,7 +107,7 @@ export default function PrivacyPage() {
             <p>
               In accordance with the Information Technology Act, 2000 and Digital Personal Data Protection Act, the details of our designated Grievance Officer are provided below:
             </p>
-            <div style={{ background: 'var(--bg-elevated)', padding: '16px 20px', borderRadius: 10, fontSize: '0.85rem' }}>
+            <div style={{ background: 'var(--bg-elevated)', padding: '16px 20px', borderRadius: 10, fontSize: '0.85rem', marginBottom: 16 }}>
               <div><strong>Desk:</strong> {BUSINESS_CONFIG.grievanceOfficer}</div>
               <div><strong>Organization / Entity:</strong> {BUSINESS_CONFIG.legalName}</div>
               <div><strong>Operations Office:</strong> {BUSINESS_CONFIG.registeredOffice}</div>
@@ -120,6 +120,32 @@ export default function PrivacyPage() {
               </div>
               <div><strong>Grievance Email:</strong> <a href={`mailto:${BUSINESS_CONFIG.supportEmail}`} style={{ color: 'inherit' }}>{BUSINESS_CONFIG.supportEmail}</a></div>
               <div><strong>Jurisdiction:</strong> {BUSINESS_CONFIG.operatingState}</div>
+            </div>
+
+            {/* Statutory Cashfree Merchant & RBI Settlement Disclosure */}
+            <div
+              style={{
+                background: '#F0FDF4',
+                border: '1.5px solid #86EFAC',
+                borderRadius: 12,
+                padding: '16px 20px',
+                color: '#14532D',
+                fontSize: '0.825rem',
+                lineHeight: 1.6,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#166534', fontWeight: 800, fontSize: '0.925rem', marginBottom: '8px' }}>
+                <ShieldCheck size={18} color="#16A34A" />
+                <span>Authorized Cashfree Merchant & RBI Payment Settlement Disclosure</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '8px', background: '#FFFFFF', padding: '12px 14px', borderRadius: '8px', border: '1px solid #DCFCE7' }}>
+                <div><span style={{ color: '#64748B' }}>Registered Merchant Entity:</span> <strong style={{ color: '#0F172A' }}>RISHAV MEDIA</strong></div>
+                <div><span style={{ color: '#64748B' }}>Trade & Website:</span> <strong style={{ color: '#0F172A' }}>1024 Tera Viral Hub</strong> (1024teraviralhub.com)</div>
+                <div><span style={{ color: '#64748B' }}>MSME / Udyam Reg.:</span> <strong style={{ color: '#D97706', fontFamily: 'monospace' }}>UDYAM-BR-11-0107325</strong></div>
+                <div><span style={{ color: '#64748B' }}>Payment Partner:</span> <strong style={{ color: '#1D4ED8' }}>Cashfree Payments India Pvt. Ltd. (PCI-DSS Level 1)</strong></div>
+                <div><span style={{ color: '#64748B' }}>Data Protection:</span> <strong style={{ color: '#15803D' }}>256-bit SSL & Zero Financial Data Stored</strong></div>
+                <div><span style={{ color: '#64748B' }}>Registered Office:</span> <span>Flat No. 25, Rishav Media Office, Block Road, Ghorasahan, Motihari, Bihar - 845303</span></div>
+              </div>
             </div>
           </section>
         </div>

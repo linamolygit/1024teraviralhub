@@ -1,10 +1,9 @@
 // src/client/pages/order/RefundRequestPage.tsx
-// Official Self-Service Refund & Dispute Settlement Portal
+// Official Self-Service Refund & Dispute Settlement Portal — Light Theme & Cashfree Compliant
 // Requires Order Number + 12-Digit Bank UTR + Recipient UPI ID
 
 import React, { useState, useEffect } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
-import { motion } from 'framer-motion'
 import {
   RotateCcw,
   ShieldCheck,
@@ -13,10 +12,12 @@ import {
   Search,
   MessageSquare,
   Clock,
-  ArrowRight,
   HelpCircle,
   FileText,
   CreditCard,
+  Building,
+  Check,
+  Copy,
 } from 'lucide-react'
 import { useSiteConfig } from '../../lib/site-config'
 
@@ -45,13 +46,20 @@ export default function RefundRequestPage() {
   const [trackLoading, setTrackLoading] = useState(false)
   const [trackError, setTrackError] = useState<string | null>(null)
   const [trackResult, setTrackResult] = useState<any | null>(null)
+  const [copiedKey, setCopiedKey] = useState<string | null>(null)
 
   useEffect(() => {
-    document.title = `Refund & Dispute Portal — ${siteName}`
+    document.title = `Refund & Dispute Portal — ${siteName || '1024 Tera Viral Hub'}`
     if (initialOrder) {
       setOrderNumber(initialOrder)
     }
   }, [siteName, initialOrder])
+
+  const handleCopy = (text: string, key: string) => {
+    navigator.clipboard.writeText(text)
+    setCopiedKey(key)
+    setTimeout(() => setCopiedKey(null), 2000)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -66,11 +74,11 @@ export default function RefundRequestPage() {
       return
     }
     if (!cleanUtr || cleanUtr.length < 8) {
-      setError('Please provide a valid 12-digit Bank/UPI UTR Number from your payment app.')
+      setError('Please provide a valid 12-digit Bank/UPI UTR Number.')
       return
     }
     if (!cleanUpi || !cleanUpi.includes('@') || cleanUpi.length < 5) {
-      setError('Please provide a valid UPI ID (e.g. user@okhdfcbank) to receive your refund payout.')
+      setError('Please provide a valid UPI ID (e.g. user@okhdfcbank or 9876543210@paytm).')
       return
     }
 
@@ -91,15 +99,15 @@ export default function RefundRequestPage() {
         }),
       })
 
-      const data = (await res.json()) as any
+      const data: any = await res.json()
 
-      if (!res.ok || data.error) {
-        throw new Error(data.error || 'Failed to submit refund claim. Please verify your details.')
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to submit refund claim.')
       }
 
       setSuccessData(data)
     } catch (err: any) {
-      setError(err?.message || 'Error occurred while filing refund claim.')
+      setError(err?.message || 'Failed to file refund claim. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -110,17 +118,17 @@ export default function RefundRequestPage() {
     setTrackError(null)
     setTrackResult(null)
 
-    const q = trackQuery.trim()
-    if (!q) {
-      setTrackError('Please enter your Refund Ticket ID, Order Number, or UTR.')
+    const cleanQ = trackQuery.trim().toUpperCase().replace(/^#/, '')
+    if (!cleanQ) {
+      setTrackError('Please enter a Refund Ticket ID, Order Number, or UTR.')
       return
     }
 
     setTrackLoading(true)
 
     try {
-      const res = await fetch(`/api/order-lookup/refund-status/${encodeURIComponent(q)}`)
-      const data = (await res.json()) as any
+      const res = await fetch(`/api/order-lookup/refund-status/${encodeURIComponent(cleanQ)}`)
+      const data: any = await res.json()
 
       if (!res.ok || !data.found) {
         throw new Error(data.message || 'No refund claim found matching this reference.')
@@ -135,39 +143,39 @@ export default function RefundRequestPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-primary, #0B0F19)', color: '#F8FAFC', padding: '40px 16px' }}>
-      <div style={{ maxWidth: '780px', margin: '0 auto' }}>
+    <div style={{ minHeight: '100vh', background: '#F8FAFC', color: '#0F172A', padding: '40px 16px' }}>
+      <div style={{ maxWidth: '820px', margin: '0 auto' }}>
         {/* Breadcrumb */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: '#94A3B8', marginBottom: '20px' }}>
-          <Link to="/" style={{ color: '#94A3B8', textDecoration: 'none' }}>Home</Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: '#64748B', marginBottom: '20px' }}>
+          <Link to="/" style={{ color: '#64748B', textDecoration: 'none' }}>Home</Link>
           <span>/</span>
-          <Link to="/order-lookup" style={{ color: '#94A3B8', textDecoration: 'none' }}>Order Lookup</Link>
+          <Link to="/order-lookup" style={{ color: '#64748B', textDecoration: 'none' }}>Order Lookup</Link>
           <span>/</span>
-          <span style={{ color: '#FFD200', fontWeight: 600 }}>Refund & Dispute Portal</span>
+          <span style={{ color: '#1162F2', fontWeight: 600 }}>Refund & Dispute Portal</span>
         </div>
 
         {/* Page Header */}
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
           <div
             style={{
-              width: '54px',
-              height: '54px',
-              borderRadius: '14px',
+              width: '56px',
+              height: '56px',
+              borderRadius: '16px',
               background: 'linear-gradient(135deg, #1162F2 0%, #1D4ED8 100%)',
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 8px 24px rgba(17, 98, 242, 0.35)',
+              boxShadow: '0 8px 24px rgba(17, 98, 242, 0.25)',
               marginBottom: '14px',
             }}
           >
             <RotateCcw size={28} color="#FFFFFF" />
           </div>
-          <h1 style={{ fontSize: '2rem', fontWeight: 800, margin: '0 0 8px 0', letterSpacing: '-0.02em', color: '#FFFFFF' }}>
-            Automated Refund & Dispute Desk
+          <h1 style={{ fontSize: '2.1rem', fontWeight: 800, margin: '0 0 8px 0', letterSpacing: '-0.02em', color: '#0F172A' }}>
+            Automated Refund & Dispute Portal
           </h1>
-          <p style={{ fontSize: '0.95rem', color: '#94A3B8', maxWidth: '580px', margin: '0 auto', lineHeight: '1.5' }}>
-            Self-service digital settlement portal. Submit your 12-digit Bank UTR and destination UPI ID for an automated verification and refund turnaround.
+          <p style={{ fontSize: '0.95rem', color: '#475569', maxWidth: '620px', margin: '0 auto', lineHeight: '1.6' }}>
+            Self-service digital settlement portal. Submit your 12-digit Bank/UPI UTR and destination UPI ID for guaranteed turnaround and settlement.
           </p>
         </div>
 
@@ -175,62 +183,107 @@ export default function RefundRequestPage() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: '12px',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            gap: '14px',
             marginBottom: '28px',
           }}
         >
+          {/* 2 Days Review SLA */}
           <div
             style={{
-              background: 'rgba(255, 255, 255, 0.03)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              borderRadius: '12px',
-              padding: '14px 16px',
+              background: '#FFFFFF',
+              border: '1px solid #BFDBFE',
+              borderRadius: '14px',
+              padding: '16px',
               display: 'flex',
               alignItems: 'center',
               gap: '12px',
+              boxShadow: '0 2px 8px rgba(17, 98, 242, 0.05)',
             }}
           >
-            <Clock size={22} color="#60A5FA" style={{ flexShrink: 0 }} />
+            <div
+              style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '10px',
+                background: '#EFF6FF',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <Clock size={22} color="#1D4ED8" />
+            </div>
             <div>
-              <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#FFFFFF' }}>2 Days Review SLA</div>
-              <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Desk verified within 24–48 hours</div>
+              <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#1E3A8A' }}>2 Days Review SLA</div>
+              <div style={{ fontSize: '0.78125rem', color: '#475569' }}>Desk verified within 24–48 hours</div>
             </div>
           </div>
 
+          {/* 5-7 Days UPI Payout */}
           <div
             style={{
-              background: 'rgba(16, 185, 129, 0.06)',
-              border: '1px solid rgba(16, 185, 129, 0.25)',
-              borderRadius: '12px',
-              padding: '14px 16px',
+              background: '#F0FDF4',
+              border: '1.5px solid #86EFAC',
+              borderRadius: '14px',
+              padding: '16px',
               display: 'flex',
               alignItems: 'center',
               gap: '12px',
+              boxShadow: '0 2px 8px rgba(16, 185, 129, 0.05)',
             }}
           >
-            <ShieldCheck size={22} color="#10B981" style={{ flexShrink: 0 }} />
+            <div
+              style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '10px',
+                background: '#DCFCE7',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <ShieldCheck size={22} color="#16A34A" />
+            </div>
             <div>
-              <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#10B981' }}>5–7 Days UPI Payout</div>
-              <div style={{ fontSize: '0.75rem', color: '#A7F3D0' }}>100% assured direct bank credit</div>
+              <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#14532D' }}>5–7 Days UPI Payout</div>
+              <div style={{ fontSize: '0.78125rem', color: '#166534' }}>100% assured direct bank credit</div>
             </div>
           </div>
 
+          {/* Live Tracking & Chat */}
           <div
             style={{
-              background: 'rgba(255, 255, 255, 0.03)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              borderRadius: '12px',
-              padding: '14px 16px',
+              background: '#FFFFFF',
+              border: '1px solid #E2E8F0',
+              borderRadius: '14px',
+              padding: '16px',
               display: 'flex',
               alignItems: 'center',
               gap: '12px',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.03)',
             }}
           >
-            <MessageSquare size={22} color="#FBBF24" style={{ flexShrink: 0 }} />
+            <div
+              style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '10px',
+                background: '#FEF9C3',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <MessageSquare size={22} color="#CA8A04" />
+            </div>
             <div>
-              <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#FFFFFF' }}>Live Tracking & Chat</div>
-              <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Real-time status updates</div>
+              <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#713F12' }}>Live Tracking & Chat</div>
+              <div style={{ fontSize: '0.78125rem', color: '#475569' }}>Real-time status updates</div>
             </div>
           </div>
         </div>
@@ -239,29 +292,30 @@ export default function RefundRequestPage() {
         <div
           style={{
             display: 'flex',
-            background: 'rgba(255, 255, 255, 0.05)',
+            background: '#E2E8F0',
             padding: '4px',
             borderRadius: '12px',
             marginBottom: '24px',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
+            border: '1px solid #CBD5E1',
           }}
         >
           <button
             onClick={() => setActiveTab('submit')}
             style={{
               flex: 1,
-              padding: '11px',
-              borderRadius: '8px',
+              padding: '12px',
+              borderRadius: '9px',
               border: 'none',
               background: activeTab === 'submit' ? '#1162F2' : 'transparent',
-              color: activeTab === 'submit' ? '#FFFFFF' : '#94A3B8',
+              color: activeTab === 'submit' ? '#FFFFFF' : '#475569',
               fontWeight: 700,
-              fontSize: '0.9rem',
+              fontSize: '0.925rem',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '8px',
+              boxShadow: activeTab === 'submit' ? '0 2px 6px rgba(17, 98, 242, 0.3)' : 'none',
               transition: 'all 0.2s',
             }}
           >
@@ -271,18 +325,19 @@ export default function RefundRequestPage() {
             onClick={() => setActiveTab('track')}
             style={{
               flex: 1,
-              padding: '11px',
-              borderRadius: '8px',
+              padding: '12px',
+              borderRadius: '9px',
               border: 'none',
               background: activeTab === 'track' ? '#1162F2' : 'transparent',
-              color: activeTab === 'track' ? '#FFFFFF' : '#94A3B8',
+              color: activeTab === 'track' ? '#FFFFFF' : '#475569',
               fontWeight: 700,
-              fontSize: '0.9rem',
+              fontSize: '0.925rem',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '8px',
+              boxShadow: activeTab === 'track' ? '0 2px 6px rgba(17, 98, 242, 0.3)' : 'none',
               transition: 'all 0.2s',
             }}
           >
@@ -290,42 +345,42 @@ export default function RefundRequestPage() {
           </button>
         </div>
 
-        {/* Main Content Card */}
+        {/* Main Content Card (Pure White Light Theme) */}
         <div
           style={{
-            background: '#0F172A',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
+            background: '#FFFFFF',
+            border: '1px solid #E2E8F0',
             borderRadius: '16px',
-            padding: '28px',
-            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5)',
+            padding: '32px',
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.05)',
           }}
         >
           {activeTab === 'submit' ? (
             !successData ? (
               /* Tab 1: Submit Claim Form */
-              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 {error && (
                   <div
                     style={{
-                      background: 'rgba(239, 68, 68, 0.12)',
-                      border: '1px solid rgba(239, 68, 68, 0.35)',
-                      borderRadius: '8px',
+                      background: '#FEF2F2',
+                      border: '1.5px solid #FCA5A5',
+                      borderRadius: '10px',
                       padding: '12px 16px',
-                      color: '#FCA5A5',
+                      color: '#B91C1C',
                       fontSize: '0.875rem',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '8px',
+                      gap: '10px',
                     }}
                   >
-                    <AlertCircle size={18} style={{ flexShrink: 0 }} />
-                    <div>{error}</div>
+                    <AlertCircle size={20} color="#DC2626" style={{ flexShrink: 0 }} />
+                    <div style={{ fontWeight: 600 }}>{error}</div>
                   </div>
                 )}
 
                 {/* Order Number */}
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#E2E8F0', marginBottom: '6px' }}>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, color: '#1E293B', marginBottom: '6px' }}>
                     Order Number <span style={{ color: '#EF4444' }}>*</span>
                   </label>
                   <input
@@ -336,17 +391,18 @@ export default function RefundRequestPage() {
                     placeholder="e.g. OD328768789012 or TVH-98742"
                     style={{
                       width: '100%',
-                      padding: '12px 14px',
-                      background: 'rgba(255, 255, 255, 0.05)',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      borderRadius: '8px',
-                      color: '#FFFFFF',
+                      padding: '13px 14px',
+                      background: '#FFFFFF',
+                      border: '1.5px solid #CBD5E1',
+                      borderRadius: '9px',
+                      color: '#0F172A',
                       fontSize: '0.95rem',
                       fontFamily: 'monospace',
+                      outline: 'none',
                       boxSizing: 'border-box',
                     }}
                   />
-                  <div style={{ fontSize: '0.75rem', color: '#64748B', marginTop: '4px' }}>
+                  <div style={{ fontSize: '0.78125rem', color: '#64748B', marginTop: '5px' }}>
                     Found in your purchase SMS or on your Order Details tracking link.
                   </div>
                 </div>
@@ -354,10 +410,10 @@ export default function RefundRequestPage() {
                 {/* 12-digit Bank/UPI UTR */}
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#E2E8F0' }}>
+                    <label style={{ fontSize: '0.875rem', fontWeight: 700, color: '#1E293B' }}>
                       12-Digit Bank / UPI UTR Number <span style={{ color: '#EF4444' }}>*</span>
                     </label>
-                    <span style={{ fontSize: '0.75rem', color: '#F59E0B' }}>UPI Transaction ID</span>
+                    <span style={{ fontSize: '0.78125rem', color: '#B45309', fontWeight: 600 }}>UPI Transaction ID</span>
                   </div>
                   <input
                     type="text"
@@ -368,18 +424,19 @@ export default function RefundRequestPage() {
                     maxLength={22}
                     style={{
                       width: '100%',
-                      padding: '12px 14px',
-                      background: 'rgba(255, 255, 255, 0.05)',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      borderRadius: '8px',
-                      color: '#FFFFFF',
+                      padding: '13px 14px',
+                      background: '#FFFFFF',
+                      border: '1.5px solid #CBD5E1',
+                      borderRadius: '9px',
+                      color: '#0F172A',
                       fontSize: '0.95rem',
                       fontFamily: 'monospace',
                       letterSpacing: '0.04em',
+                      outline: 'none',
                       boxSizing: 'border-box',
                     }}
                   />
-                  <div style={{ fontSize: '0.75rem', color: '#64748B', marginTop: '4px' }}>
+                  <div style={{ fontSize: '0.78125rem', color: '#64748B', marginTop: '5px' }}>
                     Open PhonePe, Google Pay, Paytm, or your bank SMS and copy the 12-digit UTR/Ref number.
                   </div>
                 </div>
@@ -387,10 +444,10 @@ export default function RefundRequestPage() {
                 {/* Recipient UPI ID */}
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#E2E8F0' }}>
+                    <label style={{ fontSize: '0.875rem', fontWeight: 700, color: '#1E293B' }}>
                       Your UPI ID for Refund Transfer <span style={{ color: '#EF4444' }}>*</span>
                     </label>
-                    <span style={{ fontSize: '0.75rem', color: '#10B981' }}>Payout Destination</span>
+                    <span style={{ fontSize: '0.78125rem', color: '#15803D', fontWeight: 700 }}>Payout Destination</span>
                   </div>
                   <input
                     type="text"
@@ -400,23 +457,24 @@ export default function RefundRequestPage() {
                     placeholder="e.g. yourname@okhdfcbank or 9876543210@paytm"
                     style={{
                       width: '100%',
-                      padding: '12px 14px',
-                      background: 'rgba(255, 255, 255, 0.05)',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      borderRadius: '8px',
-                      color: '#FFFFFF',
+                      padding: '13px 14px',
+                      background: '#FFFFFF',
+                      border: '1.5px solid #CBD5E1',
+                      borderRadius: '9px',
+                      color: '#0F172A',
                       fontSize: '0.95rem',
+                      outline: 'none',
                       boxSizing: 'border-box',
                     }}
                   />
-                  <div style={{ fontSize: '0.75rem', color: '#64748B', marginTop: '4px' }}>
-                    Your refund will be deposited directly to this UPI address after verification.
+                  <div style={{ fontSize: '0.78125rem', color: '#64748B', marginTop: '5px' }}>
+                    Your refund will be deposited directly to this UPI address within 5–7 business days after verification.
                   </div>
                 </div>
 
                 {/* Reason Selection */}
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#E2E8F0', marginBottom: '6px' }}>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, color: '#1E293B', marginBottom: '6px' }}>
                     Reason for Refund <span style={{ color: '#EF4444' }}>*</span>
                   </label>
                   <select
@@ -424,12 +482,13 @@ export default function RefundRequestPage() {
                     onChange={(e) => setReason(e.target.value)}
                     style={{
                       width: '100%',
-                      padding: '12px 14px',
-                      background: '#1E293B',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      borderRadius: '8px',
-                      color: '#FFFFFF',
+                      padding: '13px 14px',
+                      background: '#FFFFFF',
+                      border: '1.5px solid #CBD5E1',
+                      borderRadius: '9px',
+                      color: '#0F172A',
                       fontSize: '0.9rem',
+                      outline: 'none',
                       boxSizing: 'border-box',
                     }}
                   >
@@ -444,8 +503,8 @@ export default function RefundRequestPage() {
 
                 {/* Additional Details */}
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#E2E8F0', marginBottom: '6px' }}>
-                    Additional Remarks / Information <span style={{ color: '#64748B' }}>(Optional)</span>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, color: '#1E293B', marginBottom: '6px' }}>
+                    Additional Remarks / Information <span style={{ color: '#64748B', fontWeight: 400 }}>(Optional)</span>
                   </label>
                   <textarea
                     rows={3}
@@ -454,13 +513,14 @@ export default function RefundRequestPage() {
                     placeholder="Enter any additional details regarding your transaction..."
                     style={{
                       width: '100%',
-                      padding: '10px 14px',
-                      background: 'rgba(255, 255, 255, 0.05)',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      borderRadius: '8px',
-                      color: '#FFFFFF',
+                      padding: '12px 14px',
+                      background: '#FFFFFF',
+                      border: '1.5px solid #CBD5E1',
+                      borderRadius: '9px',
+                      color: '#0F172A',
                       fontSize: '0.875rem',
                       resize: 'none',
+                      outline: 'none',
                       boxSizing: 'border-box',
                     }}
                   />
@@ -472,7 +532,7 @@ export default function RefundRequestPage() {
                   disabled={loading}
                   style={{
                     width: '100%',
-                    padding: '14px',
+                    padding: '15px',
                     borderRadius: '10px',
                     background: loading ? '#3B82F6' : 'linear-gradient(135deg, #1162F2 0%, #1D4ED8 100%)',
                     border: 'none',
@@ -484,11 +544,17 @@ export default function RefundRequestPage() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '8px',
-                    boxShadow: '0 4px 16px rgba(17, 98, 242, 0.35)',
-                    marginTop: '6px',
+                    boxShadow: '0 4px 16px rgba(17, 98, 242, 0.3)',
+                    marginTop: '8px',
                   }}
                 >
-                  {loading ? 'Submitting & Verifying UTR...' : 'Submit Refund Claim (Verify UTR)'}
+                  {loading ? (
+                    'Submitting & Verifying UTR...'
+                  ) : (
+                    <>
+                      <RotateCcw size={18} /> Submit Refund Claim (Verify UTR)
+                    </>
+                  )}
                 </button>
               </form>
             ) : (
@@ -499,7 +565,7 @@ export default function RefundRequestPage() {
                     width: '64px',
                     height: '64px',
                     borderRadius: '50%',
-                    background: 'rgba(16, 185, 129, 0.15)',
+                    background: '#ECFDF5',
                     border: '2px solid #10B981',
                     display: 'flex',
                     alignItems: 'center',
@@ -510,19 +576,20 @@ export default function RefundRequestPage() {
                   <CheckCircle2 size={36} color="#10B981" />
                 </div>
 
-                <h2 style={{ margin: '0 0 8px 0', fontSize: '1.5rem', fontWeight: 800, color: '#FFFFFF' }}>
+                <h2 style={{ margin: '0 0 8px 0', fontSize: '1.6rem', fontWeight: 800, color: '#0F172A' }}>
                   Refund Request Registered!
                 </h2>
-                <p style={{ margin: '0 0 24px 0', fontSize: '0.9rem', color: '#94A3B8' }}>
-                  Your refund claim is under automated review with our operations settlement desk.
+                <p style={{ margin: '0 0 24px 0', fontSize: '0.925rem', color: '#475569' }}>
+                  Your refund claim has been recorded and is undergoing automated 24–48 hour desk review.
                 </p>
 
+                {/* Ticket Details Box */}
                 <div
                   style={{
-                    background: 'rgba(255, 255, 255, 0.04)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '12px',
-                    padding: '20px',
+                    background: '#F8FAFC',
+                    border: '1px solid #E2E8F0',
+                    borderRadius: '14px',
+                    padding: '22px',
                     textAlign: 'left',
                     fontSize: '0.9rem',
                     display: 'flex',
@@ -531,40 +598,64 @@ export default function RefundRequestPage() {
                     marginBottom: '24px',
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '10px' }}>
-                    <span style={{ color: '#94A3B8' }}>Refund Ticket ID:</span>
-                    <strong style={{ color: '#FFD200', fontFamily: 'monospace' }}>{successData.refund_id}</strong>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #E2E8F0', paddingBottom: '10px' }}>
+                    <span style={{ color: '#64748B' }}>Refund Ticket ID:</span>
+                    <strong style={{ color: '#D97706', fontFamily: 'monospace', fontSize: '1rem' }}>
+                      {successData.refund_id}
+                    </strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94A3B8' }}>Order Reference:</span>
-                    <span style={{ color: '#FFFFFF', fontWeight: 600 }}>#{successData.order_number}</span>
+                    <span style={{ color: '#64748B' }}>Order Reference:</span>
+                    <span style={{ color: '#0F172A', fontWeight: 700 }}>#{successData.order_number}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94A3B8' }}>Verified Bank UTR:</span>
-                    <span style={{ color: '#E2E8F0', fontFamily: 'monospace' }}>{successData.utr_number}</span>
+                    <span style={{ color: '#64748B' }}>Verified Bank UTR:</span>
+                    <span style={{ color: '#0F172A', fontFamily: 'monospace', fontWeight: 600 }}>{successData.utr_number}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94A3B8' }}>Destination UPI ID:</span>
-                    <strong style={{ color: '#38BDF8' }}>{successData.upi_id}</strong>
+                    <span style={{ color: '#64748B' }}>Payout Destination:</span>
+                    <strong style={{ color: '#1D4ED8' }}>{successData.upi_id}</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94A3B8' }}>Current Status:</span>
-                    <span style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#FBBF24', padding: '2px 8px', borderRadius: '4px', fontSize: '0.78rem', fontWeight: 700 }}>
+                    <span style={{ color: '#64748B' }}>Current Status:</span>
+                    <span style={{ background: '#FEF3C7', color: '#B45309', padding: '3px 10px', borderRadius: '6px', fontSize: '0.78125rem', fontWeight: 700 }}>
                       UNDER REVIEW
                     </span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '10px' }}>
-                    <span style={{ color: '#94A3B8' }}>Estimated Payout:</span>
-                    <span style={{ color: '#10B981', fontWeight: 700 }}>5–7 Business Days</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #E2E8F0', paddingTop: '10px' }}>
+                    <span style={{ color: '#64748B' }}>Estimated Payout:</span>
+                    <span style={{ color: '#15803D', fontWeight: 700 }}>5–7 Business Days</span>
+                  </div>
+
+                  {/* 3-Step Milestone Tracker */}
+                  <div style={{ marginTop: '12px', borderTop: '1px solid #E2E8F0', paddingTop: '14px' }}>
+                    <div style={{ fontSize: '0.8125rem', fontWeight: 800, color: '#0F172A', marginBottom: '8px' }}>
+                      🛡️ 100% Refund Assurance Timeline:
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', fontSize: '0.78125rem', textAlign: 'center' }}>
+                      <div style={{ background: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: '8px', padding: '8px 6px' }}>
+                        <div style={{ color: '#16A34A', fontWeight: 700 }}>✓ Step 1</div>
+                        <div style={{ color: '#14532D', marginTop: '2px', fontWeight: 600 }}>Claim Logged</div>
+                      </div>
+                      <div style={{ background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: '8px', padding: '8px 6px' }}>
+                        <div style={{ color: '#D97706', fontWeight: 700 }}>⏳ Step 2 (2 Days)</div>
+                        <div style={{ color: '#78350F', marginTop: '2px', fontWeight: 600 }}>Desk Review</div>
+                      </div>
+                      <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '8px', padding: '8px 6px' }}>
+                        <div style={{ color: '#2563EB', fontWeight: 700 }}>💳 Step 3 (7 Days)</div>
+                        <div style={{ color: '#1E3A8A', marginTop: '2px', fontWeight: 600 }}>UPI Payout</div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
                   <Link
                     to={`/order/support?order=${encodeURIComponent(successData.order_number)}&refund=${encodeURIComponent(successData.refund_id)}`}
                     style={{
                       flex: 1,
-                      padding: '13px',
+                      minWidth: '200px',
+                      padding: '14px',
                       borderRadius: '10px',
                       background: 'linear-gradient(135deg, #1162F2 0%, #1D4ED8 100%)',
                       color: '#FFFFFF',
@@ -574,6 +665,7 @@ export default function RefundRequestPage() {
                       alignItems: 'center',
                       justifyContent: 'center',
                       gap: '8px',
+                      boxShadow: '0 4px 12px rgba(17, 98, 242, 0.25)',
                     }}
                   >
                     <MessageSquare size={16} /> Open Support Chat
@@ -585,12 +677,12 @@ export default function RefundRequestPage() {
                       setUpiId('')
                     }}
                     style={{
-                      padding: '13px 20px',
+                      padding: '14px 22px',
                       borderRadius: '10px',
-                      background: 'transparent',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      color: '#94A3B8',
-                      fontWeight: 600,
+                      background: '#FFFFFF',
+                      border: '1.5px solid #CBD5E1',
+                      color: '#475569',
+                      fontWeight: 700,
                       cursor: 'pointer',
                     }}
                   >
@@ -611,20 +703,21 @@ export default function RefundRequestPage() {
                   placeholder="Enter Refund Ticket (REF-...), Order No, or 12-digit UTR"
                   style={{
                     flex: 1,
-                    padding: '12px 14px',
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                    borderRadius: '8px',
-                    color: '#FFFFFF',
+                    padding: '13px 14px',
+                    background: '#FFFFFF',
+                    border: '1.5px solid #CBD5E1',
+                    borderRadius: '9px',
+                    color: '#0F172A',
                     fontSize: '0.95rem',
+                    outline: 'none',
                   }}
                 />
                 <button
                   type="submit"
                   disabled={trackLoading}
                   style={{
-                    padding: '12px 24px',
-                    borderRadius: '8px',
+                    padding: '13px 24px',
+                    borderRadius: '9px',
                     background: '#1162F2',
                     border: 'none',
                     color: '#FFFFFF',
@@ -633,6 +726,7 @@ export default function RefundRequestPage() {
                     display: 'flex',
                     alignItems: 'center',
                     gap: '6px',
+                    boxShadow: '0 4px 12px rgba(17, 98, 242, 0.25)',
                   }}
                 >
                   <Search size={16} /> {trackLoading ? 'Searching...' : 'Track'}
@@ -642,11 +736,11 @@ export default function RefundRequestPage() {
               {trackError && (
                 <div
                   style={{
-                    background: 'rgba(239, 68, 68, 0.12)',
-                    border: '1px solid rgba(239, 68, 68, 0.35)',
-                    borderRadius: '8px',
-                    padding: '12px',
-                    color: '#FCA5A5',
+                    background: '#FEF2F2',
+                    border: '1.5px solid #FCA5A5',
+                    borderRadius: '10px',
+                    padding: '12px 16px',
+                    color: '#B91C1C',
                     fontSize: '0.875rem',
                     marginBottom: '16px',
                     display: 'flex',
@@ -654,59 +748,59 @@ export default function RefundRequestPage() {
                     gap: '8px',
                   }}
                 >
-                  <AlertCircle size={16} /> {trackError}
+                  <AlertCircle size={18} /> {trackError}
                 </div>
               )}
 
               {trackResult && (
                 <div
                   style={{
-                    background: 'rgba(255, 255, 255, 0.04)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '12px',
-                    padding: '20px',
+                    background: '#F8FAFC',
+                    border: '1px solid #E2E8F0',
+                    borderRadius: '14px',
+                    padding: '22px',
                     fontSize: '0.9rem',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '12px',
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '10px' }}>
-                    <span style={{ color: '#94A3B8' }}>Ticket Reference:</span>
-                    <strong style={{ color: '#FFD200', fontFamily: 'monospace' }}>{trackResult.refund_id}</strong>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #E2E8F0', paddingBottom: '10px' }}>
+                    <span style={{ color: '#64748B' }}>Ticket Reference:</span>
+                    <strong style={{ color: '#D97706', fontFamily: 'monospace' }}>{trackResult.refund_id}</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94A3B8' }}>Order Number:</span>
-                    <span style={{ color: '#FFFFFF', fontWeight: 600 }}>#{trackResult.order_number}</span>
+                    <span style={{ color: '#64748B' }}>Order Number:</span>
+                    <span style={{ color: '#0F172A', fontWeight: 700 }}>#{trackResult.order_number}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94A3B8' }}>Bank UTR:</span>
-                    <span style={{ color: '#E2E8F0', fontFamily: 'monospace' }}>{trackResult.utr_number}</span>
+                    <span style={{ color: '#64748B' }}>Bank UTR:</span>
+                    <span style={{ color: '#0F172A', fontFamily: 'monospace' }}>{trackResult.utr_number}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94A3B8' }}>Payout Destination:</span>
-                    <strong style={{ color: '#38BDF8' }}>{trackResult.upi_id}</strong>
+                    <span style={{ color: '#64748B' }}>Payout Destination:</span>
+                    <strong style={{ color: '#1D4ED8' }}>{trackResult.upi_id}</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94A3B8' }}>Current Status:</span>
-                    <span style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#FBBF24', padding: '2px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 700 }}>
+                    <span style={{ color: '#64748B' }}>Current Status:</span>
+                    <span style={{ background: '#FEF3C7', color: '#B45309', padding: '3px 10px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 700 }}>
                       {trackResult.status}
                     </span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '10px' }}>
-                    <span style={{ color: '#94A3B8' }}>Turnaround SLA:</span>
-                    <span style={{ color: '#10B981', fontWeight: 700 }}>5–7 Business Days</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #E2E8F0', paddingTop: '10px' }}>
+                    <span style={{ color: '#64748B' }}>Turnaround SLA:</span>
+                    <span style={{ color: '#15803D', fontWeight: 700 }}>5–7 Business Days</span>
                   </div>
 
                   <Link
                     to={`/order/support?order=${encodeURIComponent(trackResult.order_number)}&refund=${encodeURIComponent(trackResult.refund_id)}`}
                     style={{
-                      marginTop: '10px',
-                      padding: '11px',
+                      marginTop: '12px',
+                      padding: '12px',
                       borderRadius: '8px',
-                      background: 'rgba(17, 98, 242, 0.15)',
-                      border: '1px solid rgba(17, 98, 242, 0.35)',
-                      color: '#93C5FD',
+                      background: '#EFF6FF',
+                      border: '1px solid #BFDBFE',
+                      color: '#1D4ED8',
                       fontWeight: 700,
                       textDecoration: 'none',
                       textAlign: 'center',
@@ -720,12 +814,79 @@ export default function RefundRequestPage() {
           )}
         </div>
 
-        {/* Live Support Alternative */}
+        {/* ── Official Cashfree Merchant & RBI Payment Settlement Compliance ── */}
         <div
           style={{
             marginTop: '28px',
-            background: 'rgba(255, 255, 255, 0.03)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
+            background: '#F0FDF4',
+            border: '1.5px solid #86EFAC',
+            borderRadius: '16px',
+            padding: '24px',
+            boxShadow: '0 4px 14px rgba(16, 185, 129, 0.08)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#166534', fontWeight: 800, fontSize: '1.05rem', marginBottom: '8px' }}>
+            <ShieldCheck size={22} color="#16A34A" />
+            <span>Authorized Cashfree Merchant Payment & Settlement Compliance</span>
+          </div>
+          <p style={{ fontSize: '0.875rem', color: '#14532D', lineHeight: 1.6, margin: '0 0 16px 0' }}>
+            All online payment collections, customer checkouts, and refund reversals on <strong>{siteName || '1024 Tera Viral Hub'}</strong> (accessible at <strong>1024teraviralhub.com</strong>) are processed in authorized partnership with <strong>Cashfree Payments India Pvt. Ltd.</strong> under RBI Master Directions for Payment Aggregators (PA).
+          </p>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+              gap: '10px',
+              fontSize: '0.825rem',
+              color: '#1E293B',
+              background: '#FFFFFF',
+              padding: '16px',
+              borderRadius: '10px',
+              border: '1px solid #DCFCE7',
+            }}
+          >
+            <div>
+              <span style={{ color: '#64748B' }}>Registered Merchant Entity:</span>{' '}
+              <strong style={{ color: '#0F172A' }}>RISHAV MEDIA</strong>
+            </div>
+            <div>
+              <span style={{ color: '#64748B' }}>Trade & Website Name:</span>{' '}
+              <strong style={{ color: '#0F172A' }}>1024 Tera Viral Hub</strong> (1024teraviralhub.com)
+            </div>
+            <div>
+              <span style={{ color: '#64748B' }}>MSME / Udyam Reg. No.:</span>{' '}
+              <strong style={{ color: '#D97706', fontFamily: 'monospace' }}>UDYAM-BR-11-0107325</strong>
+            </div>
+            <div>
+              <span style={{ color: '#64748B' }}>Payment Gateway Partner:</span>{' '}
+              <strong style={{ color: '#1D4ED8' }}>Cashfree Payments India Pvt. Ltd. (PCI-DSS Level 1)</strong>
+            </div>
+            <div>
+              <span style={{ color: '#64748B' }}>Refund Settlement Turnaround:</span>{' '}
+              <strong style={{ color: '#15803D' }}>5 to 7 business days directly to original source</strong>
+            </div>
+            <div>
+              <span style={{ color: '#64748B' }}>Verification Review SLA:</span>{' '}
+              <strong style={{ color: '#B45309' }}>24 to 48 hours via automated dispute desk</strong>
+            </div>
+            <div>
+              <span style={{ color: '#64748B' }}>Official Compliance Email:</span>{' '}
+              <strong style={{ color: '#0F172A' }}>support@1024teraviralhub.com</strong>
+            </div>
+            <div>
+              <span style={{ color: '#64748B' }}>Registered Office:</span>{' '}
+              <span>Flat No. 25, Rishav Media Office, Block Road, Ghorasahan, Motihari, Bihar - 845303</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Live Support Box */}
+        <div
+          style={{
+            marginTop: '20px',
+            background: '#FFFFFF',
+            border: '1px solid #E2E8F0',
             borderRadius: '14px',
             padding: '20px 24px',
             display: 'flex',
@@ -734,29 +895,31 @@ export default function RefundRequestPage() {
             justifyContent: 'space-between',
             flexWrap: 'wrap',
             gap: '16px',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
           }}
         >
           <div>
-            <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#FFFFFF', marginBottom: '2px' }}>
+            <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0F172A', marginBottom: '2px' }}>
               Have questions or need live order assistance?
             </div>
-            <div style={{ fontSize: '0.825rem', color: '#94A3B8' }}>
-              Our 24x7 In-App Support Chat Assistant can answer your questions immediately.
+            <div style={{ fontSize: '0.825rem', color: '#64748B' }}>
+              Our 24x7 In-App Support Chat Assistant can resolve your queries immediately.
             </div>
           </div>
           <Link
             to="/order/support"
             style={{
-              padding: '10px 20px',
-              borderRadius: '8px',
+              padding: '11px 22px',
+              borderRadius: '9px',
               background: '#FFD200',
               color: '#000000',
-              fontWeight: 700,
+              fontWeight: 800,
               fontSize: '0.875rem',
               textDecoration: 'none',
               display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
+              boxShadow: '0 2px 8px rgba(255, 210, 0, 0.3)',
             }}
           >
             <MessageSquare size={16} /> Open Support Chat
