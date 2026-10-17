@@ -5,7 +5,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  ArrowLeft, Check, RefreshCw, X, Building
+  ArrowLeft, Check, RefreshCw, X, Building, Zap, ShieldCheck, AlertTriangle
 } from 'lucide-react'
 import { api, type ProductDetail } from '../../lib/api'
 import { formatPrice, getSavedUtmParams, trackPixelEvent } from '../../lib/utils'
@@ -175,6 +175,10 @@ export default function FlipkartCheckoutPage() {
   // Removed PNB Bank as requested by user; default PhonePe
   const [selectedUpiOption, setSelectedUpiOption] = useState<'phonepe' | 'gpay' | 'whatsapp' | 'paytm'>('phonepe')
   const [isUpiExpanded, setIsUpiExpanded] = useState(true)
+
+  // Psychological COD Offer Bottom Sheet
+  const [showCodModal, setShowCodModal] = useState(false)
+  const [codStep, setCodStep] = useState<'offer' | 'paused'>('offer')
 
   // Gateway info
   const { isRazorpay, isBoth, defaultDualGateway, publicSettings } = usePaymentGatewayInfo()
@@ -1593,28 +1597,38 @@ export default function FlipkartCheckoutPage() {
               </div>
 
               {/* Option 3: Cash on Delivery (Real Flipkart Code & SVG Icon) */}
-              <div style={{
-                padding: '16px 18px', borderBottom: '1px solid #EEE',
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                background: '#FAFAFA'
-              }}>
+              <div
+                onClick={() => {
+                  setCodStep('offer')
+                  setShowCodModal(true)
+                }}
+                style={{
+                  padding: '16px 18px', borderBottom: '1px solid #EEE',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  background: '#FFFFFF', cursor: 'pointer',
+                  transition: 'background 0.15s ease'
+                }}
+              >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <img src={FK_ASSETS.cash} alt="COD" style={{ width: 24, height: 24, objectFit: 'contain' }} />
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: '0.95rem', color: '#666' }}>
-                      Cash on Delivery
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontWeight: 600, fontSize: '0.95rem', color: '#212121' }}>
+                        Cash on Delivery
+                      </span>
+                      <span style={{
+                        fontSize: '0.70rem', fontWeight: 800, color: '#108934', background: '#E8F5E9',
+                        padding: '2px 6px', borderRadius: 4
+                      }}>
+                        Save ₹50 Online
+                      </span>
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: '#9E9E9E', marginTop: 2 }}>
-                      Due to handling costs, a nominal fee of ₹7 will be charged for orders placed using this option.
+                    <div style={{ fontSize: '0.75rem', color: '#666', marginTop: 2 }}>
+                      Pay online to save ₹50 courier charges & get instant priority dispatch
                     </div>
                   </div>
                 </div>
-                <span style={{
-                  fontSize: '0.74rem', fontWeight: 800, color: '#DF4535', background: '#FBEBED',
-                  padding: '3px 8px', borderRadius: 4
-                }}>
-                  Unavailable
-                </span>
+                <img src={FK_ASSETS.downArrow} alt="Arrow" style={{ width: 14, height: 14 }} />
               </div>
 
               {/* Option 4: Have a Flipkart Gift Card? (Real Flipkart SVG) */}
@@ -1949,6 +1963,246 @@ export default function FlipkartCheckoutPage() {
                   Update address
                 </button>
               </form>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Psychological COD Switch-to-Prepaid Bottom Sheet / Modal */}
+        {showCodModal && (
+          <div style={{
+            position: 'fixed', inset: 0, zIndex: 110, display: 'flex',
+            alignItems: 'flex-end', justifyContent: 'center'
+          }}>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowCodModal(false)}
+              style={{
+                position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)',
+                backdropFilter: 'blur(3px)'
+              }}
+            />
+
+            {/* Modal Card */}
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 26, stiffness: 280 }}
+              style={{
+                position: 'relative', width: '100%', maxWidth: 500,
+                background: '#FFFFFF', borderTopLeftRadius: 20, borderTopRightRadius: 20,
+                padding: '16px 20px 24px', maxHeight: '90vh', overflowY: 'auto',
+                boxShadow: '0 -8px 30px rgba(0,0,0,0.25)', zIndex: 111
+              }}
+            >
+              {/* Drag Handle Bar */}
+              <div style={{
+                width: 36, height: 4, background: '#D1D5DB', borderRadius: 2,
+                margin: '0 auto 12px auto'
+              }} />
+
+              {/* Header with Title & Close button */}
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                marginBottom: 14
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{
+                    width: 28, height: 28, borderRadius: '50%', background: '#FEF08A',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}>
+                    <Zap size={16} color="#D97706" fill="#D97706" />
+                  </div>
+                  <div>
+                    <h2 style={{ fontSize: '1.10rem', fontWeight: 800, color: '#111827', margin: 0 }}>
+                      Pay Online & Save ₹50 Extra!
+                    </h2>
+                    <span style={{ fontSize: '0.74rem', color: '#108934', fontWeight: 700 }}>
+                      ⚡ Recommended for Instant Priority Dispatch
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCodModal(false)}
+                  style={{
+                    background: 'none', border: 'none', padding: 4, cursor: 'pointer',
+                    color: '#9CA3AF', display: 'flex'
+                  }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {codStep === 'offer' ? (
+                <div>
+                  {/* Visual Comparison Boxes */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+                    
+                    {/* Option A: Pay Online (Highlighted Green) */}
+                    <div style={{
+                      background: '#F0FDF4', border: '1.5px solid #86EFAC', borderRadius: 12,
+                      padding: '12px 14px', position: 'relative'
+                    }}>
+                      <div style={{
+                        position: 'absolute', top: -9, right: 14,
+                        background: '#16A34A', color: '#FFF', fontSize: '0.68rem',
+                        fontWeight: 800, padding: '2px 8px', borderRadius: 4,
+                        letterSpacing: '0.03em', textTransform: 'uppercase'
+                      }}>
+                        BEST VALUE · 100% SECURE
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <Check size={18} color="#16A34A" strokeWidth={3} />
+                          <span style={{ fontWeight: 800, fontSize: '0.94rem', color: '#14532D' }}>
+                            Pay via UPI / GPay / PhonePe
+                          </span>
+                        </div>
+                        <span style={{ fontWeight: 900, fontSize: '1.05rem', color: '#16A34A' }}>
+                          ₹{totalAmount.toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                      <div style={{
+                        marginTop: 8, paddingLeft: 26, fontSize: '0.78rem', color: '#166534',
+                        display: 'flex', flexDirection: 'column', gap: 3
+                      }}>
+                        <div>✓ <b>FREE Delivery</b> (Save ₹50 courier charges)</div>
+                        <div>✓ <b>Instant VIP Dispatch</b> & Instant Access</div>
+                        <div>✓ <b>100% Refund Protection</b> (7-Day Money Back)</div>
+                      </div>
+                    </div>
+
+                    {/* Option B: Cash on Delivery (Red / Grey penalty box) */}
+                    <div style={{
+                      background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 12,
+                      padding: '12px 14px'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{
+                            width: 18, height: 18, borderRadius: '50%', background: '#EF4444',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            color: '#FFF', fontSize: '0.7rem', fontWeight: 900
+                          }}>✕</div>
+                          <span style={{ fontWeight: 700, fontSize: '0.90rem', color: '#374151' }}>
+                            Cash on Delivery
+                          </span>
+                        </div>
+                        <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#6B7280', textDecoration: 'line-through' }}>
+                          ₹{(totalAmount + 50).toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                      <div style={{
+                        marginTop: 6, paddingLeft: 26, fontSize: '0.76rem', color: '#6B7280',
+                        display: 'flex', flexDirection: 'column', gap: 2
+                      }}>
+                        <div>• +₹50 Extra Courier Collection Fee</div>
+                        <div>• 5 - 7 Days Delayed Verification & Delivery</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Primary Action Button: Pay Online & Save ₹50 */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCodModal(false)
+                      setSelectedUpiOption('phonepe')
+                      handleProceedPayment()
+                    }}
+                    style={{
+                      width: '100%', padding: '14px', background: '#FFC200', color: '#111827',
+                      fontWeight: 900, fontSize: '1.02rem', border: 'none', borderRadius: 8,
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      gap: 8, boxShadow: '0 3px 12px rgba(255, 194, 0, 0.45)',
+                      marginBottom: 10
+                    }}
+                  >
+                    <Zap size={18} fill="#111827" />
+                    <span>Pay ₹{totalAmount.toLocaleString('en-IN')} via UPI & Save ₹50</span>
+                  </button>
+
+                  {/* Secondary Subtle Button: Still want COD */}
+                  <div style={{ textAlign: 'center' }}>
+                    <button
+                      type="button"
+                      onClick={() => setCodStep('paused')}
+                      style={{
+                        background: 'none', border: 'none', color: '#6B7280',
+                        fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer',
+                        padding: '6px 12px', textDecoration: 'underline'
+                      }}
+                    >
+                      I still want Cash on Delivery (Pay ₹50 Extra)
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Step 2: Genuine High-Demand Scarcity / Pincode Notice */
+                <div>
+                  <div style={{
+                    background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 12,
+                    padding: '14px', marginBottom: 16
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <AlertTriangle size={18} color="#DC2626" />
+                      <span style={{ fontWeight: 800, fontSize: '0.92rem', color: '#991B1B' }}>
+                        COD Temporarily Paused in Your Area
+                      </span>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '0.82rem', color: '#7F1D1D', lineHeight: 1.5 }}>
+                      Due to heavy festive rush and fake order prevention, Cash on Delivery is temporarily paused. To secure your product at this discounted price before stock runs out, please complete payment via <b>UPI / GPay / PhonePe</b>.
+                    </p>
+                  </div>
+
+                  {/* Trust Callout */}
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+                    background: '#F9FAFB', borderRadius: 8, marginBottom: 16,
+                    fontSize: '0.80rem', color: '#374151'
+                  }}>
+                    <ShieldCheck size={20} color="#16A34A" />
+                    <span><b>100% Risk-Free:</b> Full refund within 7 days if not completely satisfied.</span>
+                  </div>
+
+                  {/* Big Button: Pay Online Now */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCodModal(false)
+                      setSelectedUpiOption('phonepe')
+                      handleProceedPayment()
+                    }}
+                    style={{
+                      width: '100%', padding: '14px', background: '#2874F0', color: '#FFFFFF',
+                      fontWeight: 900, fontSize: '1.02rem', border: 'none', borderRadius: 8,
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      gap: 8, boxShadow: '0 3px 12px rgba(40, 116, 240, 0.4)',
+                      marginBottom: 10
+                    }}
+                  >
+                    <span>Proceed to Pay ₹{totalAmount.toLocaleString('en-IN')} via UPI</span>
+                  </button>
+
+                  <div style={{ textAlign: 'center' }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowCodModal(false)}
+                      style={{
+                        background: 'none', border: 'none', color: '#6B7280',
+                        fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer',
+                        padding: '6px 12px'
+                      }}
+                    >
+                      ← Back to Payment Options
+                    </button>
+                  </div>
+                </div>
+              )}
             </motion.div>
           </div>
         )}
