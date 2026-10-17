@@ -81,14 +81,12 @@ export default function ContactInfoSidebar() {
               <span>{BUSINESS_CONFIG.registeredOffice}</span>
             </div>
           </div>
-          {showMsmeBadge && (
-            <div>
-              <span style={{ color: 'var(--text-muted)' }}>MSME / Udyam Reg.:</span>{' '}
-              <strong style={{ color: '#D97706', fontFamily: 'monospace', fontSize: '0.85rem' }}>
-                {BUSINESS_CONFIG.udyamRegistration}
-              </strong>
-            </div>
-          )}
+          <div>
+            <span style={{ color: 'var(--text-muted)' }}>MSME / Udyam Reg.:</span>{' '}
+            <strong style={{ color: '#D97706', fontFamily: 'monospace', fontSize: '0.85rem' }}>
+              {BUSINESS_CONFIG.udyamRegistration}
+            </strong>
+          </div>
           <div>
             <span style={{ color: 'var(--text-muted)' }}>Category:</span>{' '}
             <span>{BUSINESS_CONFIG.registrationType}</span>

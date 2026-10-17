@@ -110,49 +110,47 @@ export default function Footer() {
             </p>
 
             {/* Official Registered Enterprise Card (Cashfree / MSME Verification) */}
-            {showMsmeBadge && (
-              <div
-                style={{
-                  padding: '12px 14px',
-                  borderRadius: '10px',
-                  background: 'rgba(255, 210, 0, 0.08)',
-                  border: '1px solid rgba(255, 210, 0, 0.28)',
-                  fontSize: '0.78125rem',
-                  color: '#E5E7EB',
-                  lineHeight: 1.55,
-                  marginBottom: '20px',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 800, color: '#FFD200', marginBottom: '4px', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  <ShieldCheck size={14} /> Registered MSME Enterprise
-                </div>
-                <div>
-                  <span style={{ color: '#9CA3AF' }}>Legal Entity:</span>{' '}
-                  <strong style={{ color: '#FFFFFF' }}>{BUSINESS_CONFIG.legalName}</strong>{' '}
-                  <span style={{ color: '#FFD200', fontSize: '0.72rem' }}>(Proprietor, Rishav Media)</span>
-                </div>
-                <div>
-                  <span style={{ color: '#9CA3AF' }}>Udyam Reg. No.:</span>{' '}
-                  <strong style={{ color: '#FFD200', fontFamily: 'monospace', letterSpacing: '0.02em' }}>
-                    {BUSINESS_CONFIG.udyamRegistration}
-                  </strong>
-                </div>
-                <div>
-                  <span style={{ color: '#9CA3AF' }}>Helpline:</span>{' '}
-                  <a href={`tel:${BUSINESS_CONFIG.phone}`} style={{ color: '#93C5FD', textDecoration: 'none', fontWeight: 600 }}>{BUSINESS_CONFIG.phone}</a>
-                </div>
-                <div>
-                  <span style={{ color: '#9CA3AF' }}>Email:</span>{' '}
-                  <a href={`mailto:${BUSINESS_CONFIG.supportEmail}`} style={{ color: '#93C5FD', textDecoration: 'none', fontWeight: 600 }}>{BUSINESS_CONFIG.supportEmail}</a>
-                </div>
-                <div style={{ fontSize: '0.72rem', color: '#9CA3AF', marginTop: '6px', lineHeight: 1.45 }}>
-                  <span style={{ color: '#D1D5DB' }}>Office:</span> {BUSINESS_CONFIG.registeredOffice}
-                </div>
-                <div style={{ fontSize: '0.7rem', color: '#9CA3AF', marginTop: '4px' }}>
-                  Ministry of Micro, Small & Medium Enterprises, Govt. of India
-                </div>
+            <div
+              style={{
+                padding: '12px 14px',
+                borderRadius: '10px',
+                background: 'rgba(255, 210, 0, 0.08)',
+                border: '1px solid rgba(255, 210, 0, 0.28)',
+                fontSize: '0.78125rem',
+                color: '#E5E7EB',
+                lineHeight: 1.55,
+                marginBottom: '20px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 800, color: '#FFD200', marginBottom: '4px', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <ShieldCheck size={14} /> Registered MSME Enterprise
               </div>
-            )}
+              <div>
+                <span style={{ color: '#9CA3AF' }}>Legal Entity:</span>{' '}
+                <strong style={{ color: '#FFFFFF' }}>{BUSINESS_CONFIG.legalName}</strong>{' '}
+                <span style={{ color: '#FFD200', fontSize: '0.72rem' }}>(Proprietor, Rishav Media)</span>
+              </div>
+              <div>
+                <span style={{ color: '#9CA3AF' }}>Udyam Reg. No.:</span>{' '}
+                <strong style={{ color: '#FFD200', fontFamily: 'monospace', letterSpacing: '0.02em' }}>
+                  {BUSINESS_CONFIG.udyamRegistration}
+                </strong>
+              </div>
+              <div>
+                <span style={{ color: '#9CA3AF' }}>Helpline:</span>{' '}
+                <a href={`tel:${BUSINESS_CONFIG.phone}`} style={{ color: '#93C5FD', textDecoration: 'none', fontWeight: 600 }}>{BUSINESS_CONFIG.phone}</a>
+              </div>
+              <div>
+                <span style={{ color: '#9CA3AF' }}>Email:</span>{' '}
+                <a href={`mailto:${BUSINESS_CONFIG.supportEmail}`} style={{ color: '#93C5FD', textDecoration: 'none', fontWeight: 600 }}>{BUSINESS_CONFIG.supportEmail}</a>
+              </div>
+              <div style={{ fontSize: '0.72rem', color: '#9CA3AF', marginTop: '6px', lineHeight: 1.45 }}>
+                <span style={{ color: '#D1D5DB' }}>Office:</span> {BUSINESS_CONFIG.registeredOffice}
+              </div>
+              <div style={{ fontSize: '0.7rem', color: '#9CA3AF', marginTop: '4px' }}>
+                Ministry of Micro, Small & Medium Enterprises, Govt. of India
+              </div>
+            </div>
 
             {/* Social Icons */}
             <div style={{ display: 'flex', gap: '10px' }}>
@@ -406,13 +404,9 @@ export default function Footer() {
         >
           <p style={{ color: '#9CA3AF', fontSize: '0.78125rem', lineHeight: 1.6, margin: '0 0 8px' }}>
             © {new Date().getFullYear()} <strong>{siteName || BUSINESS_CONFIG.brandName}</strong>. All rights reserved.
-            {showMsmeBadge && (
-              <>
-                {' • '}
-                Owned, operated and managed by <strong>{BUSINESS_CONFIG.legalName}</strong> (Proprietor: Rishav Media | Govt. of India MSME / Udyam Reg. No.:{' '}
-                <strong style={{ color: '#FFD200', fontFamily: 'monospace' }}>{BUSINESS_CONFIG.udyamRegistration}</strong>)
-              </>
-            )}.
+            {' • '}
+            Owned, operated and managed by <strong>{BUSINESS_CONFIG.legalName}</strong> (Proprietor: Rishav Media | Govt. of India MSME / Udyam Reg. No.:{' '}
+            <strong style={{ color: '#FFD200', fontFamily: 'monospace' }}>{BUSINESS_CONFIG.udyamRegistration}</strong>).
           </p>
           <p style={{ color: '#9CA3AF', fontSize: '0.735rem', margin: '0 0 6px', lineHeight: 1.5 }}>
             Direct Compliance Helpline: <a href={`tel:${BUSINESS_CONFIG.phone}`} style={{ color: '#FFD200', textDecoration: 'none', fontWeight: 700 }}>{BUSINESS_CONFIG.phone}</a> | Email: <a href={`mailto:${BUSINESS_CONFIG.supportEmail}`} style={{ color: '#FFD200', textDecoration: 'none', fontWeight: 700 }}>{BUSINESS_CONFIG.supportEmail}</a>
