@@ -41,7 +41,7 @@ export const BUSINESS_CONFIG = {
   legalName: 'RISHAV MEDIA',
   businessName: 'RISHAV MEDIA',
   proprietor: 'RISHAV SRIVASTAWA',
-  registeredEntity: 'RISHAV MEDIA (Proprietor: RISHAV SRIVASTAWA)',
+  registeredEntity: 'RISHAV MEDIA',
   brandName: '1024TeraViralHub',
   registeredOffice: 'Flat No. 25, Rishav Media Office, Block Road, Ghorasahan, Motihari, Purbi Champaran, Bihar - 845303, India',
   udyamRegistration: 'UDYAM-BR-11-0107325',
@@ -51,10 +51,10 @@ export const BUSINESS_CONFIG = {
   pincode: '845303',
   phone: '+91 9801947855',
   supportEmail: 'support@1024teraviralhub.com',
-  complianceEmail: 'rishavsrivastawa9162@gmail.com',
+  complianceEmail: 'support@1024teraviralhub.com',
   supportHours: 'Monday – Saturday: 10:00 AM – 6:00 PM IST',
-  grievanceOfficer: 'RISHAV SRIVASTAWA (Nodal Grievance Redressal Officer, RISHAV MEDIA)',
-  grievanceEmail: 'rishavsrivastawa9162@gmail.com',
+  grievanceOfficer: 'Customer Grievance Redressal Officer, RISHAV MEDIA',
+  grievanceEmail: 'support@1024teraviralhub.com',
   paymentPartner: 'Cashfree Payments India Pvt. Ltd.',
 }
 

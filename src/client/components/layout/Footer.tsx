@@ -2,6 +2,7 @@
 import { Link } from 'react-router-dom'
 import { ShieldCheck, Lock, CheckCircle2, Zap } from 'lucide-react'
 import { useSiteConfig, BUSINESS_CONFIG } from '../../lib/site-config'
+import { useOrderVerification } from '../../lib/orderVerification'
 import { PhonePeIcon, GPayIcon, PaytmIcon, UpiGenericIcon, RuPayIcon } from '../ui/UpiIcons'
 import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
 
@@ -44,6 +45,7 @@ const companyLinks = [
 export default function Footer() {
   const { siteName, legalPages, showMsmeBadge } = useSiteConfig()
   const { securedByText, logos } = usePaymentGatewayInfo()
+  const { isVerified, rawPhone, maskedPhone, rawProprietor } = useOrderVerification()
 
   const activeSupportLinks = supportLinks.filter((l) => {
     if (l.to === '/contact') return legalPages.contact
@@ -131,7 +133,9 @@ export default function Footer() {
               </div>
               <div>
                 <span style={{ color: '#9CA3AF' }}>Proprietor:</span>{' '}
-                <strong style={{ color: '#FFD200' }}>{BUSINESS_CONFIG.proprietor}</strong>
+                <strong style={{ color: isVerified ? '#FFD200' : '#D1D5DB' }}>
+                  {isVerified ? rawProprietor : 'Govt. Registered Enterprise'}
+                </strong>
               </div>
               <div>
                 <span style={{ color: '#9CA3AF' }}>Udyam Reg. No.:</span>{' '}
@@ -141,15 +145,15 @@ export default function Footer() {
               </div>
               <div>
                 <span style={{ color: '#9CA3AF' }}>Helpline:</span>{' '}
-                <a href={`tel:${BUSINESS_CONFIG.phone}`} style={{ color: '#93C5FD', textDecoration: 'none', fontWeight: 600 }}>{BUSINESS_CONFIG.phone}</a>
+                {isVerified ? (
+                  <a href={`tel:${rawPhone}`} style={{ color: '#93C5FD', textDecoration: 'none', fontWeight: 600 }}>{rawPhone}</a>
+                ) : (
+                  <Link to="/order-lookup" style={{ color: '#93C5FD', textDecoration: 'underline', fontWeight: 600 }}>{maskedPhone} (Verify Order)</Link>
+                )}
               </div>
               <div>
                 <span style={{ color: '#9CA3AF' }}>Support:</span>{' '}
                 <a href={`mailto:${BUSINESS_CONFIG.supportEmail}`} style={{ color: '#93C5FD', textDecoration: 'none', fontWeight: 600 }}>{BUSINESS_CONFIG.supportEmail}</a>
-              </div>
-              <div>
-                <span style={{ color: '#9CA3AF' }}>Compliance:</span>{' '}
-                <a href={`mailto:${BUSINESS_CONFIG.complianceEmail}`} style={{ color: '#93C5FD', textDecoration: 'none', fontWeight: 600 }}>{BUSINESS_CONFIG.complianceEmail}</a>
               </div>
               <div style={{ fontSize: '0.72rem', color: '#9CA3AF', marginTop: '6px', lineHeight: 1.45 }}>
                 <span style={{ color: '#D1D5DB' }}>Office:</span> {BUSINESS_CONFIG.registeredOffice}
@@ -412,14 +416,21 @@ export default function Footer() {
           <p style={{ color: '#9CA3AF', fontSize: '0.78125rem', lineHeight: 1.6, margin: '0 0 8px' }}>
             © {new Date().getFullYear()} <strong>{siteName || BUSINESS_CONFIG.brandName}</strong>. All rights reserved.
             {' • '}
-            Owned, operated and managed by <strong>{BUSINESS_CONFIG.legalName}</strong> (Proprietor: {BUSINESS_CONFIG.proprietor} | Govt. of India MSME / Udyam Reg. No.:{' '}
-            <strong style={{ color: '#FFD200', fontFamily: 'monospace' }}>{BUSINESS_CONFIG.udyamRegistration}</strong>).
+            Owned, operated and managed by <strong>{BUSINESS_CONFIG.legalName}</strong> (Govt. of India MSME / Udyam Reg. No.:{' '}
+            <strong style={{ color: '#FFD200', fontFamily: 'monospace' }}>{BUSINESS_CONFIG.udyamRegistration}</strong>
+            {isVerified ? ` | Proprietor: ${rawProprietor}` : ''}).
           </p>
           <p style={{ color: '#9CA3AF', fontSize: '0.735rem', margin: '0 0 6px', lineHeight: 1.5 }}>
-            Direct Compliance Helpline: <a href={`tel:${BUSINESS_CONFIG.phone}`} style={{ color: '#FFD200', textDecoration: 'none', fontWeight: 700 }}>{BUSINESS_CONFIG.phone}</a> | Email: <a href={`mailto:${BUSINESS_CONFIG.complianceEmail}`} style={{ color: '#FFD200', textDecoration: 'none', fontWeight: 700 }}>{BUSINESS_CONFIG.complianceEmail}</a>
+            Support Desk: <a href={`mailto:${BUSINESS_CONFIG.supportEmail}`} style={{ color: '#FFD200', textDecoration: 'none', fontWeight: 700 }}>{BUSINESS_CONFIG.supportEmail}</a>
+            {' | '}
+            Helpline: {isVerified ? (
+              <a href={`tel:${rawPhone}`} style={{ color: '#FFD200', textDecoration: 'none', fontWeight: 700 }}>{rawPhone}</a>
+            ) : (
+              <Link to="/order-lookup" style={{ color: '#FFD200', textDecoration: 'underline' }}>{maskedPhone} (Order Verification Required)</Link>
+            )}
           </p>
           <p style={{ color: '#6B7280', fontSize: '0.71875rem', margin: 0, lineHeight: 1.5 }}>
-            All commercial contracts, digital fulfillment, and payment gateway transactions are processed under the registered legal entity <strong>{BUSINESS_CONFIG.legalName}</strong> (Proprietor: {BUSINESS_CONFIG.proprietor}).
+            All commercial contracts, digital fulfillment, and payment gateway transactions are processed under the registered legal entity <strong>{BUSINESS_CONFIG.legalName}</strong>.
             All digital downloads are subject to our verified{' '}
             {legalPages.termsConditions && (
               <><Link to="/terms-and-conditions" style={{ color: '#9CA3AF', textDecoration: 'underline' }}>Terms & Conditions</Link>,{' '}</>

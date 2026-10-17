@@ -1,10 +1,15 @@
 // src/client/components/contact/ContactInfoSidebar.tsx — Real Contact Details & Support Channels
-import { Mail, Clock, ShieldCheck, FileQuestion, Building2, UserCheck, MapPin, Phone } from 'lucide-react'
+import { useState } from 'react'
+import { Mail, Clock, ShieldCheck, FileQuestion, Building2, UserCheck, MapPin, Phone, Lock } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useSiteConfig, BUSINESS_CONFIG } from '../../lib/site-config'
+import { useOrderVerification } from '../../lib/orderVerification'
+import OrderVerificationModal from './OrderVerificationModal'
 
 export default function ContactInfoSidebar() {
   const { siteName, supportEmail, showMsmeBadge } = useSiteConfig()
+  const { isVerified, phone, proprietor, maskedPhone, rawPhone, verifiedOrderNumber } = useOrderVerification()
+  const [showVerifyModal, setShowVerifyModal] = useState(false)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -41,8 +46,8 @@ export default function ContactInfoSidebar() {
             <h3 style={{ fontSize: '1.15rem', fontWeight: 900, color: 'var(--text-primary)', margin: 0 }}>
               {BUSINESS_CONFIG.legalName}
             </h3>
-            <div style={{ fontSize: '0.8rem', color: '#D97706', fontWeight: 700, marginTop: '2px' }}>
-              Proprietor: {BUSINESS_CONFIG.proprietor}
+            <div style={{ fontSize: '0.8rem', color: isVerified ? '#10B981' : '#9CA3AF', fontWeight: 700, marginTop: '2px' }}>
+              {isVerified ? `✓ Verified Order: Proprietor ${proprietor}` : 'Govt. of India MSME Registered Enterprise'}
             </div>
           </div>
         </div>
@@ -54,7 +59,13 @@ export default function ContactInfoSidebar() {
           </div>
           <div>
             <span style={{ color: 'var(--text-muted)' }}>Proprietor (Legal Name):</span>{' '}
-            <strong style={{ color: 'var(--text-primary)' }}>{BUSINESS_CONFIG.proprietor}</strong>
+            {isVerified ? (
+              <strong style={{ color: 'var(--text-primary)' }}>{proprietor}</strong>
+            ) : (
+              <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                Unlocks upon Order Verification
+              </span>
+            )}
           </div>
           <div>
             <span style={{ color: 'var(--text-muted)' }}>Trading / Brand Name:</span>{' '}
@@ -62,12 +73,42 @@ export default function ContactInfoSidebar() {
           </div>
           <div>
             <span style={{ color: 'var(--text-muted)' }}>Helpline Phone / WhatsApp:</span>{' '}
-            <a
-              href={`tel:${BUSINESS_CONFIG.phone}`}
-              style={{ color: '#1162F2', fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-            >
-              <Phone size={13} /> {BUSINESS_CONFIG.phone}
-            </a>
+            {isVerified ? (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <a
+                  href={`tel:${rawPhone}`}
+                  style={{ color: '#1162F2', fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                >
+                  <Phone size={13} /> {rawPhone}
+                </a>
+                <span style={{ fontSize: '0.7rem', background: 'rgba(16, 185, 129, 0.15)', color: '#10B981', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                  ✓ Unlocked
+                </span>
+              </div>
+            ) : (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '2px' }}>
+                <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)', fontWeight: 600 }}>{maskedPhone}</span>
+                <button
+                  type="button"
+                  onClick={() => setShowVerifyModal(true)}
+                  style={{
+                    background: 'rgba(255, 210, 0, 0.15)',
+                    border: '1px solid rgba(255, 210, 0, 0.4)',
+                    color: '#FFD200',
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                >
+                  <Lock size={11} /> Enter Order # to Reveal
+                </button>
+              </div>
+            )}
           </div>
           <div>
             <span style={{ color: 'var(--text-muted)' }}>Support Email:</span>{' '}
@@ -221,9 +262,18 @@ export default function ContactInfoSidebar() {
             In accordance with IT Rules and Consumer Protection regulations:
           </p>
           <div style={{ fontSize: '0.78125rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-            <div><strong>Officer:</strong> {BUSINESS_CONFIG.grievanceOfficer}</div>
-            <div><strong>Helpline:</strong> <a href={`tel:${BUSINESS_CONFIG.phone}`} style={{ color: '#1162F2', fontWeight: 600, textDecoration: 'none' }}>{BUSINESS_CONFIG.phone}</a></div>
-            <div><strong>Email:</strong> <a href={`mailto:${BUSINESS_CONFIG.grievanceEmail}`} style={{ color: '#1162F2', fontWeight: 600 }}>{BUSINESS_CONFIG.grievanceEmail}</a></div>
+            <div><strong>Officer:</strong> {isVerified ? `RISHAV SRIVASTAWA (Nodal Grievance Officer)` : 'Customer Grievance Redressal Officer, RISHAV MEDIA'}</div>
+            <div>
+              <strong>Helpline:</strong>{' '}
+              {isVerified ? (
+                <a href={`tel:${rawPhone}`} style={{ color: '#1162F2', fontWeight: 600, textDecoration: 'none' }}>
+                  {rawPhone}
+                </a>
+              ) : (
+                <span style={{ color: 'var(--text-muted)' }}>{maskedPhone} (Requires Order #)</span>
+              )}
+            </div>
+            <div><strong>Email:</strong> <a href={`mailto:${BUSINESS_CONFIG.supportEmail}`} style={{ color: '#1162F2', fontWeight: 600 }}>{BUSINESS_CONFIG.supportEmail}</a></div>
             <div><strong>Response Time:</strong> Acknowledged within 24–48 hours</div>
           </div>
         </div>
@@ -259,6 +309,12 @@ export default function ContactInfoSidebar() {
           Go to Order Lookup →
         </Link>
       </div>
+
+      {/* Order Verification Modal */}
+      <OrderVerificationModal
+        isOpen={showVerifyModal}
+        onClose={() => setShowVerifyModal(false)}
+      />
     </div>
   )
 }

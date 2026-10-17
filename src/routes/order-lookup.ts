@@ -174,6 +174,8 @@ app.get('/', async (c) => {
     created_at: order.created_at,
     download_token,
     download_expired: finalStatus === 'PAID' && !download_token,
+    direct_support_phone: '+91 9801947855',
+    proprietor_name: 'RISHAV SRIVASTAWA',
   })
 })
 

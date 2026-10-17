@@ -1,5 +1,6 @@
 // src/client/pages/legal/ShippingPolicyPage.tsx — Official Shipping & Digital Delivery Policy
 import { useSiteConfig, BUSINESS_CONFIG } from '../../lib/site-config'
+import { useOrderVerification } from '../../lib/orderVerification'
 import { Zap, Clock, ShieldCheck, Download, Mail, CheckCircle2, HelpCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useEffect } from 'react'
@@ -8,6 +9,7 @@ import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
 export default function ShippingPolicyPage() {
   const { siteName, supportEmail } = useSiteConfig()
   const { fullName: gatewayFullName } = usePaymentGatewayInfo()
+  const { isVerified, rawPhone, maskedPhone, rawProprietor } = useOrderVerification()
 
   useEffect(() => {
     document.title = `Shipping & Digital Delivery Policy — ${siteName}`
@@ -101,7 +103,7 @@ export default function ShippingPolicyPage() {
               1. Electronic Digital Delivery Only
             </h2>
             <p>
-              All products offered on <strong>{siteName}</strong> (owned and operated by <strong>{BUSINESS_CONFIG.legalName}</strong>, Proprietor: <strong>{BUSINESS_CONFIG.proprietor}</strong>, Govt. of India MSME / Udyam Registration No: <strong>{BUSINESS_CONFIG.udyamRegistration}</strong>) are strictly intangible digital assets. These include downloadable digital wallpapers, curated media bundles, high-resolution photo packs, and digital resource archives.
+              All products offered on <strong>{siteName}</strong> (owned and operated by <strong>{BUSINESS_CONFIG.legalName}</strong>, Govt. of India MSME / Udyam Registration No: <strong>{BUSINESS_CONFIG.udyamRegistration}</strong>{isVerified ? `, Proprietor: ${rawProprietor}` : ''}) are strictly intangible digital assets. These include downloadable digital wallpapers, curated media bundles, high-resolution photo packs, and digital resource archives.
             </p>
             <p>
               <strong>No physical goods, parcels, parcels, or print shipments will be dispatched to your postal address.</strong> Consequently, no courier, shipping carrier, or physical tracking number applies.
@@ -183,12 +185,18 @@ export default function ShippingPolicyPage() {
               }}
             >
               <div><strong>Merchant Legal Entity:</strong> {BUSINESS_CONFIG.legalName}</div>
-              <div><strong>Proprietor (Legal Name):</strong> {BUSINESS_CONFIG.proprietor}</div>
+              <div><strong>Proprietor:</strong> {isVerified ? rawProprietor : 'Available upon Order Verification (Order Lookup)'}</div>
               <div><strong>Brand Name:</strong> {siteName || BUSINESS_CONFIG.brandName}</div>
               <div><strong>Udyam Registration:</strong> <span style={{ fontFamily: 'monospace', color: 'var(--brand-purple-light)', fontWeight: 700 }}>{BUSINESS_CONFIG.udyamRegistration}</span></div>
-              <div><strong>Helpline Phone / WhatsApp:</strong> <a href={`tel:${BUSINESS_CONFIG.phone}`} style={{ color: 'inherit' }}>{BUSINESS_CONFIG.phone}</a></div>
+              <div>
+                <strong>Helpline Phone / WhatsApp:</strong>{' '}
+                {isVerified ? (
+                  <a href={`tel:${rawPhone}`} style={{ color: 'inherit' }}>{rawPhone}</a>
+                ) : (
+                  <Link to="/order-lookup" style={{ color: 'var(--brand-purple-light)', textDecoration: 'underline' }}>{maskedPhone} (Submit Order # to Unlock)</Link>
+                )}
+              </div>
               <div><strong>Support Email:</strong> <a href={`mailto:${BUSINESS_CONFIG.supportEmail}`} style={{ color: 'inherit' }}>{BUSINESS_CONFIG.supportEmail}</a></div>
-              <div><strong>Compliance Email:</strong> <a href={`mailto:${BUSINESS_CONFIG.complianceEmail}`} style={{ color: 'inherit' }}>{BUSINESS_CONFIG.complianceEmail}</a></div>
               <div><strong>Registration Category:</strong> {BUSINESS_CONFIG.registrationType}</div>
               <div><strong>Operating Jurisdiction:</strong> {BUSINESS_CONFIG.operatingState}</div>
               <div><strong>Operating Hours:</strong> {BUSINESS_CONFIG.supportHours}</div>

@@ -1,5 +1,6 @@
 // src/client/pages/legal/TermsPage.tsx — Official Terms and Conditions
 import { useSiteConfig, BUSINESS_CONFIG } from '../../lib/site-config'
+import { useOrderVerification } from '../../lib/orderVerification'
 import { Link } from 'react-router-dom'
 import { useEffect } from 'react'
 import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
@@ -7,6 +8,7 @@ import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
 export default function TermsPage() {
   const { siteName, supportEmail } = useSiteConfig()
   const { name: gatewayName, legalEntity: gatewayLegalEntity } = usePaymentGatewayInfo()
+  const { isVerified, rawPhone, maskedPhone, rawProprietor } = useOrderVerification()
 
   useEffect(() => {
     document.title = `Terms and Conditions — ${siteName}`
@@ -46,7 +48,7 @@ export default function TermsPage() {
               1. Introduction & Contracting Parties
             </h2>
             <p>
-              This website, accessible at <strong>1024teraviralhub.com</strong> (referred to as the "Platform" or "Site"), is owned, managed, and operated by <strong>{BUSINESS_CONFIG.legalName}</strong> (Proprietor: {BUSINESS_CONFIG.proprietor} | Govt. of India MSME / Udyam Registration Number: <strong style={{ fontFamily: 'monospace', color: 'var(--brand-purple-light)' }}>{BUSINESS_CONFIG.udyamRegistration}</strong>), operating under the trade/brand name <strong>{siteName || BUSINESS_CONFIG.brandName}</strong>.
+              This website, accessible at <strong>1024teraviralhub.com</strong> (referred to as the "Platform" or "Site"), is owned, managed, and operated by <strong>{BUSINESS_CONFIG.legalName}</strong> (Govt. of India MSME / Udyam Registration Number: <strong style={{ fontFamily: 'monospace', color: 'var(--brand-purple-light)' }}>{BUSINESS_CONFIG.udyamRegistration}</strong>{isVerified ? ` | Proprietor: ${rawProprietor}` : ''}), operating under the trade/brand name <strong>{siteName || BUSINESS_CONFIG.brandName}</strong>.
             </p>
             <p>
               By accessing the Site, browsing catalog assets, or purchasing any digital download, you ("Buyer", "User", or "Customer") agree to be legally bound by these Terms and Conditions, our <Link to="/privacy-policy" style={{ color: 'var(--brand-purple-light)', textDecoration: 'underline' }}>Privacy Policy</Link>, and our <Link to="/refund-policy" style={{ color: 'var(--brand-purple-light)', textDecoration: 'underline' }}>Refund & Cancellation Policy</Link>.
@@ -119,12 +121,18 @@ export default function TermsPage() {
             </p>
             <div style={{ background: 'var(--bg-elevated)', padding: '16px 20px', borderRadius: 10, fontSize: '0.85rem' }}>
               <div><strong>Operating Entity / Business Name:</strong> {BUSINESS_CONFIG.legalName}</div>
-              <div><strong>Proprietor (Legal Name):</strong> {BUSINESS_CONFIG.proprietor}</div>
+              <div><strong>Proprietor:</strong> {isVerified ? rawProprietor : 'Available upon Order Verification (Order Lookup)'}</div>
               <div><strong>Physical Office:</strong> {BUSINESS_CONFIG.registeredOffice}</div>
               <div><strong>Udyam Registration:</strong> {BUSINESS_CONFIG.udyamRegistration}</div>
-              <div><strong>Helpline Phone / WhatsApp:</strong> <a href={`tel:${BUSINESS_CONFIG.phone}`} style={{ color: 'inherit' }}>{BUSINESS_CONFIG.phone}</a></div>
+              <div>
+                <strong>Helpline Phone / WhatsApp:</strong>{' '}
+                {isVerified ? (
+                  <a href={`tel:${rawPhone}`} style={{ color: 'inherit' }}>{rawPhone}</a>
+                ) : (
+                  <Link to="/order-lookup" style={{ color: 'var(--brand-purple-light)', textDecoration: 'underline' }}>{maskedPhone} (Submit Order # to Unlock)</Link>
+                )}
+              </div>
               <div><strong>Support Desk:</strong> <a href={`mailto:${BUSINESS_CONFIG.supportEmail}`} style={{ color: 'inherit' }}>{BUSINESS_CONFIG.supportEmail}</a></div>
-              <div><strong>Compliance Email:</strong> <a href={`mailto:${BUSINESS_CONFIG.complianceEmail}`} style={{ color: 'inherit' }}>{BUSINESS_CONFIG.complianceEmail}</a></div>
               <div><strong>Business Hours:</strong> {BUSINESS_CONFIG.supportHours}</div>
             </div>
           </section>

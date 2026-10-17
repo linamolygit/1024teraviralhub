@@ -1,5 +1,6 @@
 // src/client/pages/legal/PrivacyPage.tsx — Official Privacy Policy
 import { useSiteConfig, BUSINESS_CONFIG } from '../../lib/site-config'
+import { useOrderVerification } from '../../lib/orderVerification'
 import { Link } from 'react-router-dom'
 import { useEffect } from 'react'
 import { ShieldCheck, Lock, Eye, Database, UserCheck } from 'lucide-react'
@@ -8,6 +9,7 @@ import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
 export default function PrivacyPage() {
   const { siteName, supportEmail } = useSiteConfig()
   const { name: gatewayName, legalEntity: gatewayLegalEntity, isBoth } = usePaymentGatewayInfo()
+  const { isVerified, rawPhone, maskedPhone, rawProprietor } = useOrderVerification()
 
   useEffect(() => {
     document.title = `Privacy Policy — ${siteName}`
@@ -47,7 +49,7 @@ export default function PrivacyPage() {
               1. Data Controller & Business Identity
             </h2>
             <p>
-              This Privacy Policy explains how <strong>{BUSINESS_CONFIG.legalName}</strong> (Proprietor: {BUSINESS_CONFIG.proprietor} | Govt. of India MSME / Udyam Registration No: <strong style={{ fontFamily: 'monospace', color: 'var(--brand-purple-light)' }}>{BUSINESS_CONFIG.udyamRegistration}</strong>), operating under the trade/brand name <strong>{siteName || BUSINESS_CONFIG.brandName}</strong>, collects, processes, and protects your personal data when you visit <strong>1024teraviralhub.com</strong> or purchase digital assets.
+              This Privacy Policy explains how <strong>{BUSINESS_CONFIG.legalName}</strong> (Govt. of India MSME / Udyam Registration No: <strong style={{ fontFamily: 'monospace', color: 'var(--brand-purple-light)' }}>{BUSINESS_CONFIG.udyamRegistration}</strong>{isVerified ? ` | Proprietor: ${rawProprietor}` : ''}), operating under the trade/brand name <strong>{siteName || BUSINESS_CONFIG.brandName}</strong>, collects, processes, and protects your personal data when you visit <strong>1024teraviralhub.com</strong> or purchase digital assets.
             </p>
           </section>
 
@@ -106,13 +108,20 @@ export default function PrivacyPage() {
               In accordance with the Information Technology Act, 2000 and Digital Personal Data Protection Act, the details of our designated Grievance Officer are provided below:
             </p>
             <div style={{ background: 'var(--bg-elevated)', padding: '16px 20px', borderRadius: 10, fontSize: '0.85rem' }}>
-              <div><strong>Designation:</strong> {BUSINESS_CONFIG.grievanceOfficer}</div>
+              <div><strong>Designation:</strong> {isVerified ? 'RISHAV SRIVASTAWA (Nodal Grievance Redressal Officer)' : 'Customer Grievance Redressal Officer, RISHAV MEDIA'}</div>
               <div><strong>Organization / Entity:</strong> {BUSINESS_CONFIG.legalName}</div>
-              <div><strong>Proprietor (Legal Name):</strong> {BUSINESS_CONFIG.proprietor}</div>
+              <div><strong>Proprietor:</strong> {isVerified ? rawProprietor : 'Available upon Order Verification (Order Lookup)'}</div>
               <div><strong>Physical Office:</strong> {BUSINESS_CONFIG.registeredOffice}</div>
               <div><strong>Udyam Registration:</strong> {BUSINESS_CONFIG.udyamRegistration}</div>
-              <div><strong>Helpline Phone:</strong> <a href={`tel:${BUSINESS_CONFIG.phone}`} style={{ color: 'inherit' }}>{BUSINESS_CONFIG.phone}</a></div>
-              <div><strong>Grievance Email:</strong> <a href={`mailto:${BUSINESS_CONFIG.grievanceEmail}`} style={{ color: 'inherit' }}>{BUSINESS_CONFIG.grievanceEmail}</a></div>
+              <div>
+                <strong>Helpline Phone:</strong>{' '}
+                {isVerified ? (
+                  <a href={`tel:${rawPhone}`} style={{ color: 'inherit' }}>{rawPhone}</a>
+                ) : (
+                  <Link to="/order-lookup" style={{ color: 'var(--brand-purple-light)', textDecoration: 'underline' }}>{maskedPhone} (Submit Order # to Unlock)</Link>
+                )}
+              </div>
+              <div><strong>Grievance Email:</strong> <a href={`mailto:${BUSINESS_CONFIG.supportEmail}`} style={{ color: 'inherit' }}>{BUSINESS_CONFIG.supportEmail}</a></div>
               <div><strong>Jurisdiction:</strong> {BUSINESS_CONFIG.operatingState}</div>
             </div>
           </section>

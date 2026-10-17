@@ -1,11 +1,12 @@
 // src/client/pages/order-lookup/OrderLookupPage.tsx
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Search, Download, Package, Clock, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Search, Download, Package, Clock, CheckCircle2, AlertCircle, Phone, MessageSquare } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { api, type OrderLookupResult } from '../../lib/api'
 import { formatPrice, formatDate } from '../../lib/utils'
 import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
+import { setVerifiedOrder, PRIVACY_CONFIG } from '../../lib/orderVerification'
 
 export default function OrderLookupPage() {
   const { name: gatewayName } = usePaymentGatewayInfo()
@@ -37,6 +38,9 @@ export default function OrderLookupPage() {
     try {
       const data = await api.orderLookup(order.trim(), emailAddr?.trim() || undefined)
       setResult(data)
+      if (data && data.order_number) {
+        setVerifiedOrder(data.order_number)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Order not found. Please verify your order number.')
     } finally {
@@ -292,6 +296,86 @@ export default function OrderLookupPage() {
                   Payment status is currently <strong>{result.status}</strong>. If your account was debited, please wait 2–5 minutes for {gatewayName} webhook confirmation or reach out to customer support.
                 </div>
               ) : null}
+
+              {/* Verified Customer VIP Support Card */}
+              <div
+                style={{
+                  marginTop: 18,
+                  padding: '18px 20px',
+                  borderRadius: 14,
+                  background: 'rgba(255, 210, 0, 0.06)',
+                  border: '1px solid rgba(255, 210, 0, 0.25)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', fontWeight: 800, color: '#FFD200' }}>
+                    <CheckCircle2 size={16} color="#10B981" /> Verified Order Support Active
+                  </div>
+                  <span style={{ fontSize: '0.72rem', background: 'rgba(16, 185, 129, 0.15)', color: '#10B981', padding: '2px 8px', borderRadius: 4, fontWeight: 700 }}>
+                    VIP Help
+                  </span>
+                </div>
+
+                <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
+                  <div>
+                    <span style={{ color: 'var(--text-muted)' }}>Legal Entity:</span>{' '}
+                    <strong style={{ color: 'var(--text-primary)' }}>{PRIVACY_CONFIG.businessName}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-muted)' }}>Proprietor:</span>{' '}
+                    <strong style={{ color: '#FFD200' }}>{PRIVACY_CONFIG.rawProprietor}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-muted)' }}>Direct Helpline:</span>{' '}
+                    <strong style={{ color: '#93C5FD' }}>{PRIVACY_CONFIG.rawPhone}</strong>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <a
+                    href={`tel:${PRIVACY_CONFIG.rawPhone}`}
+                    className="btn-ghost"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      padding: '10px 14px',
+                      fontSize: '0.8125rem',
+                      fontWeight: 700,
+                      textDecoration: 'none',
+                      borderRadius: 8,
+                      background: 'rgba(17, 98, 242, 0.12)',
+                      border: '1px solid rgba(17, 98, 242, 0.3)',
+                      color: '#93C5FD',
+                    }}
+                  >
+                    <Phone size={14} /> Call Helpline
+                  </a>
+                  <a
+                    href={`https://wa.me/919801947855?text=${encodeURIComponent(`Hi, I need assistance with my order ${result.order_number}`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-ghost"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      padding: '10px 14px',
+                      fontSize: '0.8125rem',
+                      fontWeight: 700,
+                      textDecoration: 'none',
+                      borderRadius: 8,
+                      background: 'rgba(37, 211, 102, 0.12)',
+                      border: '1px solid rgba(37, 211, 102, 0.3)',
+                      color: '#6EE7B7',
+                    }}
+                  >
+                    <MessageSquare size={14} /> WhatsApp
+                  </a>
+                </div>
+              </div>
             </motion.div>
           )}
         </div>

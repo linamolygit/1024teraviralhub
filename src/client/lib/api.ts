@@ -1217,6 +1217,8 @@ export interface OrderLookupResult {
   created_at: string
   download_token: string | null
   download_expired: boolean
+  direct_support_phone?: string
+  proprietor_name?: string
 }
 
 export interface MyOrderItem {

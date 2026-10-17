@@ -1,5 +1,6 @@
 // src/client/pages/legal/PricingProductsPage.tsx — Official Pricing & Products Policy Page
 import { useSiteConfig, BUSINESS_CONFIG } from '../../lib/site-config'
+import { useOrderVerification } from '../../lib/orderVerification'
 import { Tag, ShieldCheck, Zap, Download, CreditCard, Sparkles, HelpCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
@@ -7,6 +8,7 @@ import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
 export default function PricingProductsPage() {
   const { siteName, supportEmail } = useSiteConfig()
   const { fullName: gatewayFullName, isBoth } = usePaymentGatewayInfo()
+  const { isVerified, rawPhone, maskedPhone, rawProprietor } = useOrderVerification()
 
   return (
     <div className="section" style={{ minHeight: '80vh', padding: '48px 0 80px' }}>
@@ -215,12 +217,18 @@ export default function PricingProductsPage() {
             </p>
             <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.9rem' }}>
               <div><strong>Merchant Legal Entity:</strong> {BUSINESS_CONFIG.legalName}</div>
-              <div><strong>Proprietor (Legal Name):</strong> {BUSINESS_CONFIG.proprietor}</div>
+              <div><strong>Proprietor:</strong> {isVerified ? rawProprietor : 'Available upon Order Verification (Order Lookup)'}</div>
               <div><strong>Brand Name:</strong> {siteName || BUSINESS_CONFIG.brandName}</div>
               <div><strong>Udyam Registration:</strong> <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--brand-purple-light)' }}>{BUSINESS_CONFIG.udyamRegistration}</span></div>
-              <div><strong>Helpline Phone / WhatsApp:</strong> <a href={`tel:${BUSINESS_CONFIG.phone}`} style={{ color: '#1162F2', fontWeight: 600 }}>{BUSINESS_CONFIG.phone}</a></div>
+              <div>
+                <strong>Helpline Phone / WhatsApp:</strong>{' '}
+                {isVerified ? (
+                  <a href={`tel:${rawPhone}`} style={{ color: '#1162F2', fontWeight: 600 }}>{rawPhone}</a>
+                ) : (
+                  <Link to="/order-lookup" style={{ color: '#1162F2', fontWeight: 600 }}>{maskedPhone} (Submit Order # to Unlock)</Link>
+                )}
+              </div>
               <div><strong>Customer Support Email:</strong> <a href={`mailto:${BUSINESS_CONFIG.supportEmail}`} style={{ color: '#1162F2', fontWeight: 600 }}>{BUSINESS_CONFIG.supportEmail}</a></div>
-              <div><strong>Compliance Email:</strong> <a href={`mailto:${BUSINESS_CONFIG.complianceEmail}`} style={{ color: '#1162F2', fontWeight: 600 }}>{BUSINESS_CONFIG.complianceEmail}</a></div>
               <div><strong>Enterprise Category:</strong> {BUSINESS_CONFIG.registrationType}</div>
               <div><strong>Operating Jurisdiction:</strong> {BUSINESS_CONFIG.operatingState}</div>
               <div><strong>Support Hours:</strong> {BUSINESS_CONFIG.supportHours}</div>

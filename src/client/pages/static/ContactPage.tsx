@@ -28,14 +28,9 @@ export default function ContactPage() {
             mainEntity: {
               '@type': 'Organization',
               name: 'Rishav Media',
-              legalName: 'Rishav Media (Proprietor: Rishav Srivastawa)',
-              founder: {
-                '@type': 'Person',
-                name: 'Rishav Srivastawa',
-              },
+              legalName: 'Rishav Media',
               alternateName: siteName,
-              email: 'rishavsrivastawa9162@gmail.com',
-              telephone: '+919801947855',
+              email: 'support@1024teraviralhub.com',
               address: {
                 '@type': 'PostalAddress',
                 streetAddress: 'Flat No. 25, Rishav Media Office, Block Road, Ghorasahan',
