@@ -21,6 +21,7 @@ export default function AdminDashboard() {
       const token = await getToken()
       return adminApi.analytics.get(token!)
     },
+    refetchInterval: 5000, // ⚡ Realtime live polling every 5s!
   })
 
   if (isLoading) {
@@ -129,7 +130,34 @@ export default function AdminDashboard() {
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '6px 12px',
+              background: 'rgba(16, 185, 129, 0.08)',
+              border: '1px solid rgba(16, 185, 129, 0.25)',
+              borderRadius: 20,
+            }}
+            title="Real-time 5-second automatic data sync active"
+          >
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: '#10B981',
+                boxShadow: '0 0 8px #10B981',
+                display: 'inline-block',
+              }}
+            />
+            <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#10B981', letterSpacing: '0.02em' }}>
+              LIVE · 5s Auto-sync
+            </span>
+          </div>
+
           <button
             type="button"
             onClick={() => refetch()}

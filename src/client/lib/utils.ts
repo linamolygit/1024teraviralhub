@@ -29,14 +29,37 @@ export function formatFileSize(bytes: number | null): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`
 }
 
+function parseDateSafe(dateStr: string): Date {
+  if (!dateStr) return new Date()
+  let s = String(dateStr).trim()
+  if (!s) return new Date()
+  if (!s.includes('T') && s.includes(' ')) {
+    s = s.replace(' ', 'T') + 'Z'
+  } else if (s.includes('T') && !s.endsWith('Z') && !/[+-]\d{2}:?\d{2}$/.test(s)) {
+    s = s + 'Z'
+  }
+  const d = new Date(s)
+  return isNaN(d.getTime()) ? new Date(dateStr) : d
+}
+
 // Format date
 export function formatDate(dateStr: string): string {
-  try { return format(new Date(dateStr), 'dd MMM yyyy') } catch { return dateStr }
+  try { return format(parseDateSafe(dateStr), 'dd MMM yyyy') } catch { return dateStr }
+}
+
+// Format time (e.g. 11:30 AM)
+export function formatTime(dateStr: string): string {
+  try { return format(parseDateSafe(dateStr), 'hh:mm a') } catch { return '' }
+}
+
+// Format date and time (e.g. 12 Oct 2026, 11:30 AM)
+export function formatDateTime(dateStr: string): string {
+  try { return format(parseDateSafe(dateStr), 'dd MMM yyyy, hh:mm a') } catch { return dateStr }
 }
 
 // Format relative time
 export function timeAgo(dateStr: string): string {
-  try { return formatDistanceToNow(new Date(dateStr), { addSuffix: true }) } catch { return dateStr }
+  try { return formatDistanceToNow(parseDateSafe(dateStr), { addSuffix: true }) } catch { return dateStr }
 }
 
 // Calculate discount percentage

@@ -3,7 +3,8 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft, Edit, Eye, EyeOff, ExternalLink, Package,
-  DollarSign, ShoppingCart, Download, Clock, ShieldCheck, Tag
+  DollarSign, ShoppingCart, Download, Clock, ShieldCheck, Tag,
+  Ghost
 } from 'lucide-react'
 import { adminApi, type ProductFile, type ProductImage } from '../../../lib/api'
 import { useAuthStore } from '../../../lib/auth-store'
@@ -30,6 +31,17 @@ export default function AdminProductDetail() {
     mutationFn: async (currentPublished: boolean) => {
       const token = await getToken()
       return adminApi.products.update(token!, parseInt(id!), { is_published: !currentPublished })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-product-detail', id] })
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] })
+    },
+  })
+
+  const toggleGhost = useMutation({
+    mutationFn: async () => {
+      const token = await getToken()
+      return adminApi.products.toggleGhost(token!, parseInt(id!))
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-product-detail', id] })
@@ -73,6 +85,7 @@ export default function AdminProductDetail() {
   }
 
   const isPublished = p.is_published === 1 || p.is_published === true
+  const isGhost = p.is_ghost === 1 || p.is_ghost === true
 
   return (
     <div>
@@ -113,6 +126,40 @@ export default function AdminProductDetail() {
                 <Eye size={14} /> Publish
               </>
             )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => toggleGhost.mutate()}
+            disabled={toggleGhost.isPending}
+            className="btn-ghost"
+            style={{
+              fontSize: '0.8125rem',
+              padding: '8px 14px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              background: isGhost ? 'rgba(139, 92, 246, 0.15)' : undefined,
+              border: isGhost ? '1px solid rgba(139, 92, 246, 0.4)' : undefined,
+              color: isGhost ? '#A78BFA' : undefined,
+            }}
+            title={isGhost ? 'Ghost Mode Active: Hidden from storefront, but link works!' : 'Click to enable Ghost Mode (Unlisted)'}
+          >
+            <Ghost size={14} /> {isGhost ? 'Ghost Mode (Unlisted)' : 'Standard Listed'}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              const url = `${window.location.origin}/product/${p.slug}`
+              navigator.clipboard.writeText(url)
+              alert(`Direct Ad Link copied:\n${url}`)
+            }}
+            className="btn-ghost"
+            style={{ fontSize: '0.8125rem', padding: '8px 14px', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            title="Copy Direct Product URL for Facebook Ads"
+          >
+            📋 Copy Ad Link
           </button>
 
           <Link

@@ -7,7 +7,8 @@ import {
   Plus, Edit, Trash2, Eye, EyeOff, Search,
   ExternalLink, Package, Filter, ArrowRight, RefreshCw,
   LayoutGrid, List, TrendingUp, CheckCircle2, Copy,
-  Check, Sparkles, Flame, X, DollarSign, Layers, Tag, Star
+  Check, Sparkles, Flame, X, DollarSign, Layers, Tag, Star,
+  Ghost
 } from 'lucide-react'
 import { adminApi, api, type Product } from '../../../lib/api'
 import { useAuthStore } from '../../../lib/auth-store'
@@ -21,7 +22,7 @@ export default function AdminProducts() {
 
   const [searchInput, setSearchInput] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'draft' | 'bestsellers'>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'draft' | 'ghost' | 'bestsellers'>('all')
   const [sortBy, setSortBy] = useState<string>('newest')
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [copiedId, setCopiedId] = useState<number | null>(null)
@@ -92,6 +93,30 @@ export default function AdminProducts() {
     },
   })
 
+  const toggleGhost = useMutation({
+    mutationFn: async ({ id, ghost }: { id: number; ghost: boolean }) => {
+      const token = await getToken()
+      return adminApi.products.toggleGhost(token!, id)
+    },
+    onSuccess: (res, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] })
+      if (res?.is_ghost) {
+        adminToast.success(
+          'Ghost Mode Activated',
+          'Product is now unlisted from website. Direct link and Facebook sales continue normally!'
+        )
+      } else {
+        adminToast.success(
+          'Storefront Restored',
+          'Product is now visible across store homepage and product catalog.'
+        )
+      }
+    },
+    onError: (err: any) => {
+      adminToast.error('Ghost Mode Failed', err?.message || 'Could not update ghost mode.')
+    },
+  })
+
   const handleCopyLink = async (p: Product) => {
     try {
       const res = await api.share.create({ product_id: p.id, slug: p.slug, created_by: 'admin' })
@@ -121,9 +146,10 @@ export default function AdminProducts() {
     const total = allProducts.length
     const published = allProducts.filter((p) => p.is_published === 1 || p.is_published === true).length
     const drafts = total - published
+    const ghosts = allProducts.filter((p) => p.is_ghost === 1 || p.is_ghost === true).length
     const totalSales = allProducts.reduce((sum, p) => sum + (p.total_sales || 0), 0)
     const catalogValue = allProducts.reduce((sum, p) => sum + (p.sale_price ?? p.price ?? 0), 0)
-    return { total, published, drafts, totalSales, catalogValue }
+    return { total, published, drafts, ghosts, totalSales, catalogValue }
   }, [allProducts])
 
   // Filter & Sort
@@ -131,7 +157,9 @@ export default function AdminProducts() {
     return allProducts
       .filter((p) => {
         const isPub = p.is_published === 1 || p.is_published === true
-        if (statusFilter === 'published') return isPub
+        const isGhost = p.is_ghost === 1 || p.is_ghost === true
+        if (statusFilter === 'published') return isPub && !isGhost
+        if (statusFilter === 'ghost') return isGhost
         if (statusFilter === 'draft') return !isPub
         if (statusFilter === 'bestsellers') return (p.total_sales || 0) > 0
         return true
@@ -410,12 +438,14 @@ export default function AdminProducts() {
         {/* Center: Filter Pills */}
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {[
-            { id: 'all', label: `All (${kpis.total})` },
-            { id: 'published', label: `Published (${kpis.published})` },
-            { id: 'draft', label: `Drafts (${kpis.drafts})` },
-            { id: 'bestsellers', label: '🔥 Best Sellers' },
+            { id: 'all', label: `All (${kpis.total})`, icon: null },
+            { id: 'published', label: `Published (${kpis.published - kpis.ghosts > 0 ? kpis.published - kpis.ghosts : kpis.published})`, icon: null },
+            { id: 'ghost', label: `Unlisted (${kpis.ghosts})`, icon: Ghost },
+            { id: 'draft', label: `Drafts (${kpis.drafts})`, icon: null },
+            { id: 'bestsellers', label: '🔥 Best Sellers', icon: null },
           ].map((tab) => {
             const isActive = statusFilter === tab.id
+            const TabIcon = tab.icon
             return (
               <button
                 key={tab.id}
@@ -434,9 +464,13 @@ export default function AdminProducts() {
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
                   boxShadow: isActive ? '0 4px 12px rgba(17,98,242,0.25)' : 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
                 }}
               >
-                {tab.label}
+                {TabIcon && <TabIcon size={14} />}
+                <span>{tab.label}</span>
               </button>
             )
           })}
@@ -666,27 +700,50 @@ export default function AdminProducts() {
                       zIndex: 2,
                     }}
                   >
-                    {/* Live Published vs Draft Pill */}
-                    <span
-                      style={{
-                        fontSize: '0.7rem',
-                        fontWeight: 800,
-                        padding: '3px 8px',
-                        borderRadius: 999,
-                        background: isPublished
-                          ? 'linear-gradient(135deg, rgba(17,98,242,0.92), rgba(124,58,237,0.92))'
-                          : 'rgba(15, 23, 42, 0.85)',
-                        color: '#FFFFFF',
-                        backdropFilter: 'blur(6px)',
-                        boxShadow: isPublished ? '0 2px 10px rgba(17,98,242,0.4)' : 'none',
-                        border: isPublished ? '1px solid rgba(255,255,255,0.2)' : '1px solid rgba(255,160,0,0.4)',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 4,
-                      }}
-                    >
-                      {isPublished ? '● Live' : '○ Draft'}
-                    </span>
+                    {/* Live Published vs Draft vs Ghost Pill */}
+                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                      <span
+                        style={{
+                          fontSize: '0.7rem',
+                          fontWeight: 800,
+                          padding: '3px 8px',
+                          borderRadius: 999,
+                          background: isPublished
+                            ? 'linear-gradient(135deg, rgba(17,98,242,0.92), rgba(124,58,237,0.92))'
+                            : 'rgba(15, 23, 42, 0.85)',
+                          color: '#FFFFFF',
+                          backdropFilter: 'blur(6px)',
+                          boxShadow: isPublished ? '0 2px 10px rgba(17,98,242,0.4)' : 'none',
+                          border: isPublished ? '1px solid rgba(255,255,255,0.2)' : '1px solid rgba(255,160,0,0.4)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                        }}
+                      >
+                        {isPublished ? '● Live' : '○ Draft'}
+                      </span>
+                      {Boolean(p.is_ghost === 1 || p.is_ghost === true) && (
+                        <span
+                          style={{
+                            fontSize: '0.68rem',
+                            fontWeight: 800,
+                            padding: '3px 7px',
+                            borderRadius: 999,
+                            background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.95), rgba(124, 58, 237, 0.95))',
+                            color: '#FFFFFF',
+                            backdropFilter: 'blur(6px)',
+                            border: '1px solid rgba(196, 181, 253, 0.4)',
+                            boxShadow: '0 2px 8px rgba(139, 92, 246, 0.4)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4,
+                          }}
+                          title="Ghost Mode Active: Hidden from storefront, but direct link & Facebook ads work!"
+                        >
+                          <Ghost size={11} strokeWidth={2.5} /> Unlisted
+                        </span>
+                      )}
+                    </div>
 
                     {/* Discount Pill if on sale */}
                     {hasDiscount && (
@@ -833,87 +890,119 @@ export default function AdminProducts() {
                     )}
                   </div>
 
-                  {/* Bottom Action Section with uniform 34px buttons */}
+                  {/* Bottom Action Section with 2-Row Responsive Layout (Fixes button squeeze / delete overflow) */}
                   <div
                     style={{
                       marginTop: 'auto',
                       paddingTop: 12,
                       borderTop: '1px solid var(--bg-border)',
                       display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
+                      flexDirection: 'column',
                       gap: 8,
                     }}
                   >
-                    {/* Quick Publish Toggle Switch */}
-                    <button
-                      type="button"
-                      onClick={() => togglePublish.mutate({ id: p.id, published: !isPublished })}
-                      disabled={togglePublish.isPending}
-                      style={{
-                        height: 34,
-                        padding: '0 10px',
-                        borderRadius: 8,
-                        background: isPublished ? 'rgba(17, 98, 242, 0.08)' : 'var(--bg-elevated)',
-                        border: isPublished ? '1px solid rgba(17, 98, 242, 0.28)' : '1px solid var(--bg-border)',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 7,
-                        cursor: 'pointer',
-                        boxSizing: 'border-box',
-                        transition: 'all 0.15s ease',
-                      }}
-                      title={isPublished ? 'Click to Unpublish (Make Draft)' : 'Click to Live Publish'}
-                    >
-                      <div
+                    {/* Row 1: Visibility Status Switches (Store Publish & Ghost Mode) */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                      {/* Quick Publish Toggle Switch */}
+                      <button
+                        type="button"
+                        onClick={() => togglePublish.mutate({ id: p.id, published: !isPublished })}
+                        disabled={togglePublish.isPending}
                         style={{
-                          width: 28,
-                          height: 16,
-                          borderRadius: 999,
-                          background: isPublished
-                            ? 'linear-gradient(135deg, #1162F2, #7C3AED)'
-                            : 'var(--bg-border)',
-                          position: 'relative',
-                          transition: 'background 0.2s ease',
+                          height: 32,
+                          padding: '0 8px',
+                          borderRadius: 8,
+                          background: isPublished ? 'rgba(17, 98, 242, 0.08)' : 'var(--bg-elevated)',
+                          border: isPublished ? '1px solid rgba(17, 98, 242, 0.28)' : '1px solid var(--bg-border)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          cursor: 'pointer',
+                          boxSizing: 'border-box',
+                          transition: 'all 0.15s ease',
+                          flex: 1,
                         }}
+                        title={isPublished ? 'Click to Unpublish (Make Draft)' : 'Click to Live Publish'}
                       >
                         <div
                           style={{
-                            width: 12,
-                            height: 12,
-                            borderRadius: '50%',
-                            background: '#FFFFFF',
-                            position: 'absolute',
-                            top: 2,
-                            left: isPublished ? 14 : 2,
-                            transition: 'left 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-                            boxShadow: '0 1px 2px rgba(0,0,0,0.25)',
+                            width: 24,
+                            height: 14,
+                            borderRadius: 999,
+                            background: isPublished
+                              ? 'linear-gradient(135deg, #1162F2, #7C3AED)'
+                              : 'var(--bg-border)',
+                            position: 'relative',
+                            transition: 'background 0.2s ease',
+                            flexShrink: 0,
                           }}
-                        />
-                      </div>
-                      <span
-                        style={{
-                          fontSize: '0.74rem',
-                          fontWeight: 700,
-                          color: isPublished ? '#1162F2' : 'var(--text-muted)',
-                          lineHeight: 1,
-                        }}
-                      >
-                        {isPublished ? 'Live' : 'Draft'}
-                      </span>
-                    </button>
+                        >
+                          <div
+                            style={{
+                              width: 10,
+                              height: 10,
+                              borderRadius: '50%',
+                              background: '#FFFFFF',
+                              position: 'absolute',
+                              top: 2,
+                              left: isPublished ? 12 : 2,
+                              transition: 'left 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                              boxShadow: '0 1px 2px rgba(0,0,0,0.25)',
+                            }}
+                          />
+                        </div>
+                        <span
+                          style={{
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            color: isPublished ? '#1162F2' : 'var(--text-muted)',
+                            lineHeight: 1,
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {isPublished ? 'Live' : 'Draft'}
+                        </span>
+                      </button>
 
-                    {/* Quick Action Buttons (strictly identical 34x34px buttons) */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {/* Quick Ghost Mode Toggle Button with Lucide Ghost SVG */}
+                      <button
+                        type="button"
+                        onClick={() => toggleGhost.mutate({ id: p.id, ghost: !(p.is_ghost === 1 || p.is_ghost === true) })}
+                        disabled={toggleGhost.isPending}
+                        style={{
+                          height: 32,
+                          padding: '0 8px',
+                          borderRadius: 8,
+                          background: (p.is_ghost === 1 || p.is_ghost === true) ? 'rgba(139, 92, 246, 0.16)' : 'var(--bg-elevated)',
+                          border: (p.is_ghost === 1 || p.is_ghost === true) ? '1px solid rgba(139, 92, 246, 0.5)' : '1px solid var(--bg-border)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 5,
+                          cursor: 'pointer',
+                          fontSize: '0.72rem',
+                          fontWeight: 700,
+                          color: (p.is_ghost === 1 || p.is_ghost === true) ? '#A78BFA' : 'var(--text-muted)',
+                          boxSizing: 'border-box',
+                          transition: 'all 0.15s ease',
+                          flex: 1,
+                        }}
+                        title={(p.is_ghost === 1 || p.is_ghost === true) ? 'Ghost Mode ON (Unlisted). Click to restore to storefront.' : 'Ghost Mode OFF. Click to hide from storefront (Unlisted for FB Ads).'}
+                      >
+                        <Ghost size={13} color={(p.is_ghost === 1 || p.is_ghost === true) ? '#A78BFA' : 'currentColor'} />
+                        <span style={{ whiteSpace: 'nowrap' }}>{(p.is_ghost === 1 || p.is_ghost === true) ? 'Ghost (Unlisted)' : 'Listed'}</span>
+                      </button>
+                    </div>
+
+                    {/* Row 2: Responsive Action Buttons (Equally balanced, Delete button never cut off) */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
                       {/* Copy Shareable Link */}
                       <button
                         type="button"
                         onClick={() => handleCopyLink(p)}
                         style={{
-                          width: 34,
-                          height: 34,
-                          minWidth: 34,
-                          minHeight: 34,
+                          height: 32,
+                          width: '100%',
                           padding: 0,
                           borderRadius: 8,
                           background: copiedId === p.id ? 'rgba(17, 98, 242, 0.12)' : 'var(--bg-elevated)',
@@ -926,9 +1015,9 @@ export default function AdminProducts() {
                           boxSizing: 'border-box',
                           transition: 'all 0.15s ease',
                         }}
-                        title="Generate & copy unique share link (Anti-Spam & Video Autoplay)"
+                        title="Copy direct share link for Facebook ads"
                       >
-                        {copiedId === p.id ? <Check size={15} /> : <Copy size={15} />}
+                        {copiedId === p.id ? <Check size={14} /> : <Copy size={14} />}
                       </button>
 
                       {/* Preview Public Page */}
@@ -936,10 +1025,8 @@ export default function AdminProducts() {
                         to={`/product/${p.slug}`}
                         target="_blank"
                         style={{
-                          width: 34,
-                          height: 34,
-                          minWidth: 34,
-                          minHeight: 34,
+                          height: 32,
+                          width: '100%',
                           padding: 0,
                           borderRadius: 8,
                           background: 'var(--bg-elevated)',
@@ -954,17 +1041,15 @@ export default function AdminProducts() {
                         }}
                         title="View product on public store"
                       >
-                        <ExternalLink size={15} />
+                        <ExternalLink size={14} />
                       </Link>
 
                       {/* Edit Product */}
                       <Link
                         to={`/admin/products/${p.id}/edit`}
                         style={{
-                          width: 34,
-                          height: 34,
-                          minWidth: 34,
-                          minHeight: 34,
+                          height: 32,
+                          width: '100%',
                           padding: 0,
                           borderRadius: 8,
                           background: 'rgba(17, 98, 242, 0.08)',
@@ -979,7 +1064,7 @@ export default function AdminProducts() {
                         }}
                         title="Edit product details & pricing"
                       >
-                        <Edit size={15} />
+                        <Edit size={14} />
                       </Link>
 
                       {/* Delete */}
@@ -987,10 +1072,8 @@ export default function AdminProducts() {
                         type="button"
                         onClick={() => setDeleteId(p.id)}
                         style={{
-                          width: 34,
-                          height: 34,
-                          minWidth: 34,
-                          minHeight: 34,
+                          height: 32,
+                          width: '100%',
                           padding: 0,
                           borderRadius: 8,
                           background: 'var(--bg-elevated)',
@@ -1005,7 +1088,7 @@ export default function AdminProducts() {
                         }}
                         title="Delete product"
                       >
-                        <Trash2 size={15} />
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   </div>
@@ -1133,21 +1216,53 @@ export default function AdminProducts() {
 
                       {/* Status Badge */}
                       <td>
-                        <button
-                          type="button"
-                          onClick={() => togglePublish.mutate({ id: p.id, published: !isPublished })}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            padding: 0,
-                            cursor: 'pointer',
-                          }}
-                          title="Click to toggle status"
-                        >
-                          <span className={`badge ${isPublished ? 'badge-success' : 'badge-amber'}`}>
-                            {isPublished ? '● Live' : '○ Draft'}
-                          </span>
-                        </button>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <button
+                            type="button"
+                            onClick={() => togglePublish.mutate({ id: p.id, published: !isPublished })}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              padding: 0,
+                              cursor: 'pointer',
+                              textAlign: 'left',
+                            }}
+                            title="Click to toggle status"
+                          >
+                            <span className={`badge ${isPublished ? 'badge-success' : 'badge-amber'}`}>
+                              {isPublished ? '● Live' : '○ Draft'}
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => toggleGhost.mutate({ id: p.id, ghost: !(p.is_ghost === 1 || p.is_ghost === true) })}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              padding: 0,
+                              cursor: 'pointer',
+                              textAlign: 'left',
+                            }}
+                            title="Click to toggle Ghost Mode"
+                          >
+                            <span
+                              style={{
+                                fontSize: '0.68rem',
+                                fontWeight: 700,
+                                padding: '2px 6px',
+                                borderRadius: 4,
+                                background: (p.is_ghost === 1 || p.is_ghost === true) ? 'rgba(139, 92, 246, 0.18)' : 'var(--bg-elevated)',
+                                color: (p.is_ghost === 1 || p.is_ghost === true) ? '#A78BFA' : 'var(--text-muted)',
+                                border: (p.is_ghost === 1 || p.is_ghost === true) ? '1px solid rgba(139, 92, 246, 0.4)' : '1px solid var(--bg-border)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 3,
+                              }}
+                            >
+                              <Ghost size={11} /> {(p.is_ghost === 1 || p.is_ghost === true) ? 'Unlisted' : 'Listed'}
+                            </span>
+                          </button>
+                        </div>
                       </td>
 
                       {/* Date */}

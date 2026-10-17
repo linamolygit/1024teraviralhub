@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { adminApi, type Order, type DownloadToken } from '../../../lib/api'
 import { useAuthStore } from '../../../lib/auth-store'
-import { formatPrice, formatDate, timeAgo } from '../../../lib/utils'
+import { formatPrice, formatDate, formatDateTime, timeAgo } from '../../../lib/utils'
 import LoadingSpinner from '../../../components/ui/LoadingSpinner'
 
 export default function AdminCustomerDetail() {
@@ -157,7 +157,7 @@ export default function AdminCustomerDetail() {
                         {o.status}
                       </span>
                     </td>
-                    <td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{formatDate(o.created_at)}</td>
+                    <td style={{ color: 'var(--text-muted)', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{formatDateTime(o.created_at)}</td>
                     <td>
                       <Link
                         to={`/admin/orders/${o.id}`}

@@ -14,7 +14,7 @@ app.get('/', async (c) => {
     c.env.DB.prepare(`
       SELECT p.id, p.slug, p.title, p.short_description, p.price, p.sale_price, p.file_type
       FROM products p
-      WHERE p.is_published = 1 AND (p.title LIKE ? OR p.description LIKE ? OR p.tags LIKE ?)
+      WHERE p.is_published = 1 AND (p.is_ghost = 0 OR p.is_ghost IS NULL) AND (p.title LIKE ? OR p.description LIKE ? OR p.tags LIKE ?)
       LIMIT 10
     `).bind(searchTerm, searchTerm, searchTerm).all(),
     c.env.DB.prepare(`
