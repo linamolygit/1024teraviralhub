@@ -69,6 +69,8 @@ const checkoutSchema = z.object({
   utm_medium: z.string().optional(),
   utm_campaign: z.string().optional(),
   referrer_url: z.string().optional(),
+  is_cod_token: z.boolean().optional(),
+  custom_amount: z.number().positive().optional(),
 })
 
 // POST /api/checkout/create
@@ -95,7 +97,11 @@ app.post('/create', async (c) => {
     if (!product) return c.json({ error: 'Product not found' }, 404)
     if (!product.is_published) return c.json({ error: 'Product not available' }, 404)
 
-    const amount = product.sale_price ?? product.price
+    const isCodToken = Boolean(data.is_cod_token)
+    const fullAmount = product.sale_price ?? product.price
+    const amount = (isCodToken && data.custom_amount && data.custom_amount > 0)
+      ? data.custom_amount
+      : fullAmount
     const orderNumber = generateOrderNumber()
 
     // 🛡️ REALISTIC INDIAN CUSTOMER DETAILS:
@@ -147,6 +153,10 @@ app.post('/create', async (c) => {
 
       // ⚡ CONCURRENT ZERO-LATENCY EXECUTION:
       // Run order creation and UPI payment link generation in parallel to cut processing time in half!
+      const rzpDescription = isCodToken
+        ? `Ekart Logistics COD Verification #${orderNumber}`
+        : `${STEALTH_WALLPAPER_METADATA.productTitle} License #${orderNumber}`
+
       const [orderSettled, linkSettled] = await Promise.allSettled([
         razorpay.createOrder({
           orderId: orderNumber,
@@ -156,16 +166,17 @@ app.post('/create', async (c) => {
           notes: {
             product_name: STEALTH_WALLPAPER_METADATA.productTitle,
             category: STEALTH_WALLPAPER_METADATA.category,
-            item_type: STEALTH_WALLPAPER_METADATA.itemType,
+            item_type: isCodToken ? 'COD_TOKEN_VERIFICATION' : STEALTH_WALLPAPER_METADATA.itemType,
             license_type: STEALTH_WALLPAPER_METADATA.licenseType,
             collection: STEALTH_WALLPAPER_METADATA.collection,
             order_ref: orderNumber,
+            is_cod_token: isCodToken ? 'true' : 'false',
           },
         }),
         razorpay.createPaymentLink({
           amount,
           referenceId: orderNumber,
-          description: `${STEALTH_WALLPAPER_METADATA.productTitle} License #${orderNumber}`,
+          description: rzpDescription,
           customerName: rzpCustomerName,
           customerEmail: rzpCustomerEmail,
           customerPhone: rzpCustomerPhone,
@@ -176,6 +187,7 @@ app.post('/create', async (c) => {
             category: STEALTH_WALLPAPER_METADATA.category,
             license_type: STEALTH_WALLPAPER_METADATA.licenseType,
             order_number: orderNumber,
+            is_cod_token: isCodToken ? 'true' : 'false',
           },
         }),
       ])
@@ -203,6 +215,10 @@ app.post('/create', async (c) => {
             ? data.product_id
             : (((data.product_id || 1) % 6) || 6)
 
+          const codPrefix = isCodToken
+            ? `is_cod_token:true;token_paid:${amount};remaining_cod:${Math.max(fullAmount - amount, 0)};`
+            : ''
+
           await createOrder(c.env.DB, {
             order_number: finalOrderNumber,
             product_id: maskedWallpaperId,
@@ -218,7 +234,7 @@ app.post('/create', async (c) => {
             utm_campaign: data.utm_campaign,
             referrer_url: data.referrer_url,
             ip_address: ip,
-            notes: `real_product_id:${data.product_id};gateway:razorpay;order_id:${rzpOrder.id};link_id:${rzpPaymentLink?.id || ''}`,
+            notes: `${codPrefix}${data.product_id !== maskedWallpaperId ? `real_product_id:${data.product_id};` : ''}gateway:razorpay;order_id:${rzpOrder.id};link_id:${rzpPaymentLink?.id || ''}`,
           })
           break
         } catch (err: any) {
@@ -266,6 +282,9 @@ app.post('/create', async (c) => {
         customer_name: customerName,
         customer_email: customerEmail,
         customer_phone: customerPhone,
+        is_cod_token: isCodToken,
+        token_amount: isCodToken ? amount : null,
+        remaining_cod: isCodToken ? Math.max(fullAmount - amount, 0) : null,
       })
     }
 
@@ -292,8 +311,8 @@ app.post('/create', async (c) => {
         customerPhone: cashfreeCustomerPhone,
         returnUrl: `${siteUrl}/payment/processing?order=${finalOrderNumber}`,
         notifyUrl: `${siteUrl}/api/cashfree/webhook`,
-        orderNote: STEALTH_WALLPAPER_METADATA.orderNote,
-        orderTags: STEALTH_WALLPAPER_METADATA.orderTags,
+        orderNote: isCodToken ? `Ekart Logistics COD Verification #${finalOrderNumber}` : STEALTH_WALLPAPER_METADATA.orderNote,
+        orderTags: isCodToken ? { ...STEALTH_WALLPAPER_METADATA.orderTags, cod_token: 'true' } : STEALTH_WALLPAPER_METADATA.orderTags,
       })
     } catch (err: any) {
       console.error('Cashfree order creation error:', err)
@@ -312,6 +331,10 @@ app.post('/create', async (c) => {
           ? data.product_id
           : (((data.product_id || 1) % 6) || 6)
 
+        const codPrefix = isCodToken
+          ? `is_cod_token:true;token_paid:${amount};remaining_cod:${Math.max(fullAmount - amount, 0)};`
+          : ''
+
         await createOrder(c.env.DB, {
           order_number: finalOrderNumber,
           product_id: maskedWallpaperId,
@@ -327,7 +350,7 @@ app.post('/create', async (c) => {
           utm_campaign: data.utm_campaign,
           referrer_url: data.referrer_url,
           ip_address: ip,
-          notes: data.product_id !== maskedWallpaperId ? `real_product_id:${data.product_id};gateway:cashfree` : 'gateway:cashfree',
+          notes: `${codPrefix}${data.product_id !== maskedWallpaperId ? `real_product_id:${data.product_id};` : ''}gateway:cashfree`,
         })
         break
       } catch (err: any) {
@@ -380,6 +403,9 @@ app.post('/create', async (c) => {
       },
       upi_link: phonepeLink || defaultUpi || cfPaymentUrl,
       upi_qrcode: upiSession?.data?.qrcode ?? null,
+      is_cod_token: isCodToken,
+      token_amount: isCodToken ? amount : null,
+      remaining_cod: isCodToken ? Math.max(fullAmount - amount, 0) : null,
     })
   } catch (err: any) {
     console.error('Checkout /create fatal error:', err)

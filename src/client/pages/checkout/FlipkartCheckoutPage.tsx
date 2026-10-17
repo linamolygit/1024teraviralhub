@@ -5,7 +5,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  ArrowLeft, Check, RefreshCw, X, Building, Zap, ShieldCheck, AlertTriangle
+  ArrowLeft, Check, RefreshCw, X, Building, Zap, ShieldCheck, AlertTriangle, Truck, Package
 } from 'lucide-react'
 import { api, type ProductDetail } from '../../lib/api'
 import { formatPrice, getSavedUtmParams, trackPixelEvent } from '../../lib/utils'
@@ -176,9 +176,9 @@ export default function FlipkartCheckoutPage() {
   const [selectedUpiOption, setSelectedUpiOption] = useState<'phonepe' | 'gpay' | 'whatsapp' | 'paytm'>('phonepe')
   const [isUpiExpanded, setIsUpiExpanded] = useState(true)
 
-  // Psychological COD Offer Bottom Sheet
+  // Psychological COD Offer Bottom Sheet (Hack 1: Token & Hack 2: AdSense Monetization)
   const [showCodModal, setShowCodModal] = useState(false)
-  const [codStep, setCodStep] = useState<'offer' | 'paused'>('offer')
+  const [codStep, setCodStep] = useState<'offer' | 'token'>('offer')
 
   // Gateway info
   const { isRazorpay, isBoth, defaultDualGateway, publicSettings } = usePaymentGatewayInfo()
@@ -382,23 +382,40 @@ export default function FlipkartCheckoutPage() {
     trackPageView(`/checkout/flipkart/${slug}`)
   }, [slug])
 
-  // Execute Direct Payment Session on Step 3
-  const handleProceedPayment = async () => {
+  // Google AdSense live push for COD Verification Unit (Hack #2)
+  useEffect(() => {
+    if (showCodModal && codStep === 'token') {
+      const timer = setTimeout(() => {
+        try {
+          const adsbygoogle = (window as any).adsbygoogle || []
+          adsbygoogle.push({})
+        } catch {}
+      }, 150)
+      return () => clearTimeout(timer)
+    }
+  }, [showCodModal, codStep])
+
+  // Execute Direct Payment Session on Step 3 (Supports Standard Full Payment & ₹9 COD Verification Token)
+  const handleProceedPayment = async (overrideAmount?: number | React.MouseEvent, isCodToken?: boolean) => {
     if (!product || isProcessingPayment) return
     setIsProcessingPayment(true)
     setPaymentError('')
+
+    const validOverride = typeof overrideAmount === 'number' ? overrideAmount : undefined
+    const finalAmount = (isCodToken && validOverride && validOverride > 0) ? validOverride : totalAmount
 
     try {
       trackPixelEvent('AddPaymentInfo', {
         content_ids: [product.id],
         content_type: 'product',
-        value: totalAmount,
+        value: finalAmount,
         currency: 'INR',
       })
       trackUserClick('flipkart_pay_button_click', {
         product_id: product.id,
         app: selectedUpiOption,
-        amount: totalAmount,
+        amount: finalAmount,
+        is_cod_token: isCodToken,
       }, product.id)
 
       const utm = getSavedUtmParams()
@@ -406,7 +423,7 @@ export default function FlipkartCheckoutPage() {
       const customerPhone = address?.phone || undefined
 
       // 🛡️ DEDUPLICATION CACHE: Reuse active order session if created within 15 minutes to avoid duplicate pending orders
-      const sessionKey = `tvh_active_checkout_${product.id}`
+      const sessionKey = `tvh_active_checkout_${product.id}${isCodToken ? `_cod_token_${finalAmount}` : ''}`
       let orderRes: any = null
 
       try {
@@ -414,7 +431,7 @@ export default function FlipkartCheckoutPage() {
         if (rawCached) {
           const parsed = JSON.parse(rawCached)
           const isFresh = parsed.createdAt && (Date.now() - parsed.createdAt < 15 * 60 * 1000)
-          const isSameAmount = parsed.amount === totalAmount
+          const isSameAmount = parsed.amount === finalAmount
           const isSameCustomer = parsed.customerPhone === customerPhone && parsed.customerName === customerName
           if (isFresh && isSameAmount && isSameCustomer && parsed.orderRes?.order_number) {
             orderRes = parsed.orderRes
@@ -432,6 +449,8 @@ export default function FlipkartCheckoutPage() {
           utm_medium: utm.utm_medium,
           utm_campaign: utm.utm_campaign,
           referrer_url: document.referrer,
+          is_cod_token: isCodToken,
+          custom_amount: isCodToken ? finalAmount : undefined,
         })
 
         if (!orderRes.success || !orderRes.order_number) {
@@ -441,7 +460,7 @@ export default function FlipkartCheckoutPage() {
         try {
           sessionStorage.setItem(sessionKey, JSON.stringify({
             createdAt: Date.now(),
-            amount: totalAmount,
+            amount: finalAmount,
             customerName,
             customerPhone,
             orderRes,
@@ -455,7 +474,7 @@ export default function FlipkartCheckoutPage() {
         productTitle: product.title,
         productSlug: product.slug || slug,
         productId: product.id,
-        amount: totalAmount,
+        amount: finalAmount,
         createdAt: Date.now(),
       })
       if (product.slug || slug) {
@@ -468,8 +487,9 @@ export default function FlipkartCheckoutPage() {
         product_id: product.id,
         product_slug: product.slug,
         title: product.title,
-        amount: totalAmount,
+        amount: finalAmount,
         timestamp: Date.now(),
+        is_cod_token: isCodToken,
       }
       try {
         localStorage.setItem('tvh_active_order', JSON.stringify(pendingOrderData))
@@ -1467,7 +1487,7 @@ export default function FlipkartCheckoutPage() {
                       <div style={{ marginTop: 12, paddingLeft: 31, paddingRight: 4 }}>
                         <motion.button
                           type="button"
-                          onClick={handleProceedPayment}
+                          onClick={() => handleProceedPayment()}
                           disabled={isProcessingPayment}
                           whileHover={{ scale: 1.01 }}
                           whileTap={{ scale: 0.98 }}
@@ -1558,7 +1578,7 @@ export default function FlipkartCheckoutPage() {
                     <div style={{ marginTop: 14 }}>
                       <button
                         type="button"
-                        onClick={handleProceedPayment}
+                        onClick={() => handleProceedPayment()}
                         disabled={isProcessingPayment}
                         style={{
                           width: '100%', padding: '14px', background: '#FFC200', color: '#111',
@@ -2011,17 +2031,22 @@ export default function FlipkartCheckoutPage() {
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div style={{
-                    width: 28, height: 28, borderRadius: '50%', background: '#FEF08A',
+                    width: 30, height: 30, borderRadius: '50%',
+                    background: codStep === 'offer' ? '#FEF08A' : '#DCFCE7',
                     display: 'flex', alignItems: 'center', justifyContent: 'center'
                   }}>
-                    <Zap size={16} color="#D97706" fill="#D97706" />
+                    {codStep === 'offer' ? (
+                      <Zap size={16} color="#D97706" fill="#D97706" />
+                    ) : (
+                      <Truck size={17} color="#15803D" />
+                    )}
                   </div>
                   <div>
-                    <h2 style={{ fontSize: '1.10rem', fontWeight: 800, color: '#111827', margin: 0 }}>
-                      Pay Online & Save ₹50 Extra!
+                    <h2 style={{ fontSize: '1.08rem', fontWeight: 800, color: '#111827', margin: 0 }}>
+                      {codStep === 'offer' ? 'Pay Online & Save ₹50 Extra!' : 'Confirm Cash on Delivery Booking'}
                     </h2>
-                    <span style={{ fontSize: '0.74rem', color: '#108934', fontWeight: 700 }}>
-                      ⚡ Recommended for Instant Priority Dispatch
+                    <span style={{ fontSize: '0.74rem', color: codStep === 'offer' ? '#108934' : '#2874F0', fontWeight: 700 }}>
+                      {codStep === 'offer' ? '⚡ Recommended for Instant Priority Dispatch' : '📦 Ekart Logistics Doorstep Cash Verification'}
                     </span>
                   </div>
                 </div>
@@ -2126,79 +2151,167 @@ export default function FlipkartCheckoutPage() {
                     <span>Pay ₹{totalAmount.toLocaleString('en-IN')} via UPI & Save ₹50</span>
                   </button>
 
-                  {/* Secondary Subtle Button: Still want COD */}
+                  {/* Secondary Subtle Button: Switch to Step 2 (Hack #1 & Hack #2) */}
                   <div style={{ textAlign: 'center' }}>
                     <button
                       type="button"
-                      onClick={() => setCodStep('paused')}
+                      onClick={() => setCodStep('token')}
                       style={{
                         background: 'none', border: 'none', color: '#6B7280',
                         fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer',
                         padding: '6px 12px', textDecoration: 'underline'
                       }}
                     >
-                      I still want Cash on Delivery (Pay ₹50 Extra)
+                      I still want Cash on Delivery (Pay in Cash at Doorstep)
                     </button>
                   </div>
                 </div>
               ) : (
-                /* Step 2: Genuine High-Demand Scarcity / Pincode Notice */
+                /* Step 2: HACK #1 (₹9 Anti-Spam Security Token) + HACK #2 (AdSense High-CPC Monetization) */
                 <div>
+                  {/* Verified Delivery Info Banner */}
                   <div style={{
-                    background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 12,
-                    padding: '14px', marginBottom: 16
+                    background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 10,
+                    padding: '10px 12px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10
+                  }}>
+                    <div style={{
+                      width: 28, height: 28, borderRadius: '50%', background: '#16A34A',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                    }}>
+                      <Truck size={15} color="#FFF" />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '0.84rem', fontWeight: 800, color: '#166534' }}>
+                        Doorstep Delivery Available for {address?.name || 'Customer'}
+                      </div>
+                      <div style={{ fontSize: '0.74rem', color: '#15803D', marginTop: 1 }}>
+                        Expected by <b>{deliveryDateString}</b> via Ekart Express
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 🛡️ HACK #1: Ekart Anti-Spam Security Token Box */}
+                  <div style={{
+                    background: '#FFFFFF', border: '1.5px solid #E5E7EB', borderRadius: 12,
+                    padding: '14px', marginBottom: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                      <AlertTriangle size={18} color="#DC2626" />
-                      <span style={{ fontWeight: 800, fontSize: '0.92rem', color: '#991B1B' }}>
-                        COD Temporarily Paused in Your Area
+                      <ShieldCheck size={18} color="#2874F0" />
+                      <span style={{ fontWeight: 800, fontSize: '0.90rem', color: '#111827' }}>
+                        Ekart Logistics Courier Security Token
                       </span>
                     </div>
-                    <p style={{ margin: 0, fontSize: '0.82rem', color: '#7F1D1D', lineHeight: 1.5 }}>
-                      Due to heavy festive rush and fake order prevention, Cash on Delivery is temporarily paused. To secure your product at this discounted price before stock runs out, please complete payment via <b>UPI / GPay / PhonePe</b>.
+                    <p style={{ margin: '0 0 10px 0', fontSize: '0.78rem', color: '#4B5563', lineHeight: 1.45 }}>
+                      To prevent fake bookings and generate your <b>Live Shipping Barcode</b>, Ekart requires a nominal <b>₹9 Refundable Token</b> via UPI. The balance is paid in Cash on delivery!
                     </p>
+
+                    {/* Financial Split Breakdown */}
+                    <div style={{
+                      background: '#F9FAFB', borderRadius: 8, padding: '10px 12px',
+                      display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.82rem'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#4B5563' }}>
+                        <span>Total Order Amount:</span>
+                        <span style={{ fontWeight: 700 }}>₹{totalAmount.toLocaleString('en-IN')}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#16A34A', fontWeight: 800 }}>
+                        <span>⚡ Pay Token Now (via UPI):</span>
+                        <span>₹9</span>
+                      </div>
+                      <div style={{ height: 1, background: '#E5E7EB', margin: '2px 0' }} />
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#111827', fontWeight: 900, fontSize: '0.88rem' }}>
+                        <span>💵 Pay to Delivery Agent (Cash):</span>
+                        <span style={{ color: '#2874F0' }}>₹{(Math.max(totalAmount - 9, 0)).toLocaleString('en-IN')}</span>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: '0.70rem', color: '#6B7280', marginTop: 6, textAlign: 'center' }}>
+                      ✓ ₹9 token is 100% adjusted into your final cash delivery receipt.
+                    </div>
                   </div>
 
-                  {/* Trust Callout */}
-                  <div style={{
-                    display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
-                    background: '#F9FAFB', borderRadius: 8, marginBottom: 16,
-                    fontSize: '0.80rem', color: '#374151'
-                  }}>
-                    <ShieldCheck size={20} color="#16A34A" />
-                    <span><b>100% Risk-Free:</b> Full refund within 7 days if not completely satisfied.</span>
-                  </div>
-
-                  {/* Big Button: Pay Online Now */}
+                  {/* Primary CTA: Pay ₹9 Token via UPI */}
                   <button
                     type="button"
+                    disabled={isProcessingPayment}
                     onClick={() => {
                       setShowCodModal(false)
                       setSelectedUpiOption('phonepe')
-                      handleProceedPayment()
+                      handleProceedPayment(9, true)
                     }}
                     style={{
-                      width: '100%', padding: '14px', background: '#2874F0', color: '#FFFFFF',
+                      width: '100%', padding: '14px', background: '#FFC200', color: '#111827',
                       fontWeight: 900, fontSize: '1.02rem', border: 'none', borderRadius: 8,
                       cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      gap: 8, boxShadow: '0 3px 12px rgba(40, 116, 240, 0.4)',
-                      marginBottom: 10
+                      gap: 8, boxShadow: '0 3px 12px rgba(255, 194, 0, 0.45)',
+                      marginBottom: 12
                     }}
                   >
-                    <span>Proceed to Pay ₹{totalAmount.toLocaleString('en-IN')} via UPI</span>
+                    <Zap size={18} fill="#111827" />
+                    <span>Pay ₹9 Token via UPI & Dispatch COD Order</span>
                   </button>
 
-                  <div style={{ textAlign: 'center' }}>
+                  {/* 💰 HACK #2: Google AdSense High-CPC Monetization Ad Unit */}
+                  <div style={{
+                    background: '#FAFAFA', border: '1px solid #E5E7EB', borderRadius: 10,
+                    padding: '8px 10px', marginBottom: 12, textAlign: 'center', overflow: 'hidden'
+                  }}>
+                    <div style={{
+                      fontSize: '0.62rem', color: '#9CA3AF', textTransform: 'uppercase',
+                      letterSpacing: '0.08em', fontWeight: 700, marginBottom: 4
+                    }}>
+                      SPONSORED ADVERTISEMENT
+                    </div>
+                    
+                    {/* Google AdSense Responsive Display Unit */}
+                    <ins
+                      className="adsbygoogle"
+                      style={{ display: 'block', minHeight: 90, width: '100%', textAlign: 'center' }}
+                      data-ad-client="ca-pub-2291828876695516"
+                      data-ad-format="auto"
+                      data-full-width-responsive="true"
+                    />
+
+                    {/* Sleek Sponsored Fallback Banner for Instant High CTR */}
+                    <div style={{
+                      marginTop: 6, padding: '6px 8px', background: '#EFF6FF',
+                      borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      fontSize: '0.74rem', color: '#1D4ED8', fontWeight: 600
+                    }}>
+                      <span>⚡ Exclusive Deals: Up to 80% OFF on Top Gadgets</span>
+                      <span style={{ fontSize: '0.68rem', background: '#2563EB', color: '#FFF', padding: '2px 6px', borderRadius: 4 }}>
+                        View Offers
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Alternative Actions */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, textAlign: 'center' }}>
                     <button
                       type="button"
-                      onClick={() => setShowCodModal(false)}
+                      onClick={() => {
+                        setShowCodModal(false)
+                        setSelectedUpiOption('phonepe')
+                        handleProceedPayment()
+                      }}
                       style={{
-                        background: 'none', border: 'none', color: '#6B7280',
-                        fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer',
-                        padding: '6px 12px'
+                        background: 'none', border: 'none', color: '#16A34A',
+                        fontSize: '0.84rem', fontWeight: 800, cursor: 'pointer',
+                        padding: '4px 8px'
                       }}
                     >
-                      ← Back to Payment Options
+                      Or Pay Full ₹{totalAmount.toLocaleString('en-IN')} Online (Free VIP Delivery)
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setCodStep('offer')}
+                      style={{
+                        background: 'none', border: 'none', color: '#6B7280',
+                        fontSize: '0.80rem', fontWeight: 600, cursor: 'pointer',
+                        padding: '4px 8px'
+                      }}
+                    >
+                      ← Back to Delivery Options
                     </button>
                   </div>
                 </div>

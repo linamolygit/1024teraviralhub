@@ -78,6 +78,8 @@ export const api = {
       utm_medium?: string
       utm_campaign?: string
       referrer_url?: string
+      is_cod_token?: boolean
+      custom_amount?: number
     }) => req<{
       success: boolean
       gateway?: 'cashfree' | 'razorpay' | string
@@ -85,6 +87,9 @@ export const api = {
       payment_session_id?: string
       amount: number
       currency?: string
+      is_cod_token?: boolean
+      token_amount?: number | null
+      remaining_cod?: number | null
       razorpay_key_id?: string
       razorpay_order_id?: string
       razorpay_payment_link_id?: string | null
