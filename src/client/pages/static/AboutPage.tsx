@@ -31,8 +31,12 @@ export default function AboutPage() {
             description: siteTagline || 'A digital platform focused on providing accessible digital products and creative resources.',
             publisher: {
               '@type': 'Organization',
-              name: 'RISHAV SRIVASTAWA (Rishav Media)',
-              legalName: 'RISHAV SRIVASTAWA',
+              name: 'Rishav Media',
+              legalName: 'Rishav Media (Proprietor: Rishav Srivastawa)',
+              founder: {
+                '@type': 'Person',
+                name: 'Rishav Srivastawa',
+              },
               alternateName: siteName,
               email: 'rishavsrivastawa9162@gmail.com',
               telephone: '+919801947855',

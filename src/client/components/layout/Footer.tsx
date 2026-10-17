@@ -127,8 +127,11 @@ export default function Footer() {
               </div>
               <div>
                 <span style={{ color: '#9CA3AF' }}>Legal Entity:</span>{' '}
-                <strong style={{ color: '#FFFFFF' }}>{BUSINESS_CONFIG.legalName}</strong>{' '}
-                <span style={{ color: '#FFD200', fontSize: '0.72rem' }}>(Proprietor, Rishav Media)</span>
+                <strong style={{ color: '#FFFFFF' }}>{BUSINESS_CONFIG.legalName}</strong>
+              </div>
+              <div>
+                <span style={{ color: '#9CA3AF' }}>Proprietor:</span>{' '}
+                <strong style={{ color: '#FFD200' }}>{BUSINESS_CONFIG.proprietor}</strong>
               </div>
               <div>
                 <span style={{ color: '#9CA3AF' }}>Udyam Reg. No.:</span>{' '}
@@ -141,8 +144,12 @@ export default function Footer() {
                 <a href={`tel:${BUSINESS_CONFIG.phone}`} style={{ color: '#93C5FD', textDecoration: 'none', fontWeight: 600 }}>{BUSINESS_CONFIG.phone}</a>
               </div>
               <div>
-                <span style={{ color: '#9CA3AF' }}>Email:</span>{' '}
+                <span style={{ color: '#9CA3AF' }}>Support:</span>{' '}
                 <a href={`mailto:${BUSINESS_CONFIG.supportEmail}`} style={{ color: '#93C5FD', textDecoration: 'none', fontWeight: 600 }}>{BUSINESS_CONFIG.supportEmail}</a>
+              </div>
+              <div>
+                <span style={{ color: '#9CA3AF' }}>Compliance:</span>{' '}
+                <a href={`mailto:${BUSINESS_CONFIG.complianceEmail}`} style={{ color: '#93C5FD', textDecoration: 'none', fontWeight: 600 }}>{BUSINESS_CONFIG.complianceEmail}</a>
               </div>
               <div style={{ fontSize: '0.72rem', color: '#9CA3AF', marginTop: '6px', lineHeight: 1.45 }}>
                 <span style={{ color: '#D1D5DB' }}>Office:</span> {BUSINESS_CONFIG.registeredOffice}
@@ -405,14 +412,14 @@ export default function Footer() {
           <p style={{ color: '#9CA3AF', fontSize: '0.78125rem', lineHeight: 1.6, margin: '0 0 8px' }}>
             © {new Date().getFullYear()} <strong>{siteName || BUSINESS_CONFIG.brandName}</strong>. All rights reserved.
             {' • '}
-            Owned, operated and managed by <strong>{BUSINESS_CONFIG.legalName}</strong> (Proprietor: Rishav Media | Govt. of India MSME / Udyam Reg. No.:{' '}
+            Owned, operated and managed by <strong>{BUSINESS_CONFIG.legalName}</strong> (Proprietor: {BUSINESS_CONFIG.proprietor} | Govt. of India MSME / Udyam Reg. No.:{' '}
             <strong style={{ color: '#FFD200', fontFamily: 'monospace' }}>{BUSINESS_CONFIG.udyamRegistration}</strong>).
           </p>
           <p style={{ color: '#9CA3AF', fontSize: '0.735rem', margin: '0 0 6px', lineHeight: 1.5 }}>
-            Direct Compliance Helpline: <a href={`tel:${BUSINESS_CONFIG.phone}`} style={{ color: '#FFD200', textDecoration: 'none', fontWeight: 700 }}>{BUSINESS_CONFIG.phone}</a> | Email: <a href={`mailto:${BUSINESS_CONFIG.supportEmail}`} style={{ color: '#FFD200', textDecoration: 'none', fontWeight: 700 }}>{BUSINESS_CONFIG.supportEmail}</a>
+            Direct Compliance Helpline: <a href={`tel:${BUSINESS_CONFIG.phone}`} style={{ color: '#FFD200', textDecoration: 'none', fontWeight: 700 }}>{BUSINESS_CONFIG.phone}</a> | Email: <a href={`mailto:${BUSINESS_CONFIG.complianceEmail}`} style={{ color: '#FFD200', textDecoration: 'none', fontWeight: 700 }}>{BUSINESS_CONFIG.complianceEmail}</a>
           </p>
           <p style={{ color: '#6B7280', fontSize: '0.71875rem', margin: 0, lineHeight: 1.5 }}>
-            All commercial contracts, digital fulfillment, and payment gateway transactions are processed under the registered legal entity <strong>{BUSINESS_CONFIG.legalName}</strong>.
+            All commercial contracts, digital fulfillment, and payment gateway transactions are processed under the registered legal entity <strong>{BUSINESS_CONFIG.legalName}</strong> (Proprietor: {BUSINESS_CONFIG.proprietor}).
             All digital downloads are subject to our verified{' '}
             {legalPages.termsConditions && (
               <><Link to="/terms-and-conditions" style={{ color: '#9CA3AF', textDecoration: 'underline' }}>Terms & Conditions</Link>,{' '}</>

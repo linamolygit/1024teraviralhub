@@ -99,7 +99,7 @@ export default function RefundPage() {
               1. Digital Products Policy Overview
             </h2>
             <p>
-              At <strong>{siteName}</strong> (owned and operated by <strong>{BUSINESS_CONFIG.legalName}</strong>, Proprietor: Rishav Media, Udyam Registration No: <strong>{BUSINESS_CONFIG.udyamRegistration}</strong>), we offer non-tangible, irrevocable digital media goods. Because digital files are delivered immediately upon payment, all transactions are generally considered final once a download token is generated.
+              At <strong>{siteName}</strong> (owned and operated by <strong>{BUSINESS_CONFIG.legalName}</strong>, Proprietor: <strong>{BUSINESS_CONFIG.proprietor}</strong>, Udyam Registration No: <strong>{BUSINESS_CONFIG.udyamRegistration}</strong>), we offer non-tangible, irrevocable digital media goods. Because digital files are delivered immediately upon payment, all transactions are generally considered final once a download token is generated.
             </p>
             <p>
               However, we maintain a customer-friendly refund policy to protect buyers in cases of technical defects, billing anomalies, or delivery failures.
@@ -181,11 +181,12 @@ export default function RefundPage() {
               6. Registered Merchant Entity Contact
             </h2>
             <div style={{ background: 'var(--bg-elevated)', padding: '16px 20px', borderRadius: 10, fontSize: '0.85rem' }}>
-              <div><strong>Merchant Legal Name:</strong> {BUSINESS_CONFIG.legalName} (Proprietor, Rishav Media)</div>
-              <div><strong>Firm Name:</strong> {BUSINESS_CONFIG.tradeName}</div>
+              <div><strong>Merchant Legal Entity:</strong> {BUSINESS_CONFIG.legalName}</div>
+              <div><strong>Proprietor (Legal Name):</strong> {BUSINESS_CONFIG.proprietor}</div>
               <div><strong>Registration:</strong> {BUSINESS_CONFIG.udyamRegistration} ({BUSINESS_CONFIG.registrationType})</div>
               <div><strong>Support Helpline:</strong> <a href={`tel:${BUSINESS_CONFIG.phone}`} style={{ color: 'inherit' }}>{BUSINESS_CONFIG.phone}</a></div>
               <div><strong>Customer Support Email:</strong> <a href={`mailto:${BUSINESS_CONFIG.supportEmail}`} style={{ color: 'inherit' }}>{BUSINESS_CONFIG.supportEmail}</a></div>
+              <div><strong>Compliance Email:</strong> <a href={`mailto:${BUSINESS_CONFIG.complianceEmail}`} style={{ color: 'inherit' }}>{BUSINESS_CONFIG.complianceEmail}</a></div>
               <div><strong>Support Working Hours:</strong> {BUSINESS_CONFIG.supportHours}</div>
             </div>
           </section>

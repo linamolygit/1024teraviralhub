@@ -47,7 +47,7 @@ export default function PrivacyPage() {
               1. Data Controller & Business Identity
             </h2>
             <p>
-              This Privacy Policy explains how <strong>{BUSINESS_CONFIG.legalName}</strong> (Proprietor, Rishav Media | Govt. of India MSME / Udyam Registration No: <strong style={{ fontFamily: 'monospace', color: 'var(--brand-purple-light)' }}>{BUSINESS_CONFIG.udyamRegistration}</strong>), operating under the trade name <strong>{BUSINESS_CONFIG.tradeName}</strong> ({siteName || BUSINESS_CONFIG.brandName}), collects, processes, and protects your personal data when you visit <strong>1024teraviralhub.com</strong> or purchase digital assets.
+              This Privacy Policy explains how <strong>{BUSINESS_CONFIG.legalName}</strong> (Proprietor: {BUSINESS_CONFIG.proprietor} | Govt. of India MSME / Udyam Registration No: <strong style={{ fontFamily: 'monospace', color: 'var(--brand-purple-light)' }}>{BUSINESS_CONFIG.udyamRegistration}</strong>), operating under the trade/brand name <strong>{siteName || BUSINESS_CONFIG.brandName}</strong>, collects, processes, and protects your personal data when you visit <strong>1024teraviralhub.com</strong> or purchase digital assets.
             </p>
           </section>
 
@@ -107,11 +107,12 @@ export default function PrivacyPage() {
             </p>
             <div style={{ background: 'var(--bg-elevated)', padding: '16px 20px', borderRadius: 10, fontSize: '0.85rem' }}>
               <div><strong>Designation:</strong> {BUSINESS_CONFIG.grievanceOfficer}</div>
-              <div><strong>Organization & Legal Entity:</strong> {BUSINESS_CONFIG.legalName} (Proprietor, Rishav Media)</div>
+              <div><strong>Organization / Entity:</strong> {BUSINESS_CONFIG.legalName}</div>
+              <div><strong>Proprietor (Legal Name):</strong> {BUSINESS_CONFIG.proprietor}</div>
               <div><strong>Physical Office:</strong> {BUSINESS_CONFIG.registeredOffice}</div>
               <div><strong>Udyam Registration:</strong> {BUSINESS_CONFIG.udyamRegistration}</div>
-              <div><strong>Helpline:</strong> <a href={`tel:${BUSINESS_CONFIG.phone}`} style={{ color: 'inherit' }}>{BUSINESS_CONFIG.phone}</a></div>
-              <div><strong>Email:</strong> <a href={`mailto:${BUSINESS_CONFIG.grievanceEmail}`} style={{ color: 'inherit' }}>{BUSINESS_CONFIG.grievanceEmail}</a></div>
+              <div><strong>Helpline Phone:</strong> <a href={`tel:${BUSINESS_CONFIG.phone}`} style={{ color: 'inherit' }}>{BUSINESS_CONFIG.phone}</a></div>
+              <div><strong>Grievance Email:</strong> <a href={`mailto:${BUSINESS_CONFIG.grievanceEmail}`} style={{ color: 'inherit' }}>{BUSINESS_CONFIG.grievanceEmail}</a></div>
               <div><strong>Jurisdiction:</strong> {BUSINESS_CONFIG.operatingState}</div>
             </div>
           </section>

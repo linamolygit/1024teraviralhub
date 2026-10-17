@@ -36,24 +36,28 @@ export default function ContactInfoSidebar() {
           </div>
           <div>
             <div style={{ fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#1162F2' }}>
-              Registered Legal Entity
+              Registered Business Entity
             </div>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 900, color: 'var(--text-primary)', margin: 0 }}>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 900, color: 'var(--text-primary)', margin: 0 }}>
               {BUSINESS_CONFIG.legalName}
             </h3>
-            <div style={{ fontSize: '0.78rem', color: '#D97706', fontWeight: 700 }}>
-              Proprietor, Rishav Media
+            <div style={{ fontSize: '0.8rem', color: '#D97706', fontWeight: 700, marginTop: '2px' }}>
+              Proprietor: {BUSINESS_CONFIG.proprietor}
             </div>
           </div>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
           <div>
-            <span style={{ color: 'var(--text-muted)' }}>Trading / Firm Name:</span>{' '}
-            <strong style={{ color: 'var(--text-primary)' }}>{BUSINESS_CONFIG.tradeName}</strong>
+            <span style={{ color: 'var(--text-muted)' }}>Business Name:</span>{' '}
+            <strong style={{ color: 'var(--text-primary)' }}>{BUSINESS_CONFIG.legalName}</strong>
           </div>
           <div>
-            <span style={{ color: 'var(--text-muted)' }}>Brand / Platform:</span>{' '}
+            <span style={{ color: 'var(--text-muted)' }}>Proprietor (Legal Name):</span>{' '}
+            <strong style={{ color: 'var(--text-primary)' }}>{BUSINESS_CONFIG.proprietor}</strong>
+          </div>
+          <div>
+            <span style={{ color: 'var(--text-muted)' }}>Trading / Brand Name:</span>{' '}
             <strong style={{ color: 'var(--text-primary)' }}>{siteName || BUSINESS_CONFIG.brandName}</strong>
           </div>
           <div>
@@ -66,12 +70,21 @@ export default function ContactInfoSidebar() {
             </a>
           </div>
           <div>
-            <span style={{ color: 'var(--text-muted)' }}>Official Email:</span>{' '}
+            <span style={{ color: 'var(--text-muted)' }}>Support Email:</span>{' '}
             <a
               href={`mailto:${BUSINESS_CONFIG.supportEmail}`}
               style={{ color: '#1162F2', fontWeight: 700, textDecoration: 'none' }}
             >
               {BUSINESS_CONFIG.supportEmail}
+            </a>
+          </div>
+          <div>
+            <span style={{ color: 'var(--text-muted)' }}>Compliance / Direct Email:</span>{' '}
+            <a
+              href={`mailto:${BUSINESS_CONFIG.complianceEmail}`}
+              style={{ color: '#1162F2', fontWeight: 700, textDecoration: 'none' }}
+            >
+              {BUSINESS_CONFIG.complianceEmail}
             </a>
           </div>
           <div>

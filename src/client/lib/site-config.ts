@@ -38,21 +38,22 @@ export interface SiteConfig {
  * Used for Cashfree, Payment Gateway, and Legal Verification
  */
 export const BUSINESS_CONFIG = {
-  legalName: 'RISHAV SRIVASTAWA',
-  tradeName: 'Rishav Media',
-  registeredEntity: 'RISHAV SRIVASTAWA (Proprietor, Rishav Media)',
+  legalName: 'RISHAV MEDIA',
+  businessName: 'RISHAV MEDIA',
+  proprietor: 'RISHAV SRIVASTAWA',
+  registeredEntity: 'RISHAV MEDIA (Proprietor: RISHAV SRIVASTAWA)',
   brandName: '1024TeraViralHub',
   registeredOffice: 'Flat No. 25, Rishav Media Office, Block Road, Ghorasahan, Motihari, Purbi Champaran, Bihar - 845303, India',
   udyamRegistration: 'UDYAM-BR-11-0107325',
-  registrationType: 'Govt. of India MSME / Udyam Registered Micro Enterprise (Proprietor: RISHAV SRIVASTAWA)',
+  registrationType: 'Govt. of India MSME / Udyam Registered Micro Enterprise',
   operatingState: 'Bihar, India',
   city: 'Motihari, Purbi Champaran',
   pincode: '845303',
   phone: '+91 9801947855',
-  supportEmail: 'rishavsrivastawa9162@gmail.com',
-  secondaryEmail: 'support@1024teraviralhub.com',
+  supportEmail: 'support@1024teraviralhub.com',
+  complianceEmail: 'rishavsrivastawa9162@gmail.com',
   supportHours: 'Monday – Saturday: 10:00 AM – 6:00 PM IST',
-  grievanceOfficer: 'RISHAV SRIVASTAWA (Nodal Grievance Redressal Officer)',
+  grievanceOfficer: 'RISHAV SRIVASTAWA (Nodal Grievance Redressal Officer, RISHAV MEDIA)',
   grievanceEmail: 'rishavsrivastawa9162@gmail.com',
   paymentPartner: 'Cashfree Payments India Pvt. Ltd.',
 }
@@ -60,7 +61,7 @@ export const BUSINESS_CONFIG = {
 export const DEFAULT_SITE_CONFIG: SiteConfig = {
   siteName: '1024TeraViralHub',
   siteUrl: typeof window !== 'undefined' ? window.location.origin : 'https://1024teraviralhub.com',
-  supportEmail: 'rishavsrivastawa9162@gmail.com',
+  supportEmail: 'support@1024teraviralhub.com',
   siteTagline: 'Premium Digital Products, Wallpapers & Assets',
   preferredUpiApp: 'phonepe',
   upiDirectLaunch: true,

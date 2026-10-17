@@ -27,8 +27,12 @@ export default function ContactPage() {
             description: `Contact ${siteName} for questions, product assistance, purchase support and general inquiries.`,
             mainEntity: {
               '@type': 'Organization',
-              name: 'RISHAV SRIVASTAWA (Rishav Media)',
-              legalName: 'RISHAV SRIVASTAWA',
+              name: 'Rishav Media',
+              legalName: 'Rishav Media (Proprietor: Rishav Srivastawa)',
+              founder: {
+                '@type': 'Person',
+                name: 'Rishav Srivastawa',
+              },
               alternateName: siteName,
               email: 'rishavsrivastawa9162@gmail.com',
               telephone: '+919801947855',
