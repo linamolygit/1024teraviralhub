@@ -249,12 +249,11 @@ export default function OrderVerificationModal({ isOpen, onClose, onSuccess }: O
               >
                 <div>
                   <span style={{ color: '#9CA3AF' }}>Operating Entity:</span>{' '}
-                  <strong style={{ color: '#FFFFFF' }}>RISHAV MEDIA</strong>{' '}
-                  <span style={{ fontSize: '0.75rem', color: '#9CA3AF' }}>(UDYAM-BR-11-0107325)</span>
+                  <strong style={{ color: '#FFFFFF' }}>1024 Tera Viral Hub Digital Network</strong>
                 </div>
                 <div>
-                  <span style={{ color: '#9CA3AF' }}>Redressal Officer:</span>{' '}
-                  <strong style={{ color: '#E2E8F0' }}>Customer Grievance Redressal Officer, RISHAV MEDIA</strong>
+                  <span style={{ color: '#9CA3AF' }}>Operations Desk:</span>{' '}
+                  <strong style={{ color: '#E2E8F0' }}>Operations & Grievance Redressal Desk</strong>
                 </div>
                 <div>
                   <span style={{ color: '#9CA3AF' }}>Official Support Email:</span>{' '}

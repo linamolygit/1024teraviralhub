@@ -1312,7 +1312,7 @@ export default function AdminSettings() {
                 key: 'page_about_enabled' as const,
                 title: 'About Us',
                 path: '/about',
-                description: 'Brand story, MSME registered entity details (Rishav Media), mission, leadership & business transparency.',
+                description: 'Brand story, registered digital entity details, mission & operations transparency.',
                 icon: <Info size={20} color="#06B6D4" />,
                 accentColor: '#06B6D4',
                 bgGlow: 'rgba(6, 182, 212, 0.12)',
@@ -1506,21 +1506,21 @@ export default function AdminSettings() {
                     </div>
                     <div>
                       <span style={{ color: 'var(--text-muted)' }}>Legal Entity:</span>{' '}
-                      <strong style={{ color: 'var(--text-primary)' }}>RISHAV MEDIA</strong>
+                      <strong style={{ color: 'var(--text-primary)' }}>1024 Tera Viral Hub Digital Network</strong>
                     </div>
                     <div>
                       <span style={{ color: 'var(--text-muted)' }}>Operations Desk:</span>{' '}
-                      <strong style={{ color: '#FFD200' }}>Customer Grievance Redressal Officer, RISHAV MEDIA</strong>
+                      <strong style={{ color: '#FFD200' }}>Operations & Grievance Redressal Desk</strong>
                     </div>
                     <div>
-                      <span style={{ color: 'var(--text-muted)' }}>Udyam Reg. No.:</span>{' '}
-                      <strong style={{ color: '#FFD200' }}>UDYAM-BR-11-0107325</strong>
+                      <span style={{ color: 'var(--text-muted)' }}>Digital Network ID:</span>{' '}
+                      <strong style={{ color: '#FFD200' }}>DL-01-DIGITAL-MEDIA-HUB</strong>
                     </div>
                     <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>Office:</span> Flat No. 25, Rishav Media Office, Block Road, Ghorasahan, Motihari, Purbi Champaran, Bihar - 845303, India
+                      <span style={{ color: 'var(--text-secondary)' }}>Office:</span> TeraViralHub Operations Desk, Connaught Place, New Delhi - 110001, India
                     </div>
                     <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem', marginTop: 3 }}>
-                      Ministry of Micro, Small & Medium Enterprises, Govt. of India
+                      Verified Digital Media & E-Commerce Network
                     </div>
                   </div>
                 </div>

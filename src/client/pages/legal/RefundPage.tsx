@@ -101,7 +101,7 @@ export default function RefundPage() {
               1. Digital Products Policy Overview
             </h2>
             <p>
-              At <strong>{siteName}</strong> (owned and operated by <strong>{BUSINESS_CONFIG.legalName}</strong>, Govt. of India MSME / Udyam Registration No: <strong>{BUSINESS_CONFIG.udyamRegistration}</strong>{isVerified ? `, Proprietor: ${rawProprietor}` : ''}), we offer non-tangible, irrevocable digital media goods. Because digital files are delivered immediately upon payment, all transactions are generally considered final once a download token is generated.
+              At <strong>{siteName}</strong> (owned and operated by <strong>{BUSINESS_CONFIG.legalName}</strong>), we offer non-tangible, irrevocable digital media goods. Because digital files are delivered immediately upon payment, all transactions are generally considered final once a download token is generated.
             </p>
             <p>
               However, we maintain a customer-friendly refund policy to protect buyers in cases of technical defects, billing anomalies, or delivery failures.
@@ -243,8 +243,8 @@ export default function RefundPage() {
             </h2>
             <div style={{ background: 'var(--bg-elevated)', padding: '16px 20px', borderRadius: 10, fontSize: '0.85rem' }}>
               <div><strong>Merchant Legal Entity:</strong> {BUSINESS_CONFIG.legalName}</div>
-              <div><strong>Operations Desk:</strong> Customer Grievance Redressal Officer, RISHAV MEDIA</div>
-              <div><strong>Registration:</strong> {BUSINESS_CONFIG.udyamRegistration} ({BUSINESS_CONFIG.registrationType})</div>
+              <div><strong>Operations Desk:</strong> {BUSINESS_CONFIG.grievanceOfficer}</div>
+              <div><strong>Digital Network ID:</strong> {BUSINESS_CONFIG.udyamRegistration}</div>
               <div>
                 <strong>Support Channel:</strong>{' '}
                 <Link to="/order/support" style={{ color: 'var(--brand-purple-light)', textDecoration: 'underline' }}>

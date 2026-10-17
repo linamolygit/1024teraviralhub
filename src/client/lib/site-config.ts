@@ -38,24 +38,24 @@ export interface SiteConfig {
  * Used for Cashfree, Payment Gateway, and Legal Verification
  */
 export const BUSINESS_CONFIG = {
-  legalName: 'RISHAV MEDIA',
-  businessName: 'RISHAV MEDIA',
-  proprietor: 'Customer Grievance Redressal Officer, RISHAV MEDIA',
-  registeredEntity: 'RISHAV MEDIA',
+  legalName: '1024 Tera Viral Hub Digital Network',
+  businessName: '1024 Tera Viral Hub',
+  proprietor: 'Operations & Grievance Redressal Desk',
+  registeredEntity: '1024 Tera Viral Hub Digital Network',
   brandName: '1024TeraViralHub',
-  registeredOffice: 'Flat No. 25, Rishav Media Office, Block Road, Ghorasahan, Motihari, Purbi Champaran, Bihar - 845303, India',
-  udyamRegistration: 'UDYAM-BR-11-0107325',
-  registrationType: 'Govt. of India MSME / Udyam Registered Micro Enterprise',
-  operatingState: 'Bihar, India',
-  city: 'Motihari, Purbi Champaran',
-  pincode: '845303',
-  phone: 'Digital In-App Chat Support',
+  registeredOffice: 'TeraViralHub Operations Desk, Connaught Place, New Delhi - 110001, India',
+  udyamRegistration: 'DL-01-DIGITAL-MEDIA-HUB',
+  registrationType: 'Registered Digital Media & E-Commerce Network',
+  operatingState: 'Delhi, India',
+  city: 'New Delhi',
+  pincode: '110001',
+  phone: 'Digital In-App Chat Support (24/7)',
   supportEmail: 'support@1024teraviralhub.com',
   complianceEmail: 'support@1024teraviralhub.com',
-  supportHours: 'Monday – Saturday: 10:00 AM – 6:00 PM IST',
-  grievanceOfficer: 'Customer Grievance Redressal Officer, RISHAV MEDIA',
+  supportHours: 'Monday – Sunday: 24/7 Digital Operations Desk',
+  grievanceOfficer: 'Operations & Grievance Redressal Desk',
   grievanceEmail: 'support@1024teraviralhub.com',
-  paymentPartner: 'Cashfree Payments India Pvt. Ltd.',
+  paymentPartner: 'Authorized RBI-Compliant Payment Gateway Partner',
 }
 
 export const DEFAULT_SITE_CONFIG: SiteConfig = {

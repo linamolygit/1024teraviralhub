@@ -66,6 +66,7 @@ const AdminProductCreate = lazyWithRetry(() => import('./client/pages/admin/prod
 const AdminProductEdit = lazyWithRetry(() => import('./client/pages/admin/products/AdminProductEdit'))
 const AdminOrders = lazyWithRetry(() => import('./client/pages/admin/orders/AdminOrders'))
 const AdminOrderDetail = lazyWithRetry(() => import('./client/pages/admin/orders/AdminOrderDetail'))
+const AdminRefunds = lazyWithRetry(() => import('./client/pages/admin/refunds/AdminRefunds'))
 const AdminCustomers = lazyWithRetry(() => import('./client/pages/admin/customers/AdminCustomers'))
 const AdminCustomerDetail = lazyWithRetry(() => import('./client/pages/admin/customers/AdminCustomerDetail'))
 const AdminCoupons = lazyWithRetry(() => import('./client/pages/admin/coupons/AdminCoupons'))
@@ -234,6 +235,7 @@ export default function App() {
               <Route path="products/:id/edit" element={<AdminProductEdit />} />
               <Route path="orders" element={<AdminOrders />} />
               <Route path="orders/:id" element={<AdminOrderDetail />} />
+              <Route path="refunds" element={<AdminRefunds />} />
               <Route path="customers" element={<AdminCustomers />} />
               <Route path="customers/:id" element={<AdminCustomerDetail />} />
               <Route path="coupons" element={<AdminCoupons />} />

@@ -176,7 +176,7 @@ app.get('/', async (c) => {
     download_expired: finalStatus === 'PAID' && !download_token,
     support_email: 'support@1024teraviralhub.com',
     support_mode: 'Digital In-App Chat Support',
-    business_name: 'RISHAV MEDIA',
+    business_name: '1024 Tera Viral Hub Digital Network',
   })
 })
 
@@ -614,21 +614,21 @@ STRICT INSTRUCTIONS:
 
       if (existingRefund) {
         if (isDevanagari) {
-          reply = `✅ आपके रिफंड टिकट #${existingRefund.refund_id} की स्थिति: ${existingRefund.status} है। सत्यापन के अनुसार आपकी राशि ₹${existingRefund.amount || 99} आपके UPI ID (${existingRefund.upi_id}) पर 5-7 कार्य दिवसों में सीधे ट्रांसफर हो जाएगी।`
+          reply = `✅ आपके रिफंड टिकट #${existingRefund.refund_id} की वर्तमान स्थिति: ${existingRefund.status} है। हमारी टीम 24–48 घंटों (2 दिन) के भीतर सत्यापन पूरा करती है और ₹${existingRefund.amount || 99} की राशि 5–7 कार्य दिवसों में सीधे आपके UPI ID (${existingRefund.upi_id}) पर 100% गारंटी के साथ ट्रांसफर हो जाएगी।`
         } else if (isHinglish) {
-          reply = `✅ Aapka Refund Ticket #${existingRefund.refund_id} mil gaya hai! Status: ${existingRefund.status}. Aapka ₹${existingRefund.amount || 99} refund aapke UPI ID (${existingRefund.upi_id}) par agle 5-7 business days ke andar credit ho jayega.`
+          reply = `✅ Aapka Refund Ticket #${existingRefund.refund_id} mil gaya hai! Status: ${existingRefund.status}. Hamari desk 2 din (24–48 hours) me verification complete karti hai aur ₹${existingRefund.amount || 99} ka 100% refund aapke UPI ID (${existingRefund.upi_id}) par agle 5–7 business days ke andar transfer ho jayega.`
         } else {
-          reply = `✅ Verified Refund Claim #${existingRefund.refund_id}! Current Status: ${existingRefund.status}. Your refund of ₹${existingRefund.amount || 99} will be deposited directly to your UPI ID (${existingRefund.upi_id}) within 5-7 business days.`
+          reply = `✅ Verified Refund Claim #${existingRefund.refund_id}! Status: ${existingRefund.status}. Review SLA is 24–48 hours (2 days), and your 100% assured refund of ₹${existingRefund.amount || 99} will be deposited directly into your UPI ID (${existingRefund.upi_id}) within 5–7 business days.`
         }
       }
       // 5. Refund / Return / Cancellation -> Automated UTR + UPI Portal
       else if (/refund|return|cancel|cancellation|wapas|paise wapas|nahi chahiye/i.test(lower)) {
         if (isDevanagari) {
-          reply = `ऑर्डर #${orderNumber} के 100% रिफंड के लिए आप हमारे ऑटोमेटेड रिफंड पोर्टल (${siteUrl}/refund-request?order=${encodeURIComponent(orderNumber)}) पर अपना 12-अंकीय बैंक UTR नंबर और UPI ID दर्ज कर सकते हैं। सत्यापन के बाद 5-7 कार्य दिवसों में राशि सीधे आपके UPI खाते में क्रेडिट हो जाएगी।`
+          reply = `ऑर्डर #${orderNumber} के 100% रिफंड के लिए आप हमारे ऑटोमेटेड रिफंड पोर्टल (${siteUrl}/refund-request?order=${encodeURIComponent(orderNumber)}) पर अपना 12-अंकीय बैंक UTR नंबर और UPI ID दर्ज करें। 2 दिन (24–48 घंटे) में समीक्षा के बाद 5–7 दिनों में पूरी राशि सीधे आपके UPI खाते में वापस हो जाएगी।`
         } else if (isHinglish) {
-          reply = `Aapke order #${orderNumber} ke 100% refund ke liye aap hamare automated Refund Portal (${siteUrl}/refund-request?order=${encodeURIComponent(orderNumber)}) par jaakar apna 12-digit Bank/UPI UTR Number aur destination UPI ID enter karein. Verification ke baad agle 5-7 business days me aapka refund seedhe aapke UPI ID me credit ho jayega.`
+          reply = `Aapke order #${orderNumber} ke 100% assured refund ke liye aap hamare automated Refund Portal (${siteUrl}/refund-request?order=${encodeURIComponent(orderNumber)}) par apna 12-digit Bank/UPI UTR Number aur UPI ID submit karein. 2 din (24–48 hours) ke andar review complete ho jayega aur agle 5–7 business days me aapka refund seedhe aapke UPI ID me credit ho jayega.`
         } else {
-          reply = `To claim a 100% refund for Order #${orderNumber}, please submit your 12-digit Bank UTR and destination UPI ID on our automated Refund Portal: ${siteUrl}/refund-request?order=${encodeURIComponent(orderNumber)}. Once verified against transaction logs, payout will be credited to your UPI ID within 5-7 business days.`
+          reply = `To claim a 100% assured refund for Order #${orderNumber}, please submit your 12-digit Bank UTR and UPI ID on our automated Refund Portal: ${siteUrl}/refund-request?order=${encodeURIComponent(orderNumber)}. Our operations desk completes review within 2 days (24–48 hours) and your refund is credited directly to your UPI ID within 5–7 business days.`
         }
       }
       // 6. Human Support / Call / Email
@@ -779,7 +779,7 @@ app.post('/refund-request', async (c) => {
         status: existing.status,
         is_existing: true,
         message: 'Your refund claim is already under active review.',
-        estimated_timeline: 'Review within 24–48 hours. Bank/UPI settlement in 5–7 business days.',
+        estimated_timeline: '100% Refund Assurance: Review within 24–48 hours (2 days). Bank/UPI settlement in 5–7 business days.',
       })
     }
 
@@ -822,7 +822,7 @@ app.post('/refund-request', async (c) => {
       amount: refundAmount,
       status: 'UNDER_REVIEW',
       message: 'Refund claim registered successfully.',
-      estimated_timeline: 'Verification: 24–48 hours. Direct UPI payout: 5–7 business days.',
+      estimated_timeline: '100% Refund Assurance: Verified within 24–48 hours (2 days). Direct UPI payout in 5–7 business days.',
     })
   } catch (err: any) {
     console.error('Refund request error:', err)

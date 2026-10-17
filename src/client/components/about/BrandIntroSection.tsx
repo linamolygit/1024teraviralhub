@@ -30,7 +30,7 @@ export default function BrandIntroSection() {
           }}
         >
           <p style={{ marginBottom: '20px' }}>
-            <strong>{siteName || BUSINESS_CONFIG.brandName}</strong> is a specialized online marketplace owned, managed, and operated by <strong>{BUSINESS_CONFIG.legalName}</strong> (Govt. of India MSME / Udyam Reg. No.: <strong style={{ fontFamily: 'monospace', color: 'var(--brand-purple-light)' }}>{BUSINESS_CONFIG.udyamRegistration}</strong>), focused on making creative digital content and media packs easy to discover, purchase, and securely download.
+            <strong>{siteName || BUSINESS_CONFIG.brandName}</strong> is a specialized online marketplace operated by <strong>{BUSINESS_CONFIG.legalName}</strong>, focused on making creative digital content and media packs easy to discover, purchase, and securely download.
           </p>
           <p style={{ marginBottom: '20px' }}>
             Unlike traditional platforms that burden visitors with mandatory account registrations, passwords, and multi-step cart flows, our architecture is engineered for <strong>direct 1-click discovery and guest checkout</strong>. Visitors can explore high-fidelity digital assets, review specifications, complete payment through trusted gateways like {name}, and receive immediate download access within seconds.

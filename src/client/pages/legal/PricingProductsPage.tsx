@@ -147,7 +147,7 @@ export default function PricingProductsPage() {
               3. Payment Processing & Security
             </h2>
             <p>
-              Payments on {siteName || BUSINESS_CONFIG.brandName} are processed securely under the registered commercial entity <strong>{BUSINESS_CONFIG.legalName}</strong> (Govt. of India MSME / Udyam Reg. No.: <strong>{BUSINESS_CONFIG.udyamRegistration}</strong>) through RBI-compliant, PCI-DSS Level 1 certified payment {isBoth ? 'aggregators' : 'aggregator'} ({isBoth ? gatewayFullName : `powered by ${gatewayFullName}`}).
+              Payments on {siteName || BUSINESS_CONFIG.brandName} are processed securely under our verified commercial digital merchant network through RBI-compliant, PCI-DSS Level 1 certified payment {isBoth ? 'aggregators' : 'aggregator'} ({isBoth ? gatewayFullName : `powered by ${gatewayFullName}`}).
               Supported payment channels include:
             </p>
             <ul style={{ paddingLeft: 22, marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -216,10 +216,10 @@ export default function PricingProductsPage() {
               If you have any questions regarding our pricing, product specifications, or download access, please get in touch with our customer assistance team:
             </p>
             <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.9rem' }}>
-              <div><strong>Merchant Legal Entity:</strong> {BUSINESS_CONFIG.legalName}</div>
-              <div><strong>Operations Desk:</strong> Customer Grievance Redressal Officer, RISHAV MEDIA</div>
+              <div><strong>Merchant Entity:</strong> {BUSINESS_CONFIG.legalName}</div>
+              <div><strong>Operations Desk:</strong> {BUSINESS_CONFIG.grievanceOfficer}</div>
               <div><strong>Brand Name:</strong> {siteName || BUSINESS_CONFIG.brandName}</div>
-              <div><strong>Udyam Registration:</strong> <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--brand-purple-light)' }}>{BUSINESS_CONFIG.udyamRegistration}</span></div>
+              <div><strong>Digital Network ID:</strong> <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--brand-purple-light)' }}>{BUSINESS_CONFIG.udyamRegistration}</span></div>
               <div>
                 <strong>Support Channel:</strong>{' '}
                 <Link to="/order/support" style={{ color: '#1162F2', fontWeight: 600 }}>

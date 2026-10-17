@@ -89,8 +89,8 @@ app.get('/public', async (c) => {
     getSetting<boolean>(c.env.DB, 'site_shutdown_enabled', false),
     getSetting<string>(c.env.DB, 'site_shutdown_message', ''),
     // Official Business & Legal Compliance Details
-    getSetting<string>(c.env.DB, 'business_name', 'RISHAV MEDIA'),
-    getSetting<string>(c.env.DB, 'proprietor', 'Customer Grievance Redressal Officer, RISHAV MEDIA'),
+    getSetting<string>(c.env.DB, 'business_name', '1024 Tera Viral Hub Digital Network'),
+    getSetting<string>(c.env.DB, 'proprietor', 'Operations & Grievance Redressal Desk'),
     getSetting<string>(c.env.DB, 'contact_phone', 'Digital In-App Chat Support'),
   ])
 
@@ -102,9 +102,9 @@ app.get('/public', async (c) => {
     site_name: siteName,
     site_url: siteUrl,
     support_email: supportEmail,
-    business_name: businessName ?? 'RISHAV MEDIA',
-    proprietor: 'Customer Grievance Redressal Officer, RISHAV MEDIA',
-    legal_name: 'RISHAV MEDIA',
+    business_name: businessName ?? '1024 Tera Viral Hub Digital Network',
+    proprietor: 'Operations & Grievance Redressal Desk',
+    legal_name: '1024 Tera Viral Hub Digital Network',
     contact_phone: 'Digital In-App Chat Support',
     site_tagline: siteTagline,
     currency_symbol: currencySymbol,

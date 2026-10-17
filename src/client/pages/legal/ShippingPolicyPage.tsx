@@ -103,7 +103,7 @@ export default function ShippingPolicyPage() {
               1. Electronic Digital Delivery Only
             </h2>
             <p>
-              All products offered on <strong>{siteName}</strong> (owned and operated by <strong>{BUSINESS_CONFIG.legalName}</strong>, Govt. of India MSME / Udyam Registration No: <strong>{BUSINESS_CONFIG.udyamRegistration}</strong>) are strictly intangible digital assets. These include downloadable digital wallpapers, curated media bundles, high-resolution photo packs, and digital resource archives.
+              All products offered on <strong>{siteName}</strong> (owned and operated by <strong>{BUSINESS_CONFIG.legalName}</strong>) are strictly intangible digital assets. These include downloadable digital wallpapers, curated media bundles, high-resolution photo packs, and digital resource archives.
             </p>
             <p>
               <strong>No physical goods, parcels, parcels, or print shipments will be dispatched to your postal address.</strong> Consequently, no courier, shipping carrier, or physical tracking number applies.
@@ -184,10 +184,10 @@ export default function ShippingPolicyPage() {
                 lineHeight: 1.6,
               }}
             >
-              <div><strong>Merchant Legal Entity:</strong> {BUSINESS_CONFIG.legalName}</div>
-              <div><strong>Operations Desk:</strong> Customer Grievance Redressal Officer, RISHAV MEDIA</div>
+              <div><strong>Merchant Entity:</strong> {BUSINESS_CONFIG.legalName}</div>
+              <div><strong>Operations Desk:</strong> {BUSINESS_CONFIG.grievanceOfficer}</div>
               <div><strong>Brand Name:</strong> {siteName || BUSINESS_CONFIG.brandName}</div>
-              <div><strong>Udyam Registration:</strong> <span style={{ fontFamily: 'monospace', color: 'var(--brand-purple-light)', fontWeight: 700 }}>{BUSINESS_CONFIG.udyamRegistration}</span></div>
+              <div><strong>Digital Network ID:</strong> <span style={{ fontFamily: 'monospace', color: 'var(--brand-purple-light)', fontWeight: 700 }}>{BUSINESS_CONFIG.udyamRegistration}</span></div>
               <div>
                 <strong>Support Channel:</strong>{' '}
                 <Link to="/order/support" style={{ color: 'var(--brand-purple-light)', textDecoration: 'underline' }}>

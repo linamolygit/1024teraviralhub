@@ -193,15 +193,15 @@ export default function RefundRequestPage() {
           >
             <Clock size={22} color="#60A5FA" style={{ flexShrink: 0 }} />
             <div>
-              <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#FFFFFF' }}>24–48 Hours Review</div>
-              <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Automated UTR verification</div>
+              <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#FFFFFF' }}>2 Days Review SLA</div>
+              <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Desk verified within 24–48 hours</div>
             </div>
           </div>
 
           <div
             style={{
-              background: 'rgba(255, 255, 255, 0.03)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
+              background: 'rgba(16, 185, 129, 0.06)',
+              border: '1px solid rgba(16, 185, 129, 0.25)',
               borderRadius: '12px',
               padding: '14px 16px',
               display: 'flex',
@@ -211,8 +211,8 @@ export default function RefundRequestPage() {
           >
             <ShieldCheck size={22} color="#10B981" style={{ flexShrink: 0 }} />
             <div>
-              <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#FFFFFF' }}>100% Direct UPI Refund</div>
-              <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Settled via RBI guidelines</div>
+              <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#10B981' }}>5–7 Days UPI Payout</div>
+              <div style={{ fontSize: '0.75rem', color: '#A7F3D0' }}>100% assured direct bank credit</div>
             </div>
           </div>
 
@@ -229,8 +229,8 @@ export default function RefundRequestPage() {
           >
             <MessageSquare size={22} color="#FBBF24" style={{ flexShrink: 0 }} />
             <div>
-              <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#FFFFFF' }}>In-App Chat Support</div>
-              <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>24x7 instant assistant</div>
+              <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#FFFFFF' }}>Live Tracking & Chat</div>
+              <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Real-time status updates</div>
             </div>
           </div>
         </div>

@@ -48,7 +48,7 @@ export default function TermsPage() {
               1. Introduction & Contracting Parties
             </h2>
             <p>
-              This website, accessible at <strong>1024teraviralhub.com</strong> (referred to as the "Platform" or "Site"), is owned, managed, and operated by <strong>{BUSINESS_CONFIG.legalName}</strong> (Govt. of India MSME / Udyam Registration Number: <strong style={{ fontFamily: 'monospace', color: 'var(--brand-purple-light)' }}>{BUSINESS_CONFIG.udyamRegistration}</strong>), operating under the trade/brand name <strong>{siteName || BUSINESS_CONFIG.brandName}</strong>.
+              This website, accessible at <strong>1024teraviralhub.com</strong> (referred to as the "Platform" or "Site"), is owned, managed, and operated by <strong>{BUSINESS_CONFIG.legalName}</strong>, operating under the trade/brand name <strong>{siteName || BUSINESS_CONFIG.brandName}</strong>.
             </p>
             <p>
               By accessing the Site, browsing catalog assets, or purchasing any digital download, you ("Buyer", "User", or "Customer") agree to be legally bound by these Terms and Conditions, our <Link to="/privacy-policy" style={{ color: 'var(--brand-purple-light)', textDecoration: 'underline' }}>Privacy Policy</Link>, and our <Link to="/refund-policy" style={{ color: 'var(--brand-purple-light)', textDecoration: 'underline' }}>Refund & Cancellation Policy</Link>.
@@ -120,10 +120,10 @@ export default function TermsPage() {
               For questions concerning these Terms, please contact our support desk:
             </p>
             <div style={{ background: 'var(--bg-elevated)', padding: '16px 20px', borderRadius: 10, fontSize: '0.85rem' }}>
-              <div><strong>Operating Entity / Business Name:</strong> {BUSINESS_CONFIG.legalName}</div>
-              <div><strong>Operations Desk:</strong> Customer Grievance Redressal Officer, RISHAV MEDIA</div>
-              <div><strong>Physical Office:</strong> {BUSINESS_CONFIG.registeredOffice}</div>
-              <div><strong>Udyam Registration:</strong> {BUSINESS_CONFIG.udyamRegistration}</div>
+              <div><strong>Operating Entity:</strong> {BUSINESS_CONFIG.legalName}</div>
+              <div><strong>Operations Desk:</strong> {BUSINESS_CONFIG.grievanceOfficer}</div>
+              <div><strong>Operations Office:</strong> {BUSINESS_CONFIG.registeredOffice}</div>
+              <div><strong>Digital Network ID:</strong> {BUSINESS_CONFIG.udyamRegistration}</div>
               <div>
                 <strong>Support Channel:</strong>{' '}
                 <Link to="/order/support" style={{ color: 'var(--brand-purple-light)', textDecoration: 'underline' }}>

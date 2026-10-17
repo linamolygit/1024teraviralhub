@@ -198,31 +198,37 @@ export default function RefundRequestModal({
                     Automated Refund Portal
                   </h3>
                   <div style={{ fontSize: '0.8rem', color: '#94A3B8', marginTop: '2px' }}>
-                    RISHAV MEDIA • Verified Dispute Redressal Desk
+                    1024 Tera Viral Hub • Verified Dispute Redressal Desk
                   </div>
                 </div>
               </div>
 
-              {/* Security Banner */}
+              {/* 100% Refund Assurance Guarantee Banner */}
               <div
                 style={{
-                  background: 'rgba(17, 98, 242, 0.08)',
-                  border: '1px solid rgba(17, 98, 242, 0.25)',
-                  borderRadius: '10px',
-                  padding: '10px 14px',
+                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(17, 98, 242, 0.08) 100%)',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  borderRadius: '12px',
+                  padding: '12px 14px',
                   fontSize: '0.8125rem',
                   lineHeight: '1.45',
-                  color: '#93C5FD',
+                  color: '#E2E8F0',
                   marginBottom: '18px',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '10px',
                 }}
               >
-                <ShieldCheck size={18} style={{ flexShrink: 0, marginTop: '2px', color: '#60A5FA' }} />
-                <div>
-                  Under Govt. of India Digital Commerce & RBI guidelines, all refund payouts are verified against the
-                  12-digit Bank UTR and issued directly to your destination UPI account.
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10B981', fontWeight: 700, marginBottom: '6px' }}>
+                  <ShieldCheck size={18} color="#10B981" />
+                  <span>100% Buyer Protection & Refund Assurance Policy</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '8px', fontSize: '0.78125rem' }}>
+                  <div style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '6px 8px', borderRadius: '6px' }}>
+                    <span style={{ color: '#94A3B8' }}>Review & Verification:</span>{' '}
+                    <strong style={{ color: '#FFD200' }}>Within 24–48 Hours (2 Days)</strong>
+                  </div>
+                  <div style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '6px 8px', borderRadius: '6px' }}>
+                    <span style={{ color: '#94A3B8' }}>Direct UPI Payout:</span>{' '}
+                    <strong style={{ color: '#38BDF8' }}>5 to 7 Business Days</strong>
+                  </div>
                 </div>
               </div>
 
@@ -573,6 +579,27 @@ export default function RefundRequestModal({
                 <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255, 255, 255, 0.06)', paddingTop: '8px' }}>
                   <span style={{ color: '#94A3B8' }}>Expected Settlement:</span>
                   <span style={{ color: '#10B981', fontWeight: 600 }}>5–7 Business Days</span>
+                </div>
+
+                {/* 3-Step Refund Assurance Progress */}
+                <div style={{ marginTop: '10px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '12px' }}>
+                  <div style={{ fontSize: '0.78125rem', fontWeight: 700, color: '#FFFFFF', marginBottom: '8px', textAlign: 'left' }}>
+                    🛡️ 100% Refund Assurance Timeline:
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', fontSize: '0.72rem', textAlign: 'center' }}>
+                    <div style={{ background: 'rgba(16, 185, 129, 0.15)', border: '1px solid #10B981', borderRadius: '6px', padding: '6px 4px' }}>
+                      <div style={{ color: '#10B981', fontWeight: 700 }}>✓ Step 1</div>
+                      <div style={{ color: '#E2E8F0', marginTop: '2px' }}>Claim Logged</div>
+                    </div>
+                    <div style={{ background: 'rgba(245, 158, 11, 0.15)', border: '1px solid #F59E0B', borderRadius: '6px', padding: '6px 4px' }}>
+                      <div style={{ color: '#FBBF24', fontWeight: 700 }}>⏳ Step 2 (2 Days)</div>
+                      <div style={{ color: '#E2E8F0', marginTop: '2px' }}>Desk Review</div>
+                    </div>
+                    <div style={{ background: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '6px', padding: '6px 4px' }}>
+                      <div style={{ color: '#38BDF8', fontWeight: 700 }}>💳 Step 3 (7 Days)</div>
+                      <div style={{ color: '#E2E8F0', marginTop: '2px' }}>UPI Payout</div>
+                    </div>
+                  </div>
                 </div>
               </div>
 

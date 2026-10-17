@@ -321,11 +321,10 @@ export default function OrderLookupPage() {
                 <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
                   <div>
                     <span style={{ color: 'var(--text-muted)' }}>Operating Entity:</span>{' '}
-                    <strong style={{ color: 'var(--text-primary)' }}>{PRIVACY_CONFIG.businessName}</strong>{' '}
-                    <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>({PRIVACY_CONFIG.udyamRegistration})</span>
+                    <strong style={{ color: 'var(--text-primary)' }}>{PRIVACY_CONFIG.businessName}</strong>
                   </div>
                   <div>
-                    <span style={{ color: 'var(--text-muted)' }}>Redressal Officer:</span>{' '}
+                    <span style={{ color: 'var(--text-muted)' }}>Operations Desk:</span>{' '}
                     <strong style={{ color: '#E2E8F0' }}>{PRIVACY_CONFIG.rawProprietor}</strong>
                   </div>
                   <div>

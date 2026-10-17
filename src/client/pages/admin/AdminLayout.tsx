@@ -8,7 +8,7 @@ import {
   FileText, Settings, Download, Shield, LogOut,
   Menu, X, Package2, Tag, Star, Users, Share2, Layers,
   ExternalLink, Plus, Sparkles, ChevronRight, CheckCircle2, Zap, Image as ImageIcon,
-  CreditCard
+  CreditCard, RotateCcw
 } from 'lucide-react'
 import { useAuthStore } from '../../lib/auth-store'
 import { useSiteConfig } from '../../lib/site-config'
@@ -32,6 +32,7 @@ const navGroups: NavGroup[] = [
       { to: '/admin', label: 'Dashboard', icon: <LayoutDashboard size={18} />, end: true },
       { to: '/admin/products', label: 'Products', icon: <Package size={18} /> },
       { to: '/admin/orders', label: 'Orders', icon: <ShoppingCart size={18} /> },
+      { to: '/admin/refunds', label: 'Refund Claims', icon: <RotateCcw size={18} />, badge: 'Disputes' },
       { to: '/admin/customers', label: 'Customers', icon: <Users size={18} /> },
     ],
   },

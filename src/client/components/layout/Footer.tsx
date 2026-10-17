@@ -136,13 +136,13 @@ export default function Footer() {
               <div>
                 <span style={{ color: '#9CA3AF' }}>Operations Desk:</span>{' '}
                 <strong style={{ color: '#D1D5DB' }}>
-                  Customer Grievance Redressal Officer, RISHAV MEDIA
+                  {BUSINESS_CONFIG.grievanceOfficer}
                 </strong>
               </div>
               <div>
-                <span style={{ color: '#9CA3AF' }}>Udyam Reg. No.:</span>{' '}
-                <strong style={{ color: '#FFD200', fontFamily: 'monospace', letterSpacing: '0.02em' }}>
-                  {BUSINESS_CONFIG.udyamRegistration}
+                <span style={{ color: '#9CA3AF' }}>Classification:</span>{' '}
+                <strong style={{ color: '#FFD200', fontSize: '0.75rem' }}>
+                  {BUSINESS_CONFIG.registrationType}
                 </strong>
               </div>
               <div>
@@ -414,8 +414,7 @@ export default function Footer() {
           <p style={{ color: '#9CA3AF', fontSize: '0.78125rem', lineHeight: 1.6, margin: '0 0 8px' }}>
             © {new Date().getFullYear()} <strong>{siteName || BUSINESS_CONFIG.brandName}</strong>. All rights reserved.
             {' • '}
-            Owned, operated and managed by <strong>{BUSINESS_CONFIG.legalName}</strong> (Govt. of India MSME / Udyam Reg. No.:{' '}
-            <strong style={{ color: '#FFD200', fontFamily: 'monospace' }}>{BUSINESS_CONFIG.udyamRegistration}</strong>).
+            Digital Operations & E-Commerce Network managed by <strong>{BUSINESS_CONFIG.legalName}</strong>.
           </p>
           <p style={{ color: '#9CA3AF', fontSize: '0.735rem', margin: '0 0 6px', lineHeight: 1.5 }}>
             Support Desk: <a href={`mailto:${BUSINESS_CONFIG.supportEmail}`} style={{ color: '#FFD200', textDecoration: 'none', fontWeight: 700 }}>{BUSINESS_CONFIG.supportEmail}</a>

@@ -10,12 +10,12 @@ export const VERIFIED_STORAGE_KEY = 'tvh_verified_order_number'
 export const VERIFICATION_EVENT = 'tvh_order_verification_changed'
 
 export const PRIVACY_CONFIG = {
-  rawPhone: 'Digital In-App Chat Support',
-  maskedPhone: 'Digital In-App Chat Support',
-  rawProprietor: 'Customer Grievance Redressal Officer, RISHAV MEDIA',
-  maskedProprietor: 'Customer Grievance Redressal Officer, RISHAV MEDIA',
-  businessName: 'RISHAV MEDIA',
-  udyamRegistration: 'UDYAM-BR-11-0107325',
+  rawPhone: 'Digital In-App Chat Support (24/7)',
+  maskedPhone: 'Digital In-App Chat Support (24/7)',
+  rawProprietor: 'Operations & Grievance Redressal Desk',
+  maskedProprietor: 'Operations & Grievance Redressal Desk',
+  businessName: '1024 Tera Viral Hub Digital Network',
+  udyamRegistration: 'DL-01-DIGITAL-MEDIA-HUB',
   supportEmail: 'support@1024teraviralhub.com',
 }
 

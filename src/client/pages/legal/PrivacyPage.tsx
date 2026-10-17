@@ -49,7 +49,7 @@ export default function PrivacyPage() {
               1. Data Controller & Business Identity
             </h2>
             <p>
-              This Privacy Policy explains how <strong>{BUSINESS_CONFIG.legalName}</strong> (Govt. of India MSME / Udyam Registration No: <strong style={{ fontFamily: 'monospace', color: 'var(--brand-purple-light)' }}>{BUSINESS_CONFIG.udyamRegistration}</strong>{isVerified ? ` | Proprietor: ${rawProprietor}` : ''}), operating under the trade/brand name <strong>{siteName || BUSINESS_CONFIG.brandName}</strong>, collects, processes, and protects your personal data when you visit <strong>1024teraviralhub.com</strong> or purchase digital assets.
+              This Privacy Policy explains how <strong>{BUSINESS_CONFIG.legalName}</strong>, operating under the trade and brand name <strong>{siteName || BUSINESS_CONFIG.brandName}</strong>, collects, processes, and protects your personal data when you visit <strong>1024teraviralhub.com</strong> or purchase digital assets.
             </p>
           </section>
 
@@ -108,10 +108,10 @@ export default function PrivacyPage() {
               In accordance with the Information Technology Act, 2000 and Digital Personal Data Protection Act, the details of our designated Grievance Officer are provided below:
             </p>
             <div style={{ background: 'var(--bg-elevated)', padding: '16px 20px', borderRadius: 10, fontSize: '0.85rem' }}>
-              <div><strong>Designation:</strong> Customer Grievance Redressal Officer, RISHAV MEDIA</div>
+              <div><strong>Desk:</strong> {BUSINESS_CONFIG.grievanceOfficer}</div>
               <div><strong>Organization / Entity:</strong> {BUSINESS_CONFIG.legalName}</div>
-              <div><strong>Physical Office:</strong> {BUSINESS_CONFIG.registeredOffice}</div>
-              <div><strong>Udyam Registration:</strong> {BUSINESS_CONFIG.udyamRegistration}</div>
+              <div><strong>Operations Office:</strong> {BUSINESS_CONFIG.registeredOffice}</div>
+              <div><strong>Classification:</strong> {BUSINESS_CONFIG.registrationType}</div>
               <div>
                 <strong>Support Channel:</strong>{' '}
                 <Link to="/order/support" style={{ color: 'var(--brand-purple-light)', textDecoration: 'underline' }}>

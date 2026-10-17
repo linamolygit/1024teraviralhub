@@ -59,7 +59,7 @@ export default function ContactInfoSidebar() {
           </div>
           <div>
             <span style={{ color: 'var(--text-muted)' }}>Operations Desk:</span>{' '}
-            <strong style={{ color: 'var(--text-primary)' }}>Customer Grievance Redressal Officer, RISHAV MEDIA</strong>
+            <strong style={{ color: 'var(--text-primary)' }}>{BUSINESS_CONFIG.grievanceOfficer}</strong>
           </div>
           <div>
             <span style={{ color: 'var(--text-muted)' }}>Trading / Brand Name:</span>{' '}
@@ -132,7 +132,7 @@ export default function ContactInfoSidebar() {
             </div>
           </div>
           <div>
-            <span style={{ color: 'var(--text-muted)' }}>MSME / Udyam Reg.:</span>{' '}
+            <span style={{ color: 'var(--text-muted)' }}>Digital Entity ID:</span>{' '}
             <strong style={{ color: '#D97706', fontFamily: 'monospace', fontSize: '0.85rem' }}>
               {BUSINESS_CONFIG.udyamRegistration}
             </strong>
@@ -258,7 +258,7 @@ export default function ContactInfoSidebar() {
             In accordance with IT Rules and Consumer Protection regulations:
           </p>
           <div style={{ fontSize: '0.78125rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-            <div><strong>Officer:</strong> Customer Grievance Redressal Officer, RISHAV MEDIA</div>
+            <div><strong>Officer:</strong> {BUSINESS_CONFIG.grievanceOfficer}</div>
             <div>
               <strong>Support Desk:</strong>{' '}
               <Link to="/order/support" style={{ color: '#1162F2', fontWeight: 600, textDecoration: 'none' }}>

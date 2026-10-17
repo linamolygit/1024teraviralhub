@@ -47,6 +47,7 @@ import adminAffiliatesRoutes from './routes/admin/affiliates'
 import adminAiRoutes from './routes/admin/ai'
 import adminGatewaysRoutes from './routes/admin/gateways'
 import adminMediaRoutes from './routes/admin/media'
+import adminRefundsRoutes from './routes/admin/refunds'
 
 export type Env = {
   DB: D1Database
@@ -542,6 +543,7 @@ app.route('/api/admin/affiliates', adminAffiliatesRoutes)
 app.route('/api/admin/ai', adminAiRoutes)
 app.route('/api/admin/gateways', adminGatewaysRoutes)
 app.route('/api/admin/media', adminMediaRoutes)
+app.route('/api/admin/refunds', adminRefundsRoutes)
 
 // ─── SEO: Dynamic Sitemap.xml ────────────────
 app.get('/sitemap.xml', async (c) => {

@@ -565,6 +565,54 @@ export const adminApi = {
       }),
   },
 
+  refunds: {
+    list: (token: string, params?: { status?: string; search?: string; limit?: number; offset?: number }) => {
+      const q = new URLSearchParams()
+      if (params?.status) q.set('status', params.status)
+      if (params?.search) q.set('search', params.search)
+      if (params?.limit) q.set('limit', String(params.limit))
+      if (params?.offset) q.set('offset', String(params.offset))
+      return adminReq<{
+        success: boolean
+        refunds: Array<{
+          id: number
+          refund_id: string
+          order_number: string
+          utr_number: string
+          upi_id: string
+          reason: string
+          details?: string
+          amount: number
+          customer_name?: string
+          customer_email?: string
+          customer_phone?: string
+          status: 'UNDER_REVIEW' | 'APPROVED' | 'PROCESSED' | 'REJECTED'
+          admin_notes?: string
+          created_at: string
+          updated_at: string
+        }>
+        total: number
+        filtered_amount: number
+        stats: {
+          total: number
+          under_review: number
+          approved: number
+          processed: number
+          rejected: number
+          total_refunded: number
+          all_claims_amount: number
+        }
+      }>(`/admin/refunds?${q}`, token)
+    },
+    get: (token: string, id: string | number) =>
+      adminReq<{ success: boolean; refund: any; order: any }>(`/admin/refunds/${id}`, token),
+    updateStatus: (token: string, id: string | number, status: string, admin_notes?: string) =>
+      adminReq<{ success: boolean; message: string; refund_id: string; status: string }>(`/admin/refunds/${id}/status`, token, {
+        method: 'POST',
+        body: JSON.stringify({ status, admin_notes }),
+      }),
+  },
+
   analytics: {
     get: (token: string, period?: string) => adminReq<AnalyticsData>(`/admin/analytics${period ? `?period=${period}` : ''}`, token),
   },
