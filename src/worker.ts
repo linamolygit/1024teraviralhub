@@ -545,6 +545,56 @@ app.route('/api/admin/gateways', adminGatewaysRoutes)
 app.route('/api/admin/media', adminMediaRoutes)
 app.route('/api/admin/refunds', adminRefundsRoutes)
 
+// ─── Cashfree & RBI Merchant Compliance Verification Endpoints ───
+app.get('/.well-known/cashfree.json', (c) => {
+  return c.json({
+    status: 'ACTIVE_VERIFIED_MERCHANT',
+    merchant_legal_entity: 'RISHAV MEDIA',
+    trade_name: '1024 Tera Viral Hub',
+    website_domain: '1024teraviralhub.com',
+    udyam_registration: 'UDYAM-BR-11-0107325',
+    authorized_payment_partner: 'Cashfree Payments India Pvt. Ltd.',
+    pci_dss_compliance: 'Level 1 Certified',
+    refund_policy: {
+      turnaround_time_tat: '5 to 7 business days',
+      payout_mode: 'Direct reversal to original payment source (UPI / Bank Account)',
+      dispute_review_sla: '24 to 48 hours',
+      cancellation_window: 'Allowed before digital download token redemption or in case of duplicate debit within 24 hours'
+    },
+    fulfillment: {
+      delivery_mode: 'Instant electronic digital download (0 to 5 minutes)',
+      shipping_charges_inr: 0,
+      delivery_scope: 'Intangible digital media goods and creative packs'
+    },
+    registered_office: {
+      address: 'Flat No. 25, Rishav Media Office, Block Road, Ghorasahan, Motihari, Bihar - 845303',
+      country: 'India'
+    },
+    support_contact: {
+      email: 'support@1024teraviralhub.com',
+      grievance_desk: 'Operations & Grievance Redressal Desk',
+      hours: '24/7 Digital Operations Desk'
+    }
+  })
+})
+
+app.get('/api/compliance/cashfree', (c) => {
+  return c.json({
+    status: 'COMPLIANT',
+    merchant_legal_entity: 'RISHAV MEDIA',
+    trade_name: '1024 Tera Viral Hub',
+    website_domain: '1024teraviralhub.com',
+    udyam_registration: 'UDYAM-BR-11-0107325',
+    payment_aggregator_partner: 'Cashfree Payments India Pvt. Ltd.',
+    refund_tat: '5 to 7 business days to original payment source',
+    dispute_sla: '24 to 48 hours',
+    fulfillment_time: 'Instant (0 to 5 minutes)',
+    shipping_charges: '₹0 (Free)',
+    registered_office: 'Flat No. 25, Rishav Media Office, Block Road, Ghorasahan, Motihari, Bihar - 845303',
+    support_email: 'support@1024teraviralhub.com'
+  })
+})
+
 // ─── SEO: Dynamic Sitemap.xml ────────────────
 app.get('/sitemap.xml', async (c) => {
   const products = await c.env.DB.prepare(`SELECT slug, updated_at FROM products WHERE is_published = 1 AND (is_ghost = 0 OR is_ghost IS NULL)`).all()
@@ -1188,6 +1238,114 @@ app.get('*', async (c) => {
     } catch (e) {
       console.error('[OG Blog Injection Error]', e)
     }
+  }
+
+  // 4.8 Official Legal & Merchant Compliance Pages for Cashfree Bots, Crawlers, and Human Auditors
+  if (
+    /^\/(refund-policy|refund-request|refund|dispute)(\/|$)/i.test(path) ||
+    /^\/(shipping-policy|shipping-and-delivery-policy)(\/|$)/i.test(path) ||
+    /^\/(terms-and-conditions|terms)(\/|$)/i.test(path) ||
+    /^\/(privacy-policy|privacy)(\/|$)/i.test(path) ||
+    /^\/(pricing-products|pricing|pricing-policy)(\/|$)/i.test(path) ||
+    /^\/(contact|contact-us)(\/|$)/i.test(path) ||
+    /^\/(about|about-us)(\/|$)/i.test(path)
+  ) {
+    let pageTitle = 'Merchant Policies & Compliance — RISHAV MEDIA (1024 Tera Viral Hub)'
+    let pageDesc = 'Official Merchant Policies of RISHAV MEDIA (1024 Tera Viral Hub). Secure payments by Cashfree Payments India Pvt. Ltd. 5-7 business days refund turnaround.'
+    let specificSchema: any = null
+
+    if (/refund/i.test(path)) {
+      pageTitle = 'Refund & Cancellation Policy — RISHAV MEDIA (1024 Tera Viral Hub)'
+      pageDesc = 'Official 5 to 7 business days refund turnaround time. Direct reversal to original payment source via Cashfree Payments India Pvt. Ltd. Review SLA: 24 to 48 hours.'
+      specificSchema = {
+        '@context': 'https://schema.org',
+        '@type': 'MerchantReturnPolicy',
+        name: '1024 Tera Viral Hub Refund Policy',
+        merchantReturnDays: 7,
+        returnFees: 'https://schema.org/FreeReturn',
+        returnMethod: 'https://schema.org/ReturnByMail',
+        applicableCountry: 'IN',
+        customerRemorseReturnFees: 'https://schema.org/FreeReturn',
+        merchant: {
+          '@type': 'Organization',
+          legalName: 'RISHAV MEDIA',
+          name: '1024 Tera Viral Hub',
+          url: `${siteOrigin}`,
+          email: 'support@1024teraviralhub.com',
+          address: {
+            '@type': 'PostalAddress',
+            streetAddress: 'Flat No. 25, Rishav Media Office, Block Road, Ghorasahan',
+            addressLocality: 'Motihari',
+            addressRegion: 'Bihar',
+            postalCode: '845303',
+            addressCountry: 'IN'
+          }
+        }
+      }
+    } else if (/shipping/i.test(path)) {
+      pageTitle = 'Shipping & Digital Delivery Policy — RISHAV MEDIA (1024 Tera Viral Hub)'
+      pageDesc = 'Instant digital electronic delivery within 0 to 5 minutes at ₹0 shipping fee for all creative media and wallpaper assets by RISHAV MEDIA.'
+    } else if (/terms/i.test(path)) {
+      pageTitle = 'Terms and Conditions — RISHAV MEDIA (1024 Tera Viral Hub)'
+      pageDesc = 'Official Commercial Terms and Conditions of RISHAV MEDIA for 1024teraviralhub.com. Payments processed by Cashfree Payments India Pvt. Ltd.'
+    } else if (/privacy/i.test(path)) {
+      pageTitle = 'Privacy Policy — RISHAV MEDIA (1024 Tera Viral Hub)'
+      pageDesc = 'Official Data Protection Policy of RISHAV MEDIA. SSL 256-bit encryption, PCI-DSS Level 1 compliant payments via Cashfree Payments.'
+    } else if (/contact/i.test(path)) {
+      pageTitle = 'Contact Us — RISHAV MEDIA (1024 Tera Viral Hub)'
+      pageDesc = 'Customer Support & Grievance Redressal Desk of RISHAV MEDIA for 1024teraviralhub.com. 24x7 support and registered office details in Bihar.'
+    } else if (/pricing/i.test(path)) {
+      pageTitle = 'Pricing & Products Policy — RISHAV MEDIA (1024 Tera Viral Hub)'
+      pageDesc = 'Official Pricing and Products Policy of RISHAV MEDIA. Transparent pricing in Indian Rupees (INR / ₹) with instant digital delivery.'
+    } else if (/about/i.test(path)) {
+      pageTitle = 'About Us — RISHAV MEDIA (1024 Tera Viral Hub)'
+      pageDesc = 'About RISHAV MEDIA and 1024 Tera Viral Hub. High-resolution digital wallpapers, media bundles, and assets.'
+    }
+
+    html = injectSeoTags(html, {
+      title: pageTitle,
+      description: pageDesc,
+      url: `${siteOrigin}${path}`,
+      imageUrl: `${siteOrigin}/assets/collection-section-image.png`,
+      imageType: 'image/png',
+      type: 'website',
+      siteName: '1024 Tera Viral Hub',
+    })
+
+    // Pre-render statutory noscript block for Cashfree compliance bots, crawlers, and scrapers
+    const crawlableNoscript = `
+    <noscript id="cashfree-merchant-statutory-disclosure">
+      <div style="padding: 24px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #ffffff; color: #0f172a; border-bottom: 2px solid #86efac;">
+        <h2>Authorized Cashfree Merchant &amp; Payment Settlement Disclosure</h2>
+        <p>This store is officially owned and operated by <strong>RISHAV MEDIA</strong> under the brand name <strong>1024 Tera Viral Hub</strong> (1024teraviralhub.com).</p>
+        <p><strong>Registered Merchant Legal Entity:</strong> RISHAV MEDIA</p>
+        <p><strong>Trade &amp; Domain Name:</strong> 1024 Tera Viral Hub (1024teraviralhub.com)</p>
+        <p><strong>Govt. MSME / Udyam Reg. No.:</strong> UDYAM-BR-11-0107325</p>
+        <p><strong>Authorized Payment Partner:</strong> Cashfree Payments India Pvt. Ltd. (PCI-DSS Level 1)</p>
+        <p><strong>Refund Turnaround Time (TAT):</strong> 5 to 7 business days credited directly to original payment source (UPI / Bank Account).</p>
+        <p><strong>Verification &amp; Dispute SLA:</strong> 24 to 48 hours via automated dispute redressal desk.</p>
+        <p><strong>Fulfillment &amp; Delivery:</strong> 100% intangible digital products delivered electronically within 0 to 5 minutes at &#8377;0 delivery fee.</p>
+        <p><strong>Registered Office:</strong> Flat No. 25, Rishav Media Office, Block Road, Ghorasahan, Motihari, Bihar - 845303</p>
+        <p><strong>Official Support &amp; Compliance Email:</strong> support@1024teraviralhub.com</p>
+      </div>
+    </noscript>`
+
+    if (specificSchema) {
+      const schemaScript = `
+      <script type="application/ld+json">
+      ${JSON.stringify(specificSchema)}
+      </script>`
+      html = html.replace('</head>', `${schemaScript}\n</head>`)
+    }
+
+    html = html.replace('</body>', `${crawlableNoscript}\n</body>`)
+
+    return new Response(html, {
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+      },
+    })
   }
 
   // 5. Fallback for all other routes
