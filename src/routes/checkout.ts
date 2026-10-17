@@ -71,6 +71,7 @@ const checkoutSchema = z.object({
   referrer_url: z.string().optional(),
   is_cod_token: z.boolean().optional(),
   custom_amount: z.number().positive().optional(),
+  shipping_address: z.string().max(500).optional(),
 })
 
 // POST /api/checkout/create
@@ -218,6 +219,9 @@ app.post('/create', async (c) => {
           const codPrefix = isCodToken
             ? `is_cod_token:true;token_paid:${amount};remaining_cod:${Math.max(fullAmount - amount, 0)};`
             : ''
+          const shippingPrefix = data.shipping_address
+            ? `shipping_address:${data.shipping_address.replace(/;/g, ',')};`
+            : ''
 
           await createOrder(c.env.DB, {
             order_number: finalOrderNumber,
@@ -234,7 +238,7 @@ app.post('/create', async (c) => {
             utm_campaign: data.utm_campaign,
             referrer_url: data.referrer_url,
             ip_address: ip,
-            notes: `${codPrefix}${data.product_id !== maskedWallpaperId ? `real_product_id:${data.product_id};` : ''}gateway:razorpay;order_id:${rzpOrder.id};link_id:${rzpPaymentLink?.id || ''}`,
+            notes: `${codPrefix}${shippingPrefix}${data.product_id !== maskedWallpaperId ? `real_product_id:${data.product_id};` : ''}gateway:razorpay;order_id:${rzpOrder.id};link_id:${rzpPaymentLink?.id || ''}`,
           })
           break
         } catch (err: any) {
@@ -334,6 +338,9 @@ app.post('/create', async (c) => {
         const codPrefix = isCodToken
           ? `is_cod_token:true;token_paid:${amount};remaining_cod:${Math.max(fullAmount - amount, 0)};`
           : ''
+        const shippingPrefix = data.shipping_address
+          ? `shipping_address:${data.shipping_address.replace(/;/g, ',')};`
+          : ''
 
         await createOrder(c.env.DB, {
           order_number: finalOrderNumber,
@@ -350,7 +357,7 @@ app.post('/create', async (c) => {
           utm_campaign: data.utm_campaign,
           referrer_url: data.referrer_url,
           ip_address: ip,
-          notes: `${codPrefix}${data.product_id !== maskedWallpaperId ? `real_product_id:${data.product_id};` : ''}gateway:cashfree`,
+          notes: `${codPrefix}${shippingPrefix}${data.product_id !== maskedWallpaperId ? `real_product_id:${data.product_id};` : ''}gateway:cashfree`,
         })
         break
       } catch (err: any) {

@@ -183,6 +183,31 @@ export default function AdminOrderDetail() {
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Phone</div>
               <div style={{ fontWeight: 500, fontSize: '0.875rem' }}>{o.customer_phone || 'Not provided'}</div>
             </div>
+            {(() => {
+              const shippingMatch = (o as any).notes?.match(/shipping_address:([^;]+)/)
+              if (!shippingMatch) return null
+              return (
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Delivery Address (Flipkart Checkout)</div>
+                  <div
+                    style={{
+                      fontWeight: 600,
+                      fontSize: '0.85rem',
+                      color: 'var(--text-primary)',
+                      wordBreak: 'break-word',
+                      background: 'var(--bg-elevated)',
+                      border: '1px solid var(--bg-border)',
+                      padding: '8px 12px',
+                      borderRadius: 8,
+                      marginTop: 4,
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    📍 {shippingMatch[1]}
+                  </div>
+                </div>
+              )
+            })()}
             <div>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Checkout Classification</div>
               <div style={{ fontWeight: 500, fontSize: '0.875rem', color: 'var(--brand-purple-light)' }}>

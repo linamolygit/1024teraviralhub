@@ -978,13 +978,31 @@ export default function AdminOrders() {
                           >
                             {customerInitial}
                           </div>
-                          <div style={{ minWidth: 0, maxWidth: 200 }}>
+                          <div style={{ minWidth: 0, maxWidth: 220 }}>
                             <div className="text-truncate" style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)' }}>
                               {o.customer_name || 'Customer'}
                             </div>
                             <div className="text-truncate" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                              {o.customer_email}
+                              {o.customer_phone || o.customer_email}
                             </div>
+                            {(() => {
+                              const shippingMatch = (o as any).notes?.match(/shipping_address:([^;]+)/)
+                              if (!shippingMatch) return null
+                              return (
+                                <div
+                                  className="text-truncate"
+                                  style={{
+                                    fontSize: '0.72rem',
+                                    color: 'var(--brand-purple-light)',
+                                    marginTop: 2,
+                                    fontWeight: 500,
+                                  }}
+                                  title={`Delivery Address: ${shippingMatch[1]}`}
+                                >
+                                  📍 {shippingMatch[1]}
+                                </div>
+                              )
+                            })()}
                           </div>
                         </div>
                       </td>

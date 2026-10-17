@@ -80,6 +80,7 @@ export const api = {
       referrer_url?: string
       is_cod_token?: boolean
       custom_amount?: number
+      shipping_address?: string
     }) => req<{
       success: boolean
       gateway?: 'cashfree' | 'razorpay' | string

@@ -452,6 +452,9 @@ export default function FlipkartCheckoutPage() {
       const utm = getSavedUtmParams()
       const customerName = address?.name || 'Flipkart Customer'
       const customerPhone = address?.phone || undefined
+      const shippingAddress = address
+        ? [address.flat, address.area, address.type ? `(${address.type.toUpperCase()})` : ''].filter(Boolean).join(', ')
+        : undefined
 
       // 🛡️ DEDUPLICATION CACHE: Reuse active order session if created within 15 minutes to avoid duplicate pending orders
       const sessionKey = `tvh_active_checkout_${product.id}${isCodToken ? `_cod_token_${finalAmount}` : ''}`
@@ -475,6 +478,7 @@ export default function FlipkartCheckoutPage() {
           product_id: product.id,
           customer_name: customerName,
           customer_phone: customerPhone,
+          shipping_address: shippingAddress,
           preferred_gateway: isBoth ? (defaultDualGateway || 'razorpay') : isRazorpay ? 'razorpay' : 'cashfree',
           utm_source: utm.utm_source,
           utm_medium: utm.utm_medium,
