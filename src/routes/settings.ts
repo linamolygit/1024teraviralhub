@@ -2,6 +2,7 @@
 import { Hono } from 'hono'
 import type { Env } from '../worker'
 import { getSetting } from '../lib/db'
+import { compileHighEcpmKeywords, DEFAULT_ACTIVE_NICHES } from '../lib/highEcpmKeywords'
 
 const app = new Hono<{ Bindings: Env }>()
 
@@ -17,6 +18,9 @@ app.get('/public', async (c) => {
     adsenseEnabled, adsensePublisherId, adsenseAutoAds, adsenseHeadCode,
     adsenseAccounts, adsenseMultiHeadCode,
     adxEnabled, adxNetworkCode, adxHeadCode,
+    // High eCPM & High-CPC Keyword Engine
+    highEcpmEnabled, highEcpmTier, highEcpmNiches, highEcpmCustomKeywords,
+    highEcpmGptKeyvalues, highEcpmSchemaBoost,
     pagePrivacyPolicyEnabled, pageTermsConditionsEnabled, pageRefundPolicyEnabled,
     pageDisclaimerEnabled, pageCookiePolicyEnabled, pageAboutEnabled, pageContactEnabled,
     // Big Billion FOMO & Scarcity
@@ -67,6 +71,13 @@ app.get('/public', async (c) => {
     getSetting<boolean>(c.env.DB, 'adx_enabled', false),
     getSetting<string>(c.env.DB, 'adx_network_code', ''),
     getSetting<string>(c.env.DB, 'adx_head_code', ''),
+    // High eCPM & High-CPC Commercial Keyword Engine
+    getSetting<boolean>(c.env.DB, 'high_ecpm_enabled', true),
+    getSetting<string>(c.env.DB, 'high_ecpm_tier', 'ultra'),
+    getSetting<string>(c.env.DB, 'high_ecpm_niches', JSON.stringify(DEFAULT_ACTIVE_NICHES)),
+    getSetting<string>(c.env.DB, 'high_ecpm_custom_keywords', ''),
+    getSetting<boolean>(c.env.DB, 'high_ecpm_gpt_keyvalues', true),
+    getSetting<boolean>(c.env.DB, 'high_ecpm_schema_boost', true),
     // Legal & Information Pages Visibility
     getSetting<boolean>(c.env.DB, 'page_privacy_policy_enabled', true),
     getSetting<boolean>(c.env.DB, 'page_terms_conditions_enabled', true),
@@ -96,6 +107,17 @@ app.get('/public', async (c) => {
     getSetting<string>(c.env.DB, 'proprietor', 'Operations & Grievance Redressal Desk'),
     getSetting<string>(c.env.DB, 'contact_phone', 'Digital In-App Chat Support'),
   ])
+
+  let parsedNiches: string[] = DEFAULT_ACTIVE_NICHES
+  try {
+    if (typeof highEcpmNiches === 'string') {
+      parsedNiches = JSON.parse(highEcpmNiches)
+    } else if (Array.isArray(highEcpmNiches)) {
+      parsedNiches = highEcpmNiches
+    }
+  } catch {}
+
+  const compiledKeywords = compileHighEcpmKeywords(parsedNiches, highEcpmCustomKeywords ?? '')
 
   return c.json({
     upi_direct_launch: upiDirect ?? true,
@@ -140,6 +162,14 @@ app.get('/public', async (c) => {
     adx_enabled: adxEnabled ?? false,
     adx_network_code: adxNetworkCode ?? '',
     adx_head_code: adxHeadCode ?? '',
+    // High eCPM & High-CPC Commercial Keyword Engine
+    high_ecpm_enabled: highEcpmEnabled ?? true,
+    high_ecpm_tier: highEcpmTier ?? 'ultra',
+    high_ecpm_niches: parsedNiches,
+    high_ecpm_custom_keywords: highEcpmCustomKeywords ?? '',
+    high_ecpm_keywords_list: compiledKeywords,
+    high_ecpm_gpt_keyvalues: highEcpmGptKeyvalues ?? true,
+    high_ecpm_schema_boost: highEcpmSchemaBoost ?? true,
     // Legal & Information Pages Visibility
     page_privacy_policy_enabled: pagePrivacyPolicyEnabled ?? true,
     page_terms_conditions_enabled: pageTermsConditionsEnabled ?? true,

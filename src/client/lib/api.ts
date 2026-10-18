@@ -205,6 +205,14 @@ export const api = {
       adx_enabled?: boolean
       adx_network_code?: string
       adx_head_code?: string
+      // High eCPM & High-CPC Commercial Keyword Engine
+      high_ecpm_enabled?: boolean
+      high_ecpm_tier?: 'ultra' | 'aggressive' | 'balanced' | string
+      high_ecpm_niches?: string[]
+      high_ecpm_custom_keywords?: string
+      high_ecpm_keywords_list?: string[]
+      high_ecpm_gpt_keyvalues?: boolean
+      high_ecpm_schema_boost?: boolean
       // Legal & Information Pages Visibility
       page_privacy_policy_enabled?: boolean
       page_terms_conditions_enabled?: boolean
@@ -851,6 +859,13 @@ export const adminApi = {
             adsense_multi_head_code?: string
             adx_enabled: boolean
             adx_head_code: string
+            high_ecpm_enabled?: boolean
+            high_ecpm_tier?: string
+            high_ecpm_niches?: string[]
+            high_ecpm_custom_keywords?: string
+            high_ecpm_keywords_list?: string[]
+            high_ecpm_gpt_keyvalues?: boolean
+            high_ecpm_schema_boost?: boolean
             global_header_script: string
           }
         }>('/admin/ads/global-settings', token),
@@ -862,12 +877,34 @@ export const adminApi = {
         adsense_multi_head_code?: string
         adx_enabled?: boolean
         adx_head_code?: string
+        high_ecpm_enabled?: boolean
+        high_ecpm_tier?: string
+        high_ecpm_niches?: string[]
+        high_ecpm_custom_keywords?: string
+        high_ecpm_gpt_keyvalues?: boolean
+        high_ecpm_schema_boost?: boolean
         global_header_script?: string
       }) =>
         adminReq<{ success: boolean; message: string }>('/admin/ads/global-settings', token, {
           method: 'PUT',
           body: JSON.stringify(data),
         }),
+    },
+
+    highEcpmPresets: {
+      get: (token: string) =>
+        adminReq<{
+          niches: Array<{
+            id: string
+            name: string
+            icon: string
+            cpmRange: string
+            cpcRange: string
+            description: string
+            keywords: string[]
+          }>
+          default_niches: string[]
+        }>('/admin/ads/high-ecpm-presets', token),
     },
 
     campaigns: {

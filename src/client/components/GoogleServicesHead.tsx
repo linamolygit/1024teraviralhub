@@ -226,6 +226,98 @@ export default function GoogleServicesHead() {
         } catch {}
       }
     }
+
+    // ─── 5. High eCPM & High-CPC Commercial Keyword Engine ───────────
+    if (settings.high_ecpm_enabled !== false) {
+      const keywordsList =
+        Array.isArray(settings.high_ecpm_keywords_list) && settings.high_ecpm_keywords_list.length > 0
+          ? settings.high_ecpm_keywords_list
+          : [
+              'payment gateway integration',
+              'merchant payment processing',
+              'upi payment gateway api',
+              'dedicated cloud server hosting',
+              'enterprise kubernetes hosting',
+              'high performance cloud vps',
+              'enterprise ssl certificates',
+              'pci dss compliance solutions',
+              'programmatic ad exchange platform',
+              'enterprise generative ai api',
+            ]
+
+      const kwString = keywordsList.join(', ')
+
+      // A. High-CPC Meta Keywords for Google AdSense & Search Crawlers
+      let metaKw = document.querySelector('meta[name="keywords"]') as HTMLMetaElement | null
+      if (!metaKw) {
+        metaKw = document.createElement('meta')
+        metaKw.setAttribute('name', 'keywords')
+        document.head.appendChild(metaKw)
+      }
+      metaKw.setAttribute('content', kwString)
+
+      // B. News & Article Tag Metas for programmatic contextual matching
+      let metaNewsKw = document.querySelector('meta[name="news_keywords"]') as HTMLMetaElement | null
+      if (!metaNewsKw) {
+        metaNewsKw = document.createElement('meta')
+        metaNewsKw.setAttribute('name', 'news_keywords')
+        document.head.appendChild(metaNewsKw)
+      }
+      metaNewsKw.setAttribute('content', keywordsList.slice(0, 10).join(', '))
+
+      // C. Google AdX / Google Ad Manager (GPT) High-eCPM Key-Values
+      if (settings.high_ecpm_gpt_keyvalues !== false) {
+        const win = window as any
+        win.googletag = win.googletag || { cmd: [] }
+        win.googletag.cmd.push(() => {
+          try {
+            const pubads = win.googletag.pubads ? win.googletag.pubads() : null
+            if (pubads && typeof pubads.setTargeting === 'function') {
+              pubads.setTargeting('cpm_tier', ['ultra_high', 'tier1_premium'])
+              pubads.setTargeting('commercial_intent', 'high')
+              pubads.setTargeting('content_rating', 'g')
+              pubads.setTargeting('vertical', [
+                'fintech',
+                'saas',
+                'cloud_hosting',
+                'enterprise_software',
+                'cybersecurity',
+                'developer_tools',
+              ])
+              pubads.setTargeting('audience_segment', ['b2b_decision_makers', 'tech_buyers', 'high_net_worth'])
+              pubads.setTargeting('kw', keywordsList.slice(0, 35))
+            }
+          } catch {}
+        })
+      }
+
+      // D. High-Value SoftwareApplication & Fintech Schema.org JSON-LD
+      if (settings.high_ecpm_schema_boost !== false && !document.getElementById('high-ecpm-schema')) {
+        try {
+          const schemaScript = document.createElement('script')
+          schemaScript.id = 'high-ecpm-schema'
+          schemaScript.type = 'application/ld+json'
+          schemaScript.text = JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'SoftwareApplication',
+            name: '1024TeraViralHub Enterprise Digital & Payment Platform',
+            applicationCategory: 'BusinessApplication, FintechApplication, DeveloperTools',
+            operatingSystem: 'All Cloud Platforms, Web, Mobile',
+            description:
+              'Enterprise digital platform providing secure payment processing, cloud software tools, and high-performance digital downloads.',
+            keywords: kwString,
+            offers: {
+              '@type': 'AggregateOffer',
+              priceCurrency: 'INR',
+              lowPrice: '99',
+              highPrice: '4999',
+              offerCount: '150',
+            },
+          })
+          document.head.appendChild(schemaScript)
+        } catch {}
+      }
+    }
   }, [settings])
 
   return null

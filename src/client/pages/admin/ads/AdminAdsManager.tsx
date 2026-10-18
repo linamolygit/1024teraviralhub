@@ -6,13 +6,14 @@ import {
   Plus, Edit, Trash2, CheckCircle, RefreshCw, Zap, Lock,
   ExternalLink, Code, Sparkles, Check, Play, Pause, AlertCircle,
   Copy, FileText, Monitor, Smartphone, CheckCheck, Eye, Terminal,
-  HelpCircle, ShieldCheck, Star
+  HelpCircle, ShieldCheck, Star, TrendingUp, Target, DollarSign, SlidersHorizontal
 } from 'lucide-react'
 import { adminApi, type AdNetwork, type AdPlacement, type AdCampaign, type AdRules, type AdSenseAccount } from '../../../lib/api'
 import { useAuthStore } from '../../../lib/auth-store'
 import LoadingSpinner from '../../../components/ui/LoadingSpinner'
 import { NetworkLogo, NetworkBadge } from '../../../components/ads/NetworkLogos'
 import { adminToast } from '../../../lib/admin-toast'
+import { HIGH_ECPM_PRESET_NICHES, DEFAULT_ACTIVE_NICHES, compileHighEcpmKeywords, type HighEcpmNiche } from '../../../lib/highEcpmKeywords'
 
 const PROVIDER_OPTIONS = [
   { id: 'adsense', name: 'Google AdSense', badge: 'Contextual Display & Auto Ads' },
@@ -90,8 +91,18 @@ export default function AdminAdsManager() {
     adsense_multi_head_code?: string
     adx_enabled: boolean
     adx_head_code: string
+    high_ecpm_enabled?: boolean
+    high_ecpm_tier?: string
+    high_ecpm_niches?: string[]
+    high_ecpm_custom_keywords?: string
+    high_ecpm_keywords_list?: string[]
+    high_ecpm_gpt_keyvalues?: boolean
+    high_ecpm_schema_boost?: boolean
     global_header_script: string
   } | null>(null)
+
+  const [newCustomKeyword, setNewCustomKeyword] = useState('')
+  const [showTargetingInspector, setShowTargetingInspector] = useState(false)
 
   // Local state for AdSense / AdX Code Generator & Upgrade Roadmap
   const [generatorFormat, setGeneratorFormat] = useState<'anchor' | 'slider' | 'vignette' | 'box_300x250' | 'header_banner' | 'checkout_banner'>('anchor')
@@ -220,6 +231,13 @@ export default function AdminAdsManager() {
           adsense_multi_head_code: res.settings.adsense_multi_head_code || '',
           adx_enabled: res.settings.adx_enabled,
           adx_head_code: res.settings.adx_head_code,
+          high_ecpm_enabled: res.settings.high_ecpm_enabled !== false,
+          high_ecpm_tier: res.settings.high_ecpm_tier || 'ultra',
+          high_ecpm_niches: res.settings.high_ecpm_niches || DEFAULT_ACTIVE_NICHES,
+          high_ecpm_custom_keywords: res.settings.high_ecpm_custom_keywords || '',
+          high_ecpm_keywords_list: res.settings.high_ecpm_keywords_list || [],
+          high_ecpm_gpt_keyvalues: res.settings.high_ecpm_gpt_keyvalues !== false,
+          high_ecpm_schema_boost: res.settings.high_ecpm_schema_boost !== false,
           global_header_script: res.settings.global_header_script,
         })
       }
@@ -556,6 +574,107 @@ export default function AdminAdsManager() {
     setCopiedLink(true)
     adminToast.success('Link Copied', 'https://1024teraviralhub.com/ads.txt copied to clipboard.')
     setTimeout(() => setCopiedLink(false), 2500)
+  }
+
+  // High eCPM Niche Toggle
+  const handleToggleNiche = (nicheId: string) => {
+    if (!globalForm) return
+    const currentNiches = globalForm.high_ecpm_niches || []
+    const exists = currentNiches.includes(nicheId)
+    const updatedNiches = exists
+      ? currentNiches.filter((id) => id !== nicheId)
+      : [...currentNiches, nicheId]
+
+    if (updatedNiches.length === 0) {
+      adminToast.warning('At Least 1 Niche Needed', 'Keep at least one high-paying niche selected for High eCPM.')
+      return
+    }
+
+    const compiled = compileHighEcpmKeywords(updatedNiches, globalForm.high_ecpm_custom_keywords || '')
+
+    setGlobalForm({
+      ...globalForm,
+      high_ecpm_niches: updatedNiches,
+      high_ecpm_keywords_list: compiled,
+    })
+    adminToast.info(
+      exists ? 'Niche Deactivated' : 'High-eCPM Niche Activated',
+      `${HIGH_ECPM_PRESET_NICHES[nicheId]?.name || nicheId} (${compiled.length} active targeting keywords)`
+    )
+  }
+
+  // Custom Keyword Add
+  const handleAddCustomKeyword = () => {
+    if (!globalForm) return
+    const kw = newCustomKeyword.trim().toLowerCase()
+    if (!kw) return
+
+    const currentCustom = globalForm.high_ecpm_custom_keywords || ''
+    const currentList = currentCustom
+      .split(/[\n,]+/)
+      .map((k) => k.trim().toLowerCase())
+      .filter(Boolean)
+
+    if (currentList.includes(kw)) {
+      adminToast.info('Keyword Already Added', `"${kw}" is already active in your targeting list.`)
+      return
+    }
+
+    const updatedCustom = currentList.length > 0 ? `${currentCustom}, ${kw}` : kw
+    const compiled = compileHighEcpmKeywords(globalForm.high_ecpm_niches || DEFAULT_ACTIVE_NICHES, updatedCustom)
+
+    setGlobalForm({
+      ...globalForm,
+      high_ecpm_custom_keywords: updatedCustom,
+      high_ecpm_keywords_list: compiled,
+    })
+    setNewCustomKeyword('')
+    adminToast.success('High-CPC Keyword Added', `"${kw}" is now injected into AdX and AdSense targeting.`)
+  }
+
+  // Custom Keyword Remove
+  const handleRemoveCustomKeyword = (kwToRemove: string) => {
+    if (!globalForm) return
+    const currentCustom = globalForm.high_ecpm_custom_keywords || ''
+    const currentList = currentCustom
+      .split(/[\n,]+/)
+      .map((k) => k.trim().toLowerCase())
+      .filter((k) => k && k !== kwToRemove.toLowerCase())
+
+    const updatedCustom = currentList.join(', ')
+    const compiled = compileHighEcpmKeywords(globalForm.high_ecpm_niches || DEFAULT_ACTIVE_NICHES, updatedCustom)
+
+    setGlobalForm({
+      ...globalForm,
+      high_ecpm_custom_keywords: updatedCustom,
+      high_ecpm_keywords_list: compiled,
+    })
+    adminToast.info('Keyword Removed', `"${kwToRemove}" removed from targeting list.`)
+  }
+
+  // Quick Suggestion Add
+  const handleQuickAddKeyword = (kw: string) => {
+    if (!globalForm) return
+    const currentCustom = globalForm.high_ecpm_custom_keywords || ''
+    const currentList = currentCustom
+      .split(/[\n,]+/)
+      .map((k) => k.trim().toLowerCase())
+      .filter(Boolean)
+
+    if (currentList.includes(kw.toLowerCase())) {
+      adminToast.info('Already Added', `"${kw}" is already in your targeting list.`)
+      return
+    }
+
+    const updatedCustom = currentList.length > 0 ? `${currentCustom}, ${kw.toLowerCase()}` : kw.toLowerCase()
+    const compiled = compileHighEcpmKeywords(globalForm.high_ecpm_niches || DEFAULT_ACTIVE_NICHES, updatedCustom)
+
+    setGlobalForm({
+      ...globalForm,
+      high_ecpm_custom_keywords: updatedCustom,
+      high_ecpm_keywords_list: compiled,
+    })
+    adminToast.success('Keyword Added', `"${kw}" activated for premium advertisers.`)
   }
 
   return (
@@ -1496,7 +1615,467 @@ export default function AdminAdsManager() {
             </div>
           </div>
 
-          {/* Section 3: Global Header & Custom In-Head Script */}
+          {/* Section 3: High eCPM & High-CPC Commercial Keyword Engine */}
+          <div
+            className="glass-card"
+            style={{
+              padding: '26px',
+              borderRadius: 16,
+              border: '1.5px solid rgba(16, 185, 129, 0.35)',
+              background: 'linear-gradient(180deg, rgba(16, 185, 129, 0.05) 0%, rgba(6, 182, 212, 0.03) 100%)',
+            }}
+          >
+            {/* Header with Master Switch */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 14, marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 12,
+                    background: 'rgba(16, 185, 129, 0.15)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 0 16px rgba(16, 185, 129, 0.25)',
+                  }}
+                >
+                  <TrendingUp size={24} color="#10B981" />
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <h3 style={{ fontSize: '1.25rem', fontWeight: 900, margin: 0, color: 'var(--text-primary)' }}>
+                      High eCPM & High-CPC Commercial Keyword Engine
+                    </h3>
+                    <span
+                      style={{
+                        background: 'linear-gradient(135deg, #10B981 0%, #06B6D4 100%)',
+                        color: '#000000',
+                        fontSize: '0.72rem',
+                        fontWeight: 900,
+                        padding: '3px 10px',
+                        borderRadius: 12,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                      }}
+                    >
+                      💰 $20 - $65+ CPM Tier
+                    </span>
+                  </div>
+                  <p style={{ margin: '4px 0 0', fontSize: '0.825rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                    Forces Google AdX (Google Publisher Tag) and AdSense crawlers to classify your domain into premium B2B commercial niches (Fintech, Cloud VPS, Enterprise SaaS, Cybersecurity) instead of generic low-paying traffic.
+                  </p>
+                </div>
+              </div>
+
+              {/* Master Toggle */}
+              <button
+                type="button"
+                onClick={() => {
+                  const newState = !globalForm.high_ecpm_enabled
+                  setGlobalForm({ ...globalForm, high_ecpm_enabled: newState })
+                  if (newState) {
+                    adminToast.success('High eCPM Mode Active', 'Premium advertiser targeting keywords will now be injected into all pages.')
+                  } else {
+                    adminToast.info('High eCPM Mode Paused', 'Standard generic contextual targeting restored.')
+                  }
+                }}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: 22,
+                  fontWeight: 900,
+                  fontSize: '0.825rem',
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: globalForm.high_ecpm_enabled ? '#10B981' : 'var(--bg-border)',
+                  color: globalForm.high_ecpm_enabled ? '#000000' : 'var(--text-muted)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  boxShadow: globalForm.high_ecpm_enabled ? '0 0 18px rgba(16, 185, 129, 0.45)' : 'none',
+                  transition: 'all 0.2s',
+                }}
+              >
+                {globalForm.high_ecpm_enabled ? (
+                  <>
+                    <Zap size={16} fill="#000000" /> ✓ ULTRA HIGH eCPM ACTIVE ($20 - $65)
+                  </>
+                ) : (
+                  <>○ HIGH eCPM PAUSED</>
+                )}
+              </button>
+            </div>
+
+            {/* Performance KPI Highlights */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: 12,
+                marginBottom: 24,
+                padding: '14px',
+                borderRadius: 12,
+                background: 'rgba(15, 23, 42, 0.4)',
+                border: '1px solid rgba(255, 255, 255, 0.06)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Target size={18} color="#10B981" />
+                <div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
+                    Targeting Vertical
+                  </div>
+                  <div style={{ fontSize: '0.875rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                    B2B & Fintech Commercial
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Sparkles size={18} color="#38BDF8" />
+                <div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
+                    Active High-CPC Keywords
+                  </div>
+                  <div style={{ fontSize: '0.875rem', fontWeight: 800, color: '#38BDF8' }}>
+                    {globalForm.high_ecpm_keywords_list?.length || 54} Targeted Terms
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <DollarSign size={18} color="#FBBF24" />
+                <div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
+                    Projected eCPM Range
+                  </div>
+                  <div style={{ fontSize: '0.875rem', fontWeight: 800, color: '#FBBF24' }}>
+                    $20.00 &mdash; $65.00+ CPM
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Presets Grid: Top 5 Highest-Paying Programmatic Niches */}
+            <div style={{ marginBottom: 22 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                <label style={{ fontSize: '0.875rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                  Select High-Paying Niches to Inject into Head & AdX Tags:
+                </label>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Click to toggle active niches on or off
+                </span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
+                {Object.values(HIGH_ECPM_PRESET_NICHES).map((niche: HighEcpmNiche) => {
+                  const isActive = (globalForm.high_ecpm_niches || []).includes(niche.id)
+                  return (
+                    <div
+                      key={niche.id}
+                      onClick={() => handleToggleNiche(niche.id)}
+                      style={{
+                        padding: '16px',
+                        borderRadius: 12,
+                        cursor: 'pointer',
+                        background: isActive ? 'rgba(16, 185, 129, 0.08)' : 'rgba(30, 41, 59, 0.4)',
+                        border: `1.5px solid ${isActive ? '#10B981' : 'var(--bg-border)'}`,
+                        boxShadow: isActive ? '0 4px 14px rgba(16, 185, 129, 0.15)' : 'none',
+                        transition: 'all 0.2s ease',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: '1.4rem' }}>{niche.icon}</span>
+                          <div>
+                            <div style={{ fontWeight: 800, fontSize: '0.875rem', color: isActive ? '#10B981' : 'var(--text-primary)' }}>
+                              {niche.name}
+                            </div>
+                            <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
+                              <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#FBBF24', background: 'rgba(251, 191, 36, 0.12)', padding: '1px 6px', borderRadius: 4 }}>
+                                {niche.cpmRange}
+                              </span>
+                              <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                                {niche.cpcRange}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <span
+                          style={{
+                            fontSize: '0.75rem',
+                            fontWeight: 800,
+                            padding: '3px 8px',
+                            borderRadius: 6,
+                            background: isActive ? '#10B981' : 'var(--bg-border)',
+                            color: isActive ? '#000000' : 'var(--text-muted)',
+                          }}
+                        >
+                          {isActive ? '✓ Active' : '+ Enable'}
+                        </span>
+                      </div>
+
+                      <p style={{ margin: '8px 0 10px', fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                        {niche.description}
+                      </p>
+
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                        {niche.keywords.slice(0, 4).map((kw, i) => (
+                          <span
+                            key={i}
+                            style={{
+                              fontSize: '0.68rem',
+                              padding: '2px 6px',
+                              borderRadius: 4,
+                              background: 'rgba(255, 255, 255, 0.05)',
+                              color: 'var(--text-secondary)',
+                            }}
+                          >
+                            {kw}
+                          </span>
+                        ))}
+                        {niche.keywords.length > 4 && (
+                          <span style={{ fontSize: '0.68rem', padding: '2px 6px', color: 'var(--text-muted)' }}>
+                            +{niche.keywords.length - 4} more
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Custom High-CPC Keyword Manager */}
+            <div style={{ marginTop: 20, borderTop: '1px solid var(--bg-border)', paddingTop: 18 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
+                <div>
+                  <label style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--text-primary)', margin: 0 }}>
+                    Custom High-CPC Keywords (Injected into GPT setTargeting &amp; &lt;meta name=&quot;keywords&quot;&gt;)
+                  </label>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    Add specific commercial keywords you want advertisers to bid high on.
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowTargetingInspector(!showTargetingInspector)}
+                  className="btn-ghost"
+                  style={{
+                    fontSize: '0.75rem',
+                    padding: '4px 10px',
+                    color: '#38BDF8',
+                    border: '1px solid rgba(56, 189, 248, 0.3)',
+                    borderRadius: 6,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                  }}
+                >
+                  <Eye size={13} /> {showTargetingInspector ? 'Hide Code Inspector' : 'Inspect Live Injected Code'}
+                </button>
+              </div>
+
+              {/* Quick Suggestion Chips */}
+              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700 }}>Quick Add Presets:</span>
+                {[
+                  'crypto payment gateway',
+                  'instant personal loan',
+                  'auto insurance quotes',
+                  'forex trading platform',
+                  'saas billing api',
+                  'cloud vps hosting',
+                ].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => handleQuickAddKeyword(preset)}
+                    style={{
+                      fontSize: '0.7rem',
+                      padding: '3px 8px',
+                      borderRadius: 12,
+                      background: 'rgba(56, 189, 248, 0.08)',
+                      color: '#38BDF8',
+                      border: '1px dashed rgba(56, 189, 248, 0.35)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    + {preset}
+                  </button>
+                ))}
+              </div>
+
+              {/* Input Row */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="e.g. dedicated cloud server, payment gateway integration, corporate banking"
+                  value={newCustomKeyword}
+                  onChange={(e) => setNewCustomKeyword(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      handleAddCustomKeyword()
+                    }
+                  }}
+                  style={{ fontSize: '0.825rem' }}
+                />
+                <button
+                  type="button"
+                  onClick={handleAddCustomKeyword}
+                  className="btn-secondary"
+                  style={{
+                    padding: '8px 16px',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    whiteSpace: 'nowrap',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <Plus size={14} /> Add Keyword
+                </button>
+              </div>
+
+              {/* Custom Keywords Tags Container */}
+              {globalForm.high_ecpm_custom_keywords && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
+                  {globalForm.high_ecpm_custom_keywords
+                    .split(/[\n,]+/)
+                    .map((k) => k.trim())
+                    .filter(Boolean)
+                    .map((kw, i) => (
+                      <span
+                        key={i}
+                        style={{
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          padding: '3px 10px',
+                          borderRadius: 6,
+                          background: 'rgba(16, 185, 129, 0.12)',
+                          color: '#10B981',
+                          border: '1px solid rgba(16, 185, 129, 0.3)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                        }}
+                      >
+                        {kw}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveCustomKeyword(kw)}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#10B981',
+                            cursor: 'pointer',
+                            padding: 0,
+                            lineHeight: 1,
+                            fontSize: '0.85rem',
+                          }}
+                        >
+                          &times;
+                        </button>
+                      </span>
+                    ))}
+                </div>
+              )}
+
+              {/* Targeting Options Toggles */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginTop: 10, padding: '10px 14px', background: 'var(--bg-elevated)', borderRadius: 10 }}>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', margin: 0 }}>
+                  <input
+                    type="checkbox"
+                    checked={globalForm.high_ecpm_gpt_keyvalues !== false}
+                    onChange={(e) => setGlobalForm({ ...globalForm, high_ecpm_gpt_keyvalues: e.target.checked })}
+                    style={{ accentColor: '#10B981' }}
+                  />
+                  Inject Google Publisher Tag (GPT) Key-Values (setTargeting)
+                </label>
+
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', margin: 0 }}>
+                  <input
+                    type="checkbox"
+                    checked={globalForm.high_ecpm_schema_boost !== false}
+                    onChange={(e) => setGlobalForm({ ...globalForm, high_ecpm_schema_boost: e.target.checked })}
+                    style={{ accentColor: '#10B981' }}
+                  />
+                  Inject High-Value SoftwareApplication &amp; Fintech JSON-LD Schema
+                </label>
+              </div>
+
+              {/* Code Inspector Accordion */}
+              {showTargetingInspector && (
+                <div
+                  style={{
+                    marginTop: 14,
+                    padding: '16px',
+                    borderRadius: 10,
+                    background: '#0B0F19',
+                    border: '1px solid #1E293B',
+                  }}
+                >
+                  <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#38BDF8', marginBottom: 8 }}>
+                    🔍 Live Injected Google Head Targeting Snippet:
+                  </div>
+                  <pre
+                    style={{
+                      margin: 0,
+                      padding: 12,
+                      background: '#020617',
+                      color: '#E2E8F0',
+                      fontSize: '0.75rem',
+                      fontFamily: 'monospace',
+                      borderRadius: 8,
+                      overflowX: 'auto',
+                    }}
+                  >
+                    <code>{`// 1. Google Ad Manager (AdX / GAM) Key-Values Targeting
+googletag.cmd.push(function() {
+  var pubads = googletag.pubads();
+  pubads.setTargeting('cpm_tier', ['ultra_high', 'tier1_premium']);
+  pubads.setTargeting('commercial_intent', 'high');
+  pubads.setTargeting('vertical', ${JSON.stringify(globalForm.high_ecpm_niches || DEFAULT_ACTIVE_NICHES)});
+  pubads.setTargeting('kw', ${JSON.stringify((globalForm.high_ecpm_keywords_list || []).slice(0, 15))});
+});
+
+// 2. Google AdSense & SEO Meta Keywords
+<meta name="keywords" content="${(globalForm.high_ecpm_keywords_list || []).slice(0, 20).join(', ')}">
+<meta name="news_keywords" content="${(globalForm.high_ecpm_keywords_list || []).slice(0, 8).join(', ')}">`}</code>
+                  </pre>
+                </div>
+              )}
+
+              {/* GAM / AdX Floor Price Guide Box */}
+              <div
+                style={{
+                  marginTop: 14,
+                  padding: '14px 18px',
+                  borderRadius: 10,
+                  background: 'rgba(255, 210, 0, 0.06)',
+                  border: '1px solid rgba(255, 210, 0, 0.25)',
+                  fontSize: '0.78rem',
+                  lineHeight: 1.5,
+                  color: 'var(--text-secondary)',
+                }}
+              >
+                <div style={{ fontWeight: 800, color: '#FFD200', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <ShieldCheck size={16} /> How to Lock in High eCPM via AdX Unified Pricing Rules (UPR Floor):
+                </div>
+                <div>
+                  Google Ad Manager (AdX) me <strong>Inventory &rarr; Pricing rules &rarr; New unified pricing rule</strong> par jayein.
+                  Wahan floor price <strong>$1.50 - $3.00 CPM</strong> set kar dein. Isse Google ke cheap 5-cent ads block ho jayenge aur sirf high-budget B2B/Fintech advertisers hi aapki inventory win karenge!
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 4: Global Header & Custom In-Head Script */}
           <div className="glass-card" style={{ padding: '24px', borderRadius: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
               <Code size={20} color="var(--brand-purple-light)" />
@@ -1552,7 +2131,7 @@ export default function AdminAdsManager() {
               }}
             >
               {updateGlobalSettings.isPending ? <RefreshCw size={16} className="spin" /> : <Check size={16} />}
-              Save AdSense & AdX Settings
+              Save All AdSense, AdX &amp; High eCPM Settings
             </button>
           </div>
         </div>

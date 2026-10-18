@@ -3,6 +3,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import type { Env, AdminVars } from '../../worker'
 import { adminAuthMiddleware } from './middleware'
+import { compileHighEcpmKeywords, DEFAULT_ACTIVE_NICHES, HIGH_ECPM_PRESET_NICHES } from '../../lib/highEcpmKeywords'
 
 const app = new Hono<{ Bindings: Env; Variables: AdminVars }>()
 app.use('*', adminAuthMiddleware)
@@ -705,11 +706,19 @@ app.put('/ads-txt', async (c) => {
   })
 })
 
-// GET /api/admin/ads/global-settings — Fetch AdSense Auto-Ads, Head Scripts, GAM/AdX
+// GET /api/admin/ads/high-ecpm-presets — Fetch available high-paying commercial niches & keyword database
+app.get('/high-ecpm-presets', async (c) => {
+  return c.json({
+    niches: Object.values(HIGH_ECPM_PRESET_NICHES),
+    default_niches: DEFAULT_ACTIVE_NICHES,
+  })
+})
+
+// GET /api/admin/ads/global-settings — Fetch AdSense Auto-Ads, Head Scripts, GAM/AdX, High eCPM
 app.get('/global-settings', async (c) => {
   await ensureAdsTables(c.env.DB)
   const rows = await c.env.DB.prepare(
-    `SELECT key, value FROM website_settings WHERE key IN ('adsense_enabled', 'adsense_publisher_id', 'adsense_head_code', 'adsense_accounts', 'adsense_multi_head_code', 'adx_enabled', 'adx_head_code')`
+    `SELECT key, value FROM website_settings WHERE key IN ('adsense_enabled', 'adsense_publisher_id', 'adsense_head_code', 'adsense_accounts', 'adsense_multi_head_code', 'adx_enabled', 'adx_head_code', 'high_ecpm_enabled', 'high_ecpm_tier', 'high_ecpm_niches', 'high_ecpm_custom_keywords', 'high_ecpm_gpt_keyvalues', 'high_ecpm_schema_boost')`
   ).all()
 
   const settings: Record<string, any> = {}
@@ -734,6 +743,17 @@ app.get('/global-settings', async (c) => {
     }
   } catch {}
 
+  let parsedNiches: string[] = DEFAULT_ACTIVE_NICHES
+  try {
+    if (Array.isArray(settings.high_ecpm_niches)) {
+      parsedNiches = settings.high_ecpm_niches
+    } else if (typeof settings.high_ecpm_niches === 'string') {
+      parsedNiches = JSON.parse(settings.high_ecpm_niches || '[]')
+    }
+  } catch {}
+
+  const compiledKeywords = compileHighEcpmKeywords(parsedNiches, settings.high_ecpm_custom_keywords || '')
+
   return c.json({
     settings: {
       adsense_enabled: settings.adsense_enabled !== false && settings.adsense_enabled !== 'false',
@@ -743,12 +763,19 @@ app.get('/global-settings', async (c) => {
       adsense_multi_head_code: settings.adsense_multi_head_code || '',
       adx_enabled: Boolean(settings.adx_enabled === true || settings.adx_enabled === 'true'),
       adx_head_code: settings.adx_head_code || '',
+      high_ecpm_enabled: settings.high_ecpm_enabled !== false && settings.high_ecpm_enabled !== 'false',
+      high_ecpm_tier: settings.high_ecpm_tier || 'ultra',
+      high_ecpm_niches: parsedNiches,
+      high_ecpm_custom_keywords: settings.high_ecpm_custom_keywords || '',
+      high_ecpm_keywords_list: compiledKeywords,
+      high_ecpm_gpt_keyvalues: settings.high_ecpm_gpt_keyvalues !== false && settings.high_ecpm_gpt_keyvalues !== 'false',
+      high_ecpm_schema_boost: settings.high_ecpm_schema_boost !== false && settings.high_ecpm_schema_boost !== 'false',
       global_header_script: rules.global_header_script || '',
     }
   })
 })
 
-// PUT /api/admin/ads/global-settings — Update AdSense, AdX, and Global Head Script
+// PUT /api/admin/ads/global-settings — Update AdSense, AdX, High eCPM, and Global Head Script
 const globalSettingsSchema = z.object({
   adsense_enabled: z.boolean().optional(),
   adsense_publisher_id: z.string().optional(),
@@ -765,6 +792,12 @@ const globalSettingsSchema = z.object({
   adsense_multi_head_code: z.string().optional(),
   adx_enabled: z.boolean().optional(),
   adx_head_code: z.string().optional(),
+  high_ecpm_enabled: z.boolean().optional(),
+  high_ecpm_tier: z.string().optional(),
+  high_ecpm_niches: z.array(z.string()).optional(),
+  high_ecpm_custom_keywords: z.string().optional(),
+  high_ecpm_gpt_keyvalues: z.boolean().optional(),
+  high_ecpm_schema_boost: z.boolean().optional(),
   global_header_script: z.string().optional(),
 })
 
@@ -784,6 +817,12 @@ app.put('/global-settings', async (c) => {
   if (d.adsense_multi_head_code !== undefined) wsUpdates.push(['adsense_multi_head_code', JSON.stringify(d.adsense_multi_head_code.trim())])
   if (d.adx_enabled !== undefined) wsUpdates.push(['adx_enabled', JSON.stringify(d.adx_enabled)])
   if (d.adx_head_code !== undefined) wsUpdates.push(['adx_head_code', JSON.stringify(d.adx_head_code.trim())])
+  if (d.high_ecpm_enabled !== undefined) wsUpdates.push(['high_ecpm_enabled', JSON.stringify(d.high_ecpm_enabled)])
+  if (d.high_ecpm_tier !== undefined) wsUpdates.push(['high_ecpm_tier', JSON.stringify(d.high_ecpm_tier)])
+  if (d.high_ecpm_niches !== undefined) wsUpdates.push(['high_ecpm_niches', JSON.stringify(d.high_ecpm_niches)])
+  if (d.high_ecpm_custom_keywords !== undefined) wsUpdates.push(['high_ecpm_custom_keywords', JSON.stringify(d.high_ecpm_custom_keywords.trim())])
+  if (d.high_ecpm_gpt_keyvalues !== undefined) wsUpdates.push(['high_ecpm_gpt_keyvalues', JSON.stringify(d.high_ecpm_gpt_keyvalues)])
+  if (d.high_ecpm_schema_boost !== undefined) wsUpdates.push(['high_ecpm_schema_boost', JSON.stringify(d.high_ecpm_schema_boost)])
 
   for (const [k, v] of wsUpdates) {
     await c.env.DB.prepare(`
@@ -799,7 +838,7 @@ app.put('/global-settings', async (c) => {
     `).bind(d.global_header_script.trim()).run()
   }
 
-  return c.json({ success: true, message: 'Global AdSense, AdX & Header Scripts saved successfully.' })
+  return c.json({ success: true, message: 'Global AdSense, AdX, High eCPM & Header Scripts saved successfully.' })
 })
 
 export default app
