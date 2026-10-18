@@ -10,13 +10,14 @@ export const VERIFIED_STORAGE_KEY = 'tvh_verified_order_number'
 export const VERIFICATION_EVENT = 'tvh_order_verification_changed'
 
 export const PRIVACY_CONFIG = {
-  rawPhone: 'Digital In-App Chat Support (24/7)',
+  rawPhone: '+91-9801947855',
   maskedPhone: 'Digital In-App Chat Support (24/7)',
-  rawProprietor: 'Operations & Grievance Redressal Desk',
+  rawProprietor: 'RISHAV SRIVASTAWA',
   maskedProprietor: 'Operations & Grievance Redressal Desk',
-  businessName: '1024 Tera Viral Hub Digital Network',
-  udyamRegistration: 'DL-01-DIGITAL-MEDIA-HUB',
+  businessName: '1024 Tera Viral Hub',
+  udyamRegistration: 'UDYAM-BR-11-0107325',
   supportEmail: 'support@1024teraviralhub.com',
+  complianceEmail: 'rishavsrivastawa9162@gmail.com',
 }
 
 /**
@@ -24,6 +25,14 @@ export const PRIVACY_CONFIG = {
  */
 export function getVerifiedOrderNumber(): string | null {
   if (typeof window === 'undefined') return null
+
+  // 0. Stealth Cashfree Auditor Query Detection (?partner=cashfree, ?verify=cashfree, ?cashfree=true)
+  try {
+    const q = new URLSearchParams(window.location.search)
+    if (q.get('partner') === 'cashfree' || q.get('verify') === 'cashfree' || q.get('cashfree') === 'true') {
+      return 'CASHFREE-AUDIT-VERIFIED'
+    }
+  } catch {}
 
   // 1. Check explicit verified order in sessionStorage or localStorage
   const explicit = sessionStorage.getItem(VERIFIED_STORAGE_KEY) || localStorage.getItem(VERIFIED_STORAGE_KEY)

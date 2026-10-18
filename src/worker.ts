@@ -550,11 +550,23 @@ app.get('/.well-known/cashfree.json', (c) => {
   return c.json({
     status: 'ACTIVE_VERIFIED_MERCHANT',
     merchant_legal_entity: 'RISHAV MEDIA',
+    legal_name: 'RISHAV SRIVASTAWA',
+    proprietor: 'RISHAV SRIVASTAWA',
+    authorized_signatory: 'RISHAV SRIVASTAWA',
+    registered_phone: '9801947855',
+    registered_email: 'rishavsrivastawa9162@gmail.com',
+    compliance_phone: '+91-9801947855',
+    compliance_email: 'rishavsrivastawa9162@gmail.com',
     trade_name: '1024 Tera Viral Hub',
     website_domain: '1024teraviralhub.com',
     udyam_registration: 'UDYAM-BR-11-0107325',
     authorized_payment_partner: 'Cashfree Payments India Pvt. Ltd.',
     pci_dss_compliance: 'Level 1 Certified',
+    compliance_contact: {
+      officer: 'RISHAV SRIVASTAWA',
+      email: 'rishavsrivastawa9162@gmail.com',
+      phone: '+91-9801947855'
+    },
     refund_policy: {
       turnaround_time_tat: '5 to 7 business days',
       payout_mode: 'Direct reversal to original payment source (UPI / Bank Account)',
@@ -582,6 +594,13 @@ app.get('/api/compliance/cashfree', (c) => {
   return c.json({
     status: 'COMPLIANT',
     merchant_legal_entity: 'RISHAV MEDIA',
+    legal_name: 'RISHAV SRIVASTAWA',
+    proprietor: 'RISHAV SRIVASTAWA',
+    authorized_signatory: 'RISHAV SRIVASTAWA',
+    registered_phone: '9801947855',
+    registered_email: 'rishavsrivastawa9162@gmail.com',
+    compliance_phone: '+91-9801947855',
+    compliance_email: 'rishavsrivastawa9162@gmail.com',
     trade_name: '1024 Tera Viral Hub',
     website_domain: '1024teraviralhub.com',
     udyam_registration: 'UDYAM-BR-11-0107325',
@@ -710,8 +729,17 @@ function injectSeoTags(html: string, meta: SeoMetaParams): string {
     <meta name="twitter:title" content="${escapeHtml(meta.title)}" />
     <meta name="twitter:description" content="${escapeHtml(meta.description)}" />
     <meta name="twitter:image" content="${escapeHtml(meta.imageUrl)}" />
-    <meta name="twitter:image:alt" content="${escapeHtml(meta.title)}" />
     <link rel="canonical" href="${escapeHtml(meta.url)}" />
+
+    <!-- Authorized Merchant & Regulatory Compliance (Cashfree / RBI KYC) -->
+    <meta name="merchant:legal_name" content="RISHAV SRIVASTAWA" />
+    <meta name="merchant:proprietor" content="RISHAV SRIVASTAWA" />
+    <meta name="merchant:entity" content="RISHAV MEDIA" />
+    <meta name="merchant:email" content="rishavsrivastawa9162@gmail.com" />
+    <meta name="merchant:phone" content="9801947855" />
+    <meta name="cashfree:merchant:legal_name" content="RISHAV SRIVASTAWA" />
+    <meta name="cashfree:merchant:email" content="rishavsrivastawa9162@gmail.com" />
+    <meta name="cashfree:merchant:phone" content="9801947855" />
 `
 
   // Safely strip only Open Graph, Twitter, and canonical tags (NEVER touch <script> or <link rel="stylesheet">)
@@ -878,14 +906,17 @@ app.get('*', async (c) => {
   const path = url.pathname
 
   // 1. Try to serve exact static assets first (.js, .css, .ico, /assets/*, etc.)
-  try {
-    const assetRes = await c.env.ASSETS.fetch(c.req.raw)
-    // If asset found (not a 404), return it immediately
-    if (assetRes.status !== 404) {
-      return assetRes
+  const isStaticFile = /\.(js|css|png|jpg|jpeg|gif|webp|svg|ico|woff|woff2|ttf|eot|json|txt|xml|map)$/i.test(path)
+  if (isStaticFile) {
+    try {
+      const assetRes = await c.env.ASSETS.fetch(c.req.raw)
+      // If asset found (not a 404), return it immediately
+      if (assetRes.status !== 404) {
+        return assetRes
+      }
+    } catch {
+      // ASSETS.fetch threw — fall through to index.html
     }
-  } catch {
-    // ASSETS.fetch threw — fall through to index.html
   }
 
   // 2. Fetch index.html template from ASSETS
@@ -1268,10 +1299,24 @@ app.get('*', async (c) => {
         customerRemorseReturnFees: 'https://schema.org/FreeReturn',
         merchant: {
           '@type': 'Organization',
-          legalName: 'RISHAV MEDIA',
+          legalName: 'RISHAV SRIVASTAWA',
+          alternateName: 'RISHAV MEDIA',
           name: '1024 Tera Viral Hub',
           url: `${siteOrigin}`,
-          email: 'support@1024teraviralhub.com',
+          email: 'rishavsrivastawa9162@gmail.com',
+          telephone: '+91-9801947855',
+          founder: {
+            '@type': 'Person',
+            name: 'RISHAV SRIVASTAWA',
+            email: 'rishavsrivastawa9162@gmail.com',
+            telephone: '+91-9801947855',
+          },
+          contactPoint: {
+            '@type': 'ContactPoint',
+            contactType: 'Merchant Compliance Desk',
+            email: 'rishavsrivastawa9162@gmail.com',
+            telephone: '+91-9801947855'
+          },
           address: {
             '@type': 'PostalAddress',
             streetAddress: 'Flat No. 25, Rishav Media Office, Block Road, Ghorasahan',
@@ -1318,7 +1363,10 @@ app.get('*', async (c) => {
       <div style="padding: 24px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #ffffff; color: #0f172a; border-bottom: 2px solid #86efac;">
         <h2>Authorized Cashfree Merchant &amp; Payment Settlement Disclosure</h2>
         <p>This store is officially owned and operated by <strong>RISHAV MEDIA</strong> under the brand name <strong>1024 Tera Viral Hub</strong> (1024teraviralhub.com).</p>
-        <p><strong>Registered Merchant Legal Entity:</strong> RISHAV MEDIA</p>
+        <p><strong>Merchant Legal Entity &amp; Registered Proprietor:</strong> RISHAV SRIVASTAWA (RISHAV MEDIA)</p>
+        <p><strong>Merchant KYC Registered Legal Name:</strong> RISHAV SRIVASTAWA</p>
+        <p><strong>Merchant Registered Compliance Phone:</strong> +91-9801947855 (9801947855)</p>
+        <p><strong>Merchant Registered Compliance Email:</strong> rishavsrivastawa9162@gmail.com</p>
         <p><strong>Trade &amp; Domain Name:</strong> 1024 Tera Viral Hub (1024teraviralhub.com)</p>
         <p><strong>Govt. MSME / Udyam Reg. No.:</strong> UDYAM-BR-11-0107325</p>
         <p><strong>Authorized Payment Partner:</strong> Cashfree Payments India Pvt. Ltd. (PCI-DSS Level 1)</p>
@@ -1326,7 +1374,7 @@ app.get('*', async (c) => {
         <p><strong>Verification &amp; Dispute SLA:</strong> 24 to 48 hours via automated dispute redressal desk.</p>
         <p><strong>Fulfillment &amp; Delivery:</strong> 100% intangible digital products delivered electronically within 0 to 5 minutes at &#8377;0 delivery fee.</p>
         <p><strong>Registered Office:</strong> Flat No. 25, Rishav Media Office, Block Road, Ghorasahan, Motihari, Bihar - 845303</p>
-        <p><strong>Official Support &amp; Compliance Email:</strong> support@1024teraviralhub.com</p>
+        <p><strong>Official Support Desk:</strong> support@1024teraviralhub.com</p>
       </div>
     </noscript>`
 
@@ -1358,6 +1406,24 @@ app.get('*', async (c) => {
     type: 'website',
     siteName: '1024TeraViralHub',
   })
+
+  const fallbackNoscript = `
+  <noscript id="cashfree-merchant-statutory-disclosure">
+    <div style="padding: 24px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #ffffff; color: #0f172a; border-bottom: 2px solid #86efac;">
+      <h2>Authorized Cashfree Merchant &amp; Payment Settlement Disclosure</h2>
+      <p>This store is officially owned and operated by <strong>RISHAV MEDIA</strong> under the brand name <strong>1024 Tera Viral Hub</strong> (1024teraviralhub.com).</p>
+      <p><strong>Merchant Legal Entity &amp; Registered Proprietor:</strong> RISHAV SRIVASTAWA (RISHAV MEDIA)</p>
+      <p><strong>Merchant KYC Registered Legal Name:</strong> RISHAV SRIVASTAWA</p>
+      <p><strong>Merchant Registered Compliance Phone:</strong> +91-9801947855 (9801947855)</p>
+      <p><strong>Merchant Registered Compliance Email:</strong> rishavsrivastawa9162@gmail.com</p>
+      <p><strong>Trade &amp; Domain Name:</strong> 1024 Tera Viral Hub (1024teraviralhub.com)</p>
+      <p><strong>Govt. MSME / Udyam Reg. No.:</strong> UDYAM-BR-11-0107325</p>
+      <p><strong>Authorized Payment Partner:</strong> Cashfree Payments India Pvt. Ltd. (PCI-DSS Level 1)</p>
+      <p><strong>Official Support Desk:</strong> support@1024teraviralhub.com</p>
+    </div>
+  </noscript>`
+
+  html = html.replace('</body>', `${fallbackNoscript}\n</body>`)
 
   return new Response(html, {
     headers: {

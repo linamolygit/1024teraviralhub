@@ -38,24 +38,24 @@ export interface SiteConfig {
  * Used for Cashfree, Payment Gateway, and Legal Verification
  */
 export const BUSINESS_CONFIG = {
-  legalName: '1024 Tera Viral Hub Digital Network',
+  legalName: 'RISHAV MEDIA (Proprietor: RISHAV SRIVASTAWA)',
   businessName: '1024 Tera Viral Hub',
-  proprietor: 'Operations & Grievance Redressal Desk',
-  registeredEntity: '1024 Tera Viral Hub Digital Network',
-  brandName: '1024TeraViralHub',
-  registeredOffice: 'TeraViralHub Operations Desk, Connaught Place, New Delhi - 110001, India',
-  udyamRegistration: 'DL-01-DIGITAL-MEDIA-HUB',
-  registrationType: 'Registered Digital Media & E-Commerce Network',
-  operatingState: 'Delhi, India',
-  city: 'New Delhi',
-  pincode: '110001',
+  proprietor: 'RISHAV SRIVASTAWA',
+  registeredEntity: 'RISHAV MEDIA',
+  brandName: '1024 Tera Viral Hub',
+  registeredOffice: 'Flat No. 25, Rishav Media Office, Block Road, Ghorasahan, Motihari, Bihar - 845303',
+  udyamRegistration: 'UDYAM-BR-11-0107325',
+  registrationType: 'Registered Micro Enterprise (Govt. of India MSME)',
+  operatingState: 'Bihar, India',
+  city: 'Motihari',
+  pincode: '845303',
   phone: 'Digital In-App Chat Support (24/7)',
   supportEmail: 'support@1024teraviralhub.com',
   complianceEmail: 'support@1024teraviralhub.com',
   supportHours: 'Monday – Sunday: 24/7 Digital Operations Desk',
   grievanceOfficer: 'Operations & Grievance Redressal Desk',
   grievanceEmail: 'support@1024teraviralhub.com',
-  paymentPartner: 'Authorized RBI-Compliant Payment Gateway Partner',
+  paymentPartner: 'Cashfree Payments India Pvt. Ltd. (PCI-DSS Level 1)',
 }
 
 export const DEFAULT_SITE_CONFIG: SiteConfig = {
