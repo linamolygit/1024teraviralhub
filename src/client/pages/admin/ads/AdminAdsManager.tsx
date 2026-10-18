@@ -691,7 +691,7 @@ export default function AdminAdsManager() {
   }
 
   return (
-    <div style={{ maxWidth: '1360px', margin: '0 auto', paddingBottom: '60px' }}>
+    <div style={{ maxWidth: '1360px', width: '100%', minWidth: 0, margin: '0 auto', paddingBottom: '60px' }}>
       {/* ── Top Header ── */}
       <div
         style={{
@@ -873,272 +873,122 @@ export default function AdminAdsManager() {
         </div>
       </div>
 
-      {/* ── Responsive Scoped CSS for Ads Manager Tabs ── */}
-      <style>{`
-        .ads-nav-container {
-          position: relative;
-          margin-bottom: 24px;
-        }
-
-        /* Mobile Fast-Switch Selector Card */
-        .ads-mobile-selector {
-          display: none;
-          align-items: center;
-          justify-content: space-between;
-          padding: 12px 16px;
-          margin-bottom: 12px;
-          background: var(--bg-surface);
-          border: 1.5px solid rgba(255, 210, 0, 0.4);
-          border-radius: 12px;
-          position: relative;
-          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
-        }
-
-        .ads-mobile-selector select {
-          position: absolute;
-          inset: 0;
-          width: 100%;
-          height: 100%;
-          opacity: 0;
-          cursor: pointer;
-          font-size: 16px;
-          z-index: 2;
-        }
-
-        /* Scrollable Tab Strip */
-        .ads-tabs-scroll-wrap {
-          position: relative;
-          display: flex;
-          align-items: center;
-        }
-
-        .ads-tabs-scroll {
-          display: flex;
-          gap: 8px;
-          overflow-x: auto;
-          overflow-y: hidden;
-          padding: 6px 4px 10px 4px;
-          -webkit-overflow-scrolling: touch;
-          scrollbar-width: none;
-          -ms-overflow-style: none;
-          scroll-snap-type: x proximity;
-          width: 100%;
-        }
-
-        .ads-tabs-scroll::-webkit-scrollbar {
-          display: none;
-        }
-
-        .ads-tab-item {
-          flex-shrink: 0;
-          scroll-snap-align: center;
-          font-size: 0.825rem;
-          padding: 9px 16px;
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          white-space: nowrap;
-          border-radius: 10px;
-          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-          cursor: pointer;
-          border: 1px solid transparent;
-          user-select: none;
-        }
-
-        .ads-tab-item:active {
-          transform: scale(0.97);
-        }
-
-        .ads-tab-item.active {
-          background: #FFD200 !important;
-          color: #000000 !important;
-          font-weight: 800 !important;
-          border-color: #FFD200 !important;
-          box-shadow: 0 4px 14px rgba(255, 210, 0, 0.35);
-        }
-
-        .ads-tab-item.inactive {
-          background: rgba(30, 41, 59, 0.45);
-          color: var(--text-secondary);
-          border-color: var(--bg-border);
-          font-weight: 600;
-        }
-
-        .ads-tab-item.inactive:hover {
-          background: rgba(255, 255, 255, 0.08);
-          color: var(--text-primary);
-          border-color: rgba(255, 255, 255, 0.15);
-        }
-
-        /* Responsive Breakpoints */
-        @media (max-width: 768px) {
-          .ads-mobile-selector {
-            display: flex;
-          }
-          .ads-desktop-text {
-            display: none !important;
-          }
-          .ads-mobile-text {
-            display: inline !important;
-          }
-          .ads-tab-item {
-            padding: 8px 12px;
-            font-size: 0.775rem;
-            gap: 6px;
-          }
-          .ads-tabs-scroll-wrap {
-            border-bottom: 1px solid var(--bg-border);
-            padding-bottom: 4px;
-          }
-        }
-
-        @media (min-width: 769px) {
-          .ads-mobile-selector {
-            display: none !important;
-          }
-          .ads-desktop-text {
-            display: inline !important;
-          }
-          .ads-mobile-text {
-            display: none !important;
-          }
-          .ads-tabs-scroll {
-            background: rgba(15, 23, 42, 0.4);
-            border: 1px solid var(--bg-border);
-            border-radius: 14px;
-            padding: 6px;
-            flex-wrap: wrap;
-          }
-        }
-      `}</style>
-
-      {/* ── Navigation Tabs ── */}
-      {(() => {
-        const TABS_CONFIG = [
+      {/* ── Navigation Tabs (100% Site Theme Matched & Smooth Responsive) ── */}
+      <div
+        ref={tabScrollRef}
+        style={{
+          display: 'flex',
+          gap: 10,
+          marginBottom: 24,
+          overflowX: 'auto',
+          borderBottom: '1px solid var(--bg-border)',
+          paddingBottom: 10,
+          scrollbarWidth: 'none',
+          WebkitOverflowScrolling: 'touch',
+        }}
+      >
+        {[
           {
             key: 'adsense_adx' as const,
             label: 'AdSense & AdX Suite',
-            shortLabel: 'AdSense & AdX',
             icon: <Sparkles size={16} color="#FFD200" />,
-            badge: (globalForm?.adsense_accounts?.length || 1) > 1 ? `${globalForm?.adsense_accounts?.length} Accounts` : 'Dual Verification',
+            badge: (globalForm?.adsense_accounts?.length || 1) > 1 ? `${globalForm?.adsense_accounts?.length} Accounts` : undefined,
           },
           {
             key: 'ads_txt' as const,
             label: 'ads.txt Live Manager',
-            shortLabel: 'ads.txt',
             icon: <FileText size={16} color="#10B981" />,
-            badge: `${adsTxtData?.line_count || 2} Lines`,
+            badge: `${adsTxtData?.line_count || 1} Lines`,
           },
           {
             key: 'page_placements' as const,
             label: `Page-Wise Ad Units (${placements.length})`,
-            shortLabel: `Units (${placements.length})`,
-            icon: <Layout size={16} />,
+            icon: <Layout size={16} color="var(--brand-purple-light)" />,
             badge: `${placements.length} Slots`,
           },
           {
             key: 'non_buyer' as const,
             label: 'Non-Buyer Bounce Engine',
-            shortLabel: 'Bounce Engine',
-            icon: <Zap size={16} />,
+            icon: <Zap size={16} color="#F59E0B" />,
           },
           {
             key: 'networks' as const,
             label: 'Ad Networks',
-            shortLabel: 'Networks',
-            icon: <Globe size={16} />,
+            icon: <Globe size={16} color="#3B82F6" />,
           },
           {
             key: 'rules' as const,
             label: 'Buyer Protection Rules',
-            shortLabel: 'Buyer Guard',
-            icon: <ShieldAlert size={16} />,
+            icon: <ShieldAlert size={16} color="#EC4899" />,
           },
           {
             key: 'overview' as const,
             label: 'Diagnostics & Checklist',
-            shortLabel: 'Diagnostics',
-            icon: <Layers size={16} />,
+            icon: <Layers size={16} color="#8B5CF6" />,
           },
-        ]
-
-        const activeTabObj = TABS_CONFIG.find((t) => t.key === activeTab) || TABS_CONFIG[0]
-
-        return (
-          <div className="ads-nav-container">
-            {/* Mobile Fast-Switch Tab Card with native select */}
-            <div className="ads-mobile-selector">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  {activeTabObj.icon}
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px' }}>
-                    Active Section (Tap to Switch)
-                  </div>
-                  <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#FFD200' }}>
-                    {activeTabObj.label}
-                  </div>
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#FFD200', fontSize: '0.78rem', fontWeight: 700 }}>
-                <span>Switch Tab</span>
-                <ChevronDown size={16} />
-              </div>
-              <select
-                value={activeTab}
-                onChange={(e) => setActiveTab(e.target.value as any)}
-                aria-label="Select Ads Manager Section"
-              >
-                {TABS_CONFIG.map((t) => (
-                  <option key={t.key} value={t.key}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Horizontal Smooth Scrollable Tabs Strip */}
-            <div className="ads-tabs-scroll-wrap">
-              <div className="ads-tabs-scroll" ref={tabScrollRef}>
-                {TABS_CONFIG.map((tab) => {
-                  const isActive = activeTab === tab.key
-                  return (
-                    <button
-                      key={tab.key}
-                      ref={(el) => {
-                        tabBtnRefs.current[tab.key] = el
-                      }}
-                      type="button"
-                      onClick={() => setActiveTab(tab.key)}
-                      className={`ads-tab-item ${isActive ? 'active' : 'inactive'}`}
-                    >
-                      {tab.icon}
-                      <span className="ads-desktop-text">{tab.label}</span>
-                      <span className="ads-mobile-text">{tab.shortLabel}</span>
-                      {tab.badge && (
-                        <span
-                          style={{
-                            fontSize: '0.68rem',
-                            padding: '1px 6px',
-                            borderRadius: 6,
-                            background: isActive ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.08)',
-                            color: isActive ? '#000000' : 'var(--text-muted)',
-                            fontWeight: 700,
-                            marginLeft: 2,
-                          }}
-                        >
-                          {tab.badge}
-                        </span>
-                      )}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-        )
-      })()}
+        ].map((tab) => {
+          const isActive = activeTab === tab.key
+          return (
+            <button
+              key={tab.key}
+              ref={(el) => {
+                tabBtnRefs.current[tab.key] = el
+              }}
+              type="button"
+              onClick={() => setActiveTab(tab.key)}
+              style={{
+                fontSize: '0.825rem',
+                padding: '9px 16px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+                borderRadius: 10,
+                border: isActive ? '1px solid #FFD200' : '1px solid var(--bg-border)',
+                background: isActive ? '#FFD200' : 'var(--bg-surface)',
+                color: isActive ? '#000000' : 'var(--text-primary)',
+                fontWeight: isActive ? 800 : 600,
+                boxShadow: isActive ? '0 2px 8px rgba(255, 210, 0, 0.35)' : 'var(--shadow-sm)',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.borderColor = 'var(--brand-purple)'
+                  e.currentTarget.style.color = 'var(--brand-purple)'
+                  e.currentTarget.style.background = 'var(--bg-hover)'
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.borderColor = 'var(--bg-border)'
+                  e.currentTarget.style.color = 'var(--text-primary)'
+                  e.currentTarget.style.background = 'var(--bg-surface)'
+                }
+              }}
+            >
+              {tab.icon}
+              <span>{tab.label}</span>
+              {tab.badge && (
+                <span
+                  style={{
+                    fontSize: '0.68rem',
+                    padding: '2px 7px',
+                    borderRadius: 6,
+                    background: isActive ? 'rgba(0, 0, 0, 0.14)' : 'var(--bg-elevated)',
+                    color: isActive ? '#000000' : 'var(--text-secondary)',
+                    border: isActive ? 'none' : '1px solid var(--bg-border)',
+                    fontWeight: 700,
+                  }}
+                >
+                  {tab.badge}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
 
       {/* ══════════════════════════════════════════════════════════════════
           TAB 1: GOOGLE ADSENSE & ADX SUITE (User's Core Request)
