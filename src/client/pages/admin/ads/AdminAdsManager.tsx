@@ -6,9 +6,9 @@ import {
   Plus, Edit, Trash2, CheckCircle, RefreshCw, Zap, Lock,
   ExternalLink, Code, Sparkles, Check, Play, Pause, AlertCircle,
   Copy, FileText, Monitor, Smartphone, CheckCheck, Eye, Terminal,
-  HelpCircle, ShieldCheck
+  HelpCircle, ShieldCheck, Star
 } from 'lucide-react'
-import { adminApi, type AdNetwork, type AdPlacement, type AdCampaign, type AdRules } from '../../../lib/api'
+import { adminApi, type AdNetwork, type AdPlacement, type AdCampaign, type AdRules, type AdSenseAccount } from '../../../lib/api'
 import { useAuthStore } from '../../../lib/auth-store'
 import LoadingSpinner from '../../../components/ui/LoadingSpinner'
 import { NetworkLogo, NetworkBadge } from '../../../components/ads/NetworkLogos'
@@ -86,6 +86,8 @@ export default function AdminAdsManager() {
     adsense_enabled: boolean
     adsense_publisher_id: string
     adsense_head_code: string
+    adsense_accounts?: AdSenseAccount[]
+    adsense_multi_head_code?: string
     adx_enabled: boolean
     adx_head_code: string
     global_header_script: string
@@ -196,10 +198,26 @@ export default function AdminAdsManager() {
       const token = await getToken()
       const res = await adminApi.ads.globalSettings.get(token!)
       if (!globalForm && res.settings) {
+        let accounts = res.settings.adsense_accounts || []
+        if (accounts.length === 0 && res.settings.adsense_publisher_id) {
+          accounts = [
+            {
+              id: 'acc-primary',
+              label: 'Primary Account (AdSense 1)',
+              publisher_id: res.settings.adsense_publisher_id,
+              custom_code: res.settings.adsense_head_code || '',
+              status: 'active',
+              auto_ads: true,
+              is_primary: true,
+            },
+          ]
+        }
         setGlobalForm({
           adsense_enabled: res.settings.adsense_enabled,
           adsense_publisher_id: res.settings.adsense_publisher_id,
           adsense_head_code: res.settings.adsense_head_code,
+          adsense_accounts: accounts,
+          adsense_multi_head_code: res.settings.adsense_multi_head_code || '',
           adx_enabled: res.settings.adx_enabled,
           adx_head_code: res.settings.adx_head_code,
           global_header_script: res.settings.global_header_script,
@@ -420,6 +438,118 @@ export default function AdminAdsManager() {
     setIsPlacementModalOpen(true)
   }
 
+  // Multi-AdSense Account Management Helpers
+  const handleAddAdSenseAccount = () => {
+    if (!globalForm) return
+    const currentAccounts = globalForm.adsense_accounts || []
+    const newIdx = currentAccounts.length + 1
+    const newAccount: AdSenseAccount = {
+      id: `acc-${Date.now()}`,
+      label: `Backup Account (AdSense ${newIdx})`,
+      publisher_id: '',
+      custom_code: '',
+      status: 'pending',
+      auto_ads: true,
+      is_primary: currentAccounts.length === 0,
+    }
+    const updated = [...currentAccounts, newAccount]
+    setGlobalForm({
+      ...globalForm,
+      adsense_accounts: updated,
+    })
+    adminToast.info('Account Added', `Fill in Publisher ID & verification code for AdSense #${newIdx}.`)
+  }
+
+  const handleUpdateAdSenseAccount = (id: string, updates: Partial<AdSenseAccount>) => {
+    if (!globalForm) return
+    const currentAccounts = globalForm.adsense_accounts || []
+    const updated = currentAccounts.map((acc) => {
+      if (acc.id === id) {
+        return { ...acc, ...updates }
+      }
+      return acc
+    })
+
+    const target = updated.find((a) => a.id === id)
+    const isPrimary = target?.is_primary
+
+    setGlobalForm({
+      ...globalForm,
+      adsense_publisher_id: isPrimary && updates.publisher_id !== undefined ? updates.publisher_id : globalForm.adsense_publisher_id,
+      adsense_head_code: isPrimary && updates.custom_code !== undefined ? updates.custom_code : globalForm.adsense_head_code,
+      adsense_accounts: updated,
+    })
+  }
+
+  const handleSetPrimaryAdSenseAccount = (id: string) => {
+    if (!globalForm) return
+    const currentAccounts = globalForm.adsense_accounts || []
+    const target = currentAccounts.find((a) => a.id === id)
+    if (!target) return
+
+    const updated = currentAccounts.map((acc) => ({
+      ...acc,
+      is_primary: acc.id === id,
+      status: acc.id === id ? ('active' as const) : acc.status,
+    }))
+
+    setGlobalForm({
+      ...globalForm,
+      adsense_publisher_id: target.publisher_id,
+      adsense_head_code: target.custom_code || globalForm.adsense_head_code,
+      adsense_accounts: updated,
+    })
+    adminToast.success('Primary Account Set', `${target.label || target.publisher_id} is now primary for site ad units.`)
+  }
+
+  const handleRemoveAdSenseAccount = (id: string) => {
+    if (!globalForm) return
+    const currentAccounts = globalForm.adsense_accounts || []
+    if (currentAccounts.length <= 1) {
+      adminToast.warning('Cannot Remove', 'You must maintain at least one AdSense account configuration.')
+      return
+    }
+
+    const removing = currentAccounts.find((a) => a.id === id)
+    const filtered = currentAccounts.filter((a) => a.id !== id)
+
+    if (removing?.is_primary && filtered.length > 0) {
+      filtered[0].is_primary = true
+      filtered[0].status = 'active'
+      setGlobalForm({
+        ...globalForm,
+        adsense_publisher_id: filtered[0].publisher_id,
+        adsense_head_code: filtered[0].custom_code || '',
+        adsense_accounts: filtered,
+      })
+    } else {
+      setGlobalForm({
+        ...globalForm,
+        adsense_accounts: filtered,
+      })
+    }
+    adminToast.info('Account Removed', 'AdSense account removed from verification list.')
+  }
+
+  const handleSyncToAdsTxt = (pubId: string) => {
+    if (!pubId || !pubId.trim()) {
+      adminToast.warning('Publisher ID Needed', 'Enter a valid Publisher ID before adding to ads.txt.')
+      return
+    }
+    let cleanPub = pubId.trim().replace(/^ca-/, '')
+    const record = `google.com, ${cleanPub}, DIRECT, f08c47fec0942fa0`
+    const currentContent = adsTxtLocal !== null ? adsTxtLocal : (adsTxtData?.content || '')
+
+    if (currentContent.includes(cleanPub)) {
+      adminToast.info('Already in ads.txt', `${cleanPub} is already listed in /ads.txt.`)
+      return
+    }
+
+    const updatedContent = currentContent.trim() ? `${currentContent.trim()}\n${record}` : record
+    setAdsTxtLocal(updatedContent)
+    updateAdsTxt.mutate(updatedContent)
+  }
+
   // Copy ads.txt URL
   const handleCopyAdsTxtUrl = () => {
     navigator.clipboard.writeText('https://1024teraviralhub.com/ads.txt')
@@ -535,7 +665,12 @@ export default function AdminAdsManager() {
       >
         {/* Metric 1: Google AdSense Status */}
         <div className="glass-card" style={{ padding: '18px 20px', borderRadius: 14 }}>
-          <div style={{ color: 'var(--text-muted)', fontSize: '0.8125rem', marginBottom: 6 }}>Google AdSense Auto-Ads</div>
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.8125rem', marginBottom: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>Google AdSense Multi-Suite</span>
+            <span style={{ fontSize: '0.72rem', background: 'rgba(255, 210, 0, 0.15)', color: '#FFD200', padding: '1px 6px', borderRadius: 6, fontWeight: 800 }}>
+              {globalForm?.adsense_accounts?.length || 1} Account{(globalForm?.adsense_accounts?.length || 1) > 1 ? 's' : ''}
+            </span>
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span
               style={{
@@ -551,14 +686,14 @@ export default function AdminAdsManager() {
                 border: `1px solid ${globalForm?.adsense_enabled ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
               }}
             >
-              {globalForm?.adsense_enabled ? '● ENABLED' : '○ DISABLED'}
+              {globalForm?.adsense_enabled ? '● VERIFICATION ACTIVE' : '○ DISABLED'}
             </span>
             <span style={{ fontSize: '0.75rem', fontFamily: 'monospace', color: 'var(--text-muted)' }}>
-              {globalForm?.adsense_publisher_id?.slice(0, 14)}...
+              {globalForm?.adsense_publisher_id ? `${globalForm.adsense_publisher_id.slice(0, 14)}...` : 'Not Set'}
             </span>
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 8 }}>
-            Injected into SSR &lt;head&gt; automatically
+            Multi-Account tags running in SSR &lt;head&gt;
           </div>
         </div>
 
@@ -692,7 +827,7 @@ export default function AdminAdsManager() {
             </div>
           </div>
 
-          {/* Section 1: Google AdSense Global Configuration */}
+          {/* Section 1: Google AdSense Multi-Account Verification & Auto-Ads Suite */}
           <div className="glass-card" style={{ padding: '24px', borderRadius: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -700,9 +835,14 @@ export default function AdminAdsManager() {
                   <Sparkles size={22} color="#FFD200" />
                 </div>
                 <div>
-                  <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0 }}>Google AdSense Auto-Ads & Head Code</h3>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    Google AdSense Multi-Account Verification Engine
+                    <span style={{ fontSize: '0.72rem', fontWeight: 800, background: 'rgba(16, 185, 129, 0.15)', color: '#10B981', padding: '2px 8px', borderRadius: 12, border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                      Concurrent Multi-Approval
+                    </span>
+                  </h3>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    Controls automatic banner injection & Google site verification tag
+                    Add multiple AdSense accounts to verify site ownership in parallel — whichever gets approved first becomes primary!
                   </div>
                 </div>
               </div>
@@ -730,86 +870,330 @@ export default function AdminAdsManager() {
               </button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-              {/* Publisher ID Input */}
+            {/* Explanatory Multi-Account Info Banner */}
+            <div
+              style={{
+                padding: '12px 16px',
+                borderRadius: 10,
+                background: 'rgba(56, 189, 248, 0.08)',
+                border: '1px solid rgba(56, 189, 248, 0.25)',
+                fontSize: '0.8125rem',
+                color: 'var(--text-primary)',
+                marginBottom: 20,
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 10,
+                lineHeight: 1.5,
+              }}
+            >
+              <Sparkles size={16} color="#38BDF8" style={{ flexShrink: 0, marginTop: 2 }} />
               <div>
-                <label style={{ display: 'block', fontWeight: 700, fontSize: '0.85rem', marginBottom: 6 }}>
-                  AdSense Publisher ID <span style={{ color: '#EF4444' }}>*</span>
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type="text"
-                    className="input-field"
-                    placeholder="ca-pub-2291828876695516"
-                    value={globalForm.adsense_publisher_id}
-                    onChange={(e) => setGlobalForm({ ...globalForm, adsense_publisher_id: e.target.value })}
-                    style={{ fontFamily: 'monospace', fontSize: '0.9rem', fontWeight: 600, paddingRight: 100 }}
-                  />
-                  <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: '0.72rem', color: 'var(--text-muted)', background: 'var(--bg-elevated)', padding: '2px 8px', borderRadius: 4 }}>
-                    Client ID
-                  </div>
-                </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 6 }}>
-                  Your Google AdSense account ID. Used to load <code>adsbygoogle.js?client=ca-pub-...</code> in the page head.
-                </div>
+                <strong>How Multi-AdSense Verification Works:</strong> When you add multiple accounts below, our system injects each account's verification tag (<code>&lt;script adsbygoogle.js?client=ca-pub-...&gt;</code>) and official <code>&lt;meta name="google-adsense-account"&gt;</code> simultaneously into <code>&lt;head&gt;</code>. When Google bots crawl your site from Account 1 or Account 2, both will detect their code and verify site ownership! Whichever account receives approval first, click <strong>"Make Primary Active"</strong> with 1 click to serve live ads across the site.
               </div>
+            </div>
 
-              {/* Header Verification & Custom Snippet (Add / Remove Feature) */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexWrap: 'wrap', gap: 8 }}>
-                  <label style={{ fontWeight: 700, fontSize: '0.85rem', margin: 0 }}>
-                    AdSense Header Verification / Custom &lt;head&gt; Snippet
-                  </label>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const pub = globalForm.adsense_publisher_id.trim() || 'ca-pub-2291828876695516'
-                        const tag = `<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${pub}" crossorigin="anonymous"></script>`
-                        setGlobalForm({ ...globalForm, adsense_head_code: tag })
-                        adminToast.success('Tag Generated', 'Standard Google AdSense head tag generated.')
-                      }}
-                      className="btn-ghost"
-                      style={{ fontSize: '0.75rem', padding: '4px 10px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                    >
-                      <Plus size={12} /> Auto-Generate Default Head Tag
-                    </button>
-                    {globalForm.adsense_head_code && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setGlobalForm({ ...globalForm, adsense_head_code: '' })
-                          adminToast.info('Code Cleared', 'Custom AdSense head code removed.')
-                        }}
-                        style={{
-                          fontSize: '0.75rem',
-                          padding: '4px 10px',
-                          background: 'rgba(239, 68, 68, 0.12)',
-                          color: '#EF4444',
-                          border: '1px solid rgba(239, 68, 68, 0.25)',
-                          borderRadius: 6,
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 4,
-                        }}
-                      >
-                        <Trash2 size={12} /> Remove Header Code
-                      </button>
-                    )}
+            {/* List of Configured AdSense Accounts */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {(globalForm.adsense_accounts && globalForm.adsense_accounts.length > 0
+                ? globalForm.adsense_accounts
+                : [
+                    {
+                      id: 'acc-primary',
+                      label: 'Primary Account (AdSense 1)',
+                      publisher_id: globalForm.adsense_publisher_id || 'ca-pub-2291828876695516',
+                      custom_code: globalForm.adsense_head_code || '',
+                      status: 'active' as const,
+                      auto_ads: true,
+                      is_primary: true,
+                    },
+                  ]
+              ).map((acc, index) => {
+                const cleanPub = acc.publisher_id ? acc.publisher_id.trim().replace(/^ca-/, '') : ''
+                const inAdsTxt = cleanPub && (adsTxtLocal?.includes(cleanPub) || adsTxtData?.content?.includes(cleanPub))
+
+                return (
+                  <div
+                    key={acc.id}
+                    style={{
+                      padding: '18px 20px',
+                      borderRadius: 12,
+                      background: acc.is_primary ? 'rgba(255, 210, 0, 0.04)' : 'var(--bg-elevated)',
+                      border: `1.5px solid ${acc.is_primary ? 'rgba(255, 210, 0, 0.4)' : 'var(--bg-border)'}`,
+                      position: 'relative',
+                    }}
+                  >
+                    {/* Top Row: Label, Status, and Primary Badge */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span
+                          style={{
+                            width: 24,
+                            height: 24,
+                            borderRadius: '50%',
+                            background: acc.is_primary ? '#FFD200' : 'var(--bg-border)',
+                            color: acc.is_primary ? '#000000' : 'var(--text-muted)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '0.75rem',
+                            fontWeight: 900,
+                          }}
+                        >
+                          {index + 1}
+                        </span>
+                        <input
+                          type="text"
+                          value={acc.label}
+                          onChange={(e) => handleUpdateAdSenseAccount(acc.id, { label: e.target.value })}
+                          placeholder="e.g. Primary Account / Backup Account 2"
+                          style={{
+                            fontSize: '0.95rem',
+                            fontWeight: 800,
+                            background: 'transparent',
+                            border: 'none',
+                            color: 'var(--text-primary)',
+                            padding: '2px 6px',
+                            borderRadius: 4,
+                            outline: 'none',
+                          }}
+                        />
+                        {acc.is_primary ? (
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              fontSize: '0.72rem',
+                              fontWeight: 900,
+                              background: '#FFD200',
+                              color: '#000000',
+                              padding: '2px 8px',
+                              borderRadius: 12,
+                            }}
+                          >
+                            <Star size={11} fill="#000" /> PRIMARY ACTIVE
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleSetPrimaryAdSenseAccount(acc.id)}
+                            className="btn-ghost"
+                            style={{
+                              fontSize: '0.72rem',
+                              padding: '2px 8px',
+                              borderRadius: 12,
+                              color: 'var(--brand-purple-light)',
+                              border: '1px solid var(--brand-purple-light)',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
+                            }}
+                          >
+                            <Star size={11} /> Make Primary Active
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Status Selector & Remove Button */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <select
+                          value={acc.status}
+                          onChange={(e) => handleUpdateAdSenseAccount(acc.id, { status: e.target.value as any })}
+                          style={{
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            padding: '4px 10px',
+                            borderRadius: 8,
+                            background:
+                              acc.status === 'active'
+                                ? 'rgba(16, 185, 129, 0.15)'
+                                : acc.status === 'approved'
+                                ? 'rgba(56, 189, 248, 0.15)'
+                                : 'rgba(245, 158, 11, 0.15)',
+                            color:
+                              acc.status === 'active'
+                                ? '#10B981'
+                                : acc.status === 'approved'
+                                ? '#38BDF8'
+                                : '#F59E0B',
+                            border: `1px solid ${
+                              acc.status === 'active'
+                                ? 'rgba(16, 185, 129, 0.3)'
+                                : acc.status === 'approved'
+                                ? 'rgba(56, 189, 248, 0.3)'
+                                : 'rgba(245, 158, 11, 0.3)'
+                            }`,
+                            cursor: 'pointer',
+                            outline: 'none',
+                          }}
+                        >
+                          <option value="pending" style={{ background: '#1E293B', color: '#F59E0B' }}>
+                            ⏳ Under Google Review
+                          </option>
+                          <option value="approved" style={{ background: '#1E293B', color: '#38BDF8' }}>
+                            ✅ Approved by Google
+                          </option>
+                          <option value="active" style={{ background: '#1E293B', color: '#10B981' }}>
+                            ⚡ Serving Live Ads
+                          </option>
+                        </select>
+
+                        {(globalForm.adsense_accounts?.length || 0) > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveAdSenseAccount(acc.id)}
+                            title="Remove this account"
+                            style={{
+                              background: 'rgba(239, 68, 68, 0.12)',
+                              color: '#EF4444',
+                              border: '1px solid rgba(239, 68, 68, 0.25)',
+                              borderRadius: 6,
+                              padding: '5px',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Input Row: Publisher ID & 1-Click ads.txt Addition */}
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                        <label style={{ fontSize: '0.8rem', fontWeight: 700 }}>
+                          AdSense Publisher ID <span style={{ color: '#EF4444' }}>*</span>
+                        </label>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {inAdsTxt ? (
+                            <span
+                              style={{
+                                fontSize: '0.72rem',
+                                color: '#10B981',
+                                fontWeight: 700,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 3,
+                                background: 'rgba(16, 185, 129, 0.1)',
+                                padding: '2px 8px',
+                                borderRadius: 6,
+                              }}
+                            >
+                              <CheckCheck size={12} /> Present in /ads.txt
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleSyncToAdsTxt(acc.publisher_id)}
+                              className="btn-ghost"
+                              style={{
+                                fontSize: '0.72rem',
+                                padding: '2px 8px',
+                                color: '#38BDF8',
+                                border: '1px solid rgba(56, 189, 248, 0.3)',
+                                borderRadius: 6,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              <Plus size={11} /> 1-Click Add to /ads.txt
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <input
+                        type="text"
+                        className="input-field"
+                        placeholder="ca-pub-2291828876695516"
+                        value={acc.publisher_id}
+                        onChange={(e) => handleUpdateAdSenseAccount(acc.id, { publisher_id: e.target.value })}
+                        style={{ fontFamily: 'monospace', fontSize: '0.875rem', fontWeight: 600 }}
+                      />
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                        Injects <code>adsbygoogle.js?client={acc.publisher_id || 'ca-pub-...'}</code> and <code>&lt;meta name="google-adsense-account" content="{acc.publisher_id || 'ca-pub-...'}"&gt;</code>
+                      </div>
+                    </div>
+
+                    {/* Custom Verification Code for this Account */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                        <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                          Account Specific Verification Snippet (Optional)
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const pub = acc.publisher_id.trim() || 'ca-pub-XXXXXXXXXXXXXXXX'
+                            const code = `<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${pub}" crossorigin="anonymous"></script>`
+                            handleUpdateAdSenseAccount(acc.id, { custom_code: code })
+                            adminToast.success('Tag Auto-Generated', `Standard AdSense tag created for ${acc.label}`)
+                          }}
+                          className="btn-ghost"
+                          style={{ fontSize: '0.72rem', padding: '2px 6px', display: 'inline-flex', alignItems: 'center', gap: 3 }}
+                        >
+                          <Plus size={11} /> Auto-Generate Default Tag
+                        </button>
+                      </div>
+                      <textarea
+                        className="input-field"
+                        rows={2}
+                        placeholder="Paste verification snippet from this specific AdSense account here..."
+                        value={acc.custom_code || ''}
+                        onChange={(e) => handleUpdateAdSenseAccount(acc.id, { custom_code: e.target.value })}
+                        style={{ fontFamily: 'monospace', fontSize: '0.78rem' }}
+                      />
+                    </div>
                   </div>
-                </div>
-                <textarea
-                  className="input-field"
-                  rows={3}
-                  placeholder="<script async src='https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-...' crossorigin='anonymous'></script>"
-                  value={globalForm.adsense_head_code}
-                  onChange={(e) => setGlobalForm({ ...globalForm, adsense_head_code: e.target.value })}
-                  style={{ fontFamily: 'monospace', fontSize: '0.8rem', lineHeight: 1.5 }}
-                />
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                  💡 Leave blank if you rely on the automatic publisher tag above, or paste exact Google AdSense site approval code here.
-                </div>
+                )
+              })}
+            </div>
+
+            {/* + Add Another AdSense Account Button */}
+            <div style={{ marginTop: 18, display: 'flex', justifyContent: 'flex-start' }}>
+              <button
+                type="button"
+                onClick={handleAddAdSenseAccount}
+                className="btn-ghost"
+                style={{
+                  fontSize: '0.825rem',
+                  padding: '9px 18px',
+                  border: '1.5px dashed #FFD200',
+                  color: '#FFD200',
+                  borderRadius: 10,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  background: 'rgba(255, 210, 0, 0.05)',
+                }}
+              >
+                <Plus size={15} /> + Add Another AdSense Account (Apply with 2nd / 3rd Account)
+              </button>
+            </div>
+
+            {/* Additional Raw Verification Code Textarea */}
+            <div style={{ marginTop: 22, borderTop: '1px solid var(--bg-border)', paddingTop: 18 }}>
+              <label style={{ display: 'block', fontWeight: 700, fontSize: '0.825rem', marginBottom: 4 }}>
+                Bulk / Raw AdSense Verification Codes (Injected into SSR &lt;head&gt;)
+              </label>
+              <textarea
+                className="input-field"
+                rows={3}
+                placeholder="<!-- Paste any additional raw Google AdSense verification code or meta tags here -->"
+                value={globalForm.adsense_multi_head_code || ''}
+                onChange={(e) => setGlobalForm({ ...globalForm, adsense_multi_head_code: e.target.value })}
+                style={{ fontFamily: 'monospace', fontSize: '0.78rem' }}
+              />
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                💡 Tip: If Google provides you extra raw meta tags or verification snippets, paste them here. They will be executed dynamically across all pages.
               </div>
             </div>
           </div>

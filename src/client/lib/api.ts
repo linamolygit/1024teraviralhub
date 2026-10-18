@@ -200,6 +200,8 @@ export const api = {
       adsense_publisher_id?: string
       adsense_auto_ads?: boolean
       adsense_head_code?: string
+      adsense_accounts?: AdSenseAccount[]
+      adsense_multi_head_code?: string
       adx_enabled?: boolean
       adx_network_code?: string
       adx_head_code?: string
@@ -845,6 +847,8 @@ export const adminApi = {
             adsense_enabled: boolean
             adsense_publisher_id: string
             adsense_head_code: string
+            adsense_accounts?: AdSenseAccount[]
+            adsense_multi_head_code?: string
             adx_enabled: boolean
             adx_head_code: string
             global_header_script: string
@@ -854,6 +858,8 @@ export const adminApi = {
         adsense_enabled?: boolean
         adsense_publisher_id?: string
         adsense_head_code?: string
+        adsense_accounts?: AdSenseAccount[]
+        adsense_multi_head_code?: string
         adx_enabled?: boolean
         adx_head_code?: string
         global_header_script?: string
@@ -1475,6 +1481,16 @@ export interface AdRules {
   global_header_script?: string
   product_page_back_button_ad?: string
   ads_txt_content?: string
+}
+
+export interface AdSenseAccount {
+  id: string
+  label: string
+  publisher_id: string
+  custom_code?: string
+  status: 'pending' | 'approved' | 'active'
+  auto_ads: boolean
+  is_primary: boolean
 }
 
 export interface ActiveAdsResponse {

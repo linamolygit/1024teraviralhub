@@ -69,35 +69,131 @@ export default function GoogleServicesHead() {
       }
     }
 
-    // ─── 3. Google AdSense Auto-Ads Tag ────────────────────────────
-    if (settings.adsense_enabled && settings.adsense_publisher_id) {
-      let pubId = settings.adsense_publisher_id.trim()
-      if (!pubId.startsWith('ca-pub-') && pubId.startsWith('pub-')) {
-        pubId = `ca-${pubId}`
+    // Helper to safely execute any raw HTML/script code in <head>
+    const injectRawSnippet = (snippet: string, elementIdPrefix: string) => {
+      if (!snippet || !snippet.trim()) return
+      const trimmed = snippet.trim()
+      const containerId = `${elementIdPrefix}-container`
+      if (document.getElementById(containerId)) return
+
+      try {
+        const container = document.createElement('div')
+        container.id = containerId
+        container.style.display = 'none'
+
+        // Parse scripts to execute them properly
+        const tempDiv = document.createElement('div')
+        tempDiv.innerHTML = trimmed
+
+        // Extract and run scripts
+        const scripts = tempDiv.querySelectorAll('script')
+        scripts.forEach((oldScript, idx) => {
+          const newScript = document.createElement('script')
+          Array.from(oldScript.attributes).forEach((attr) => newScript.setAttribute(attr.name, attr.value))
+          if (oldScript.innerHTML) {
+            newScript.textContent = oldScript.innerHTML
+          }
+          newScript.id = `${elementIdPrefix}-script-${idx}`
+          document.head.appendChild(newScript)
+          oldScript.remove()
+        })
+
+        // Append remaining non-script nodes (meta tags, links, etc.)
+        while (tempDiv.firstChild) {
+          container.appendChild(tempDiv.firstChild)
+        }
+        document.head.appendChild(container)
+      } catch (err) {
+        console.warn(`[AdSenseHead] Failed to inject snippet for ${elementIdPrefix}:`, err)
+      }
+    }
+
+    // ─── 3. Google AdSense Multi-Account Verification & Auto-Ads Tag ───
+    if (settings.adsense_enabled !== false) {
+      const accountsList: Array<{
+        id: string
+        label?: string
+        publisher_id: string
+        custom_code?: string
+        auto_ads?: boolean
+        is_primary?: boolean
+      }> = []
+
+      // Add accounts from multi-account array
+      if (Array.isArray(settings.adsense_accounts) && settings.adsense_accounts.length > 0) {
+        settings.adsense_accounts.forEach((acc) => {
+          if (acc && acc.publisher_id && acc.publisher_id.trim()) {
+            accountsList.push(acc)
+          }
+        })
       }
 
-      if (pubId && !document.getElementById('adsense-script')) {
-        try {
-          const script = document.createElement('script')
-          script.id = 'adsense-script'
-          script.async = true
-          script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${pubId}`
-          script.crossOrigin = 'anonymous'
-          document.head.appendChild(script)
-        } catch (err) {
-          console.warn('[AdSense] Failed to initialize AdSense:', err)
+      // Fallback/Legacy: ensure primary publisher ID is present if configured
+      if (settings.adsense_publisher_id && settings.adsense_publisher_id.trim()) {
+        const legacyPub = settings.adsense_publisher_id.trim()
+        const alreadyExists = accountsList.some(
+          (a) => a.publisher_id.trim().toLowerCase() === legacyPub.toLowerCase()
+        )
+        if (!alreadyExists) {
+          accountsList.unshift({
+            id: 'primary-default',
+            label: 'Primary Account',
+            publisher_id: legacyPub,
+            custom_code: settings.adsense_head_code,
+            auto_ads: true,
+            is_primary: true,
+          })
         }
       }
 
-      // Inject custom AdSense snippet if provided
-      if (settings.adsense_head_code && !document.getElementById('adsense-custom-head-code')) {
-        try {
-          const container = document.createElement('div')
-          container.id = 'adsense-custom-head-code'
-          container.style.display = 'none'
-          container.innerHTML = settings.adsense_head_code
-          document.head.appendChild(container)
-        } catch {}
+      // Loop through all accounts and inject verification tags & scripts
+      accountsList.forEach((acc) => {
+        let pubId = acc.publisher_id.trim()
+        if (!pubId.startsWith('ca-pub-') && pubId.startsWith('pub-')) {
+          pubId = `ca-${pubId}`
+        }
+        const cleanPub = pubId.replace(/[^a-zA-Z0-9_-]/g, '')
+
+        // A. Primary script loader for this publisher
+        const scriptId = `adsense-script-${cleanPub}`
+        if (!document.getElementById(scriptId)) {
+          try {
+            const script = document.createElement('script')
+            script.id = scriptId
+            script.async = true
+            script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${pubId}`
+            script.crossOrigin = 'anonymous'
+            document.head.appendChild(script)
+          } catch (err) {
+            console.warn(`[AdSense] Failed to initialize AdSense for ${pubId}:`, err)
+          }
+        }
+
+        // B. Official Google AdSense verification meta tag
+        const metaSelector = `meta[name="google-adsense-account"][content="${pubId}"]`
+        if (!document.querySelector(metaSelector)) {
+          try {
+            const meta = document.createElement('meta')
+            meta.setAttribute('name', 'google-adsense-account')
+            meta.setAttribute('content', pubId)
+            document.head.appendChild(meta)
+          } catch {}
+        }
+
+        // C. Specific custom verification code for this account
+        if (acc.custom_code && acc.custom_code.trim()) {
+          injectRawSnippet(acc.custom_code, `adsense-acc-${cleanPub}`)
+        }
+      })
+
+      // D. Legacy custom head code fallback
+      if (settings.adsense_head_code && !accountsList.some((a) => a.custom_code === settings.adsense_head_code)) {
+        injectRawSnippet(settings.adsense_head_code, 'adsense-legacy-head')
+      }
+
+      // E. Raw multi-account verification code snippets (bulk head code)
+      if (settings.adsense_multi_head_code && settings.adsense_multi_head_code.trim()) {
+        injectRawSnippet(settings.adsense_multi_head_code, 'adsense-multi-raw')
       }
     }
 

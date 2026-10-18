@@ -15,6 +15,7 @@ app.get('/public', async (c) => {
     gscEnabled, gscVerificationTag,
     ga4Enabled, ga4MeasurementId, ga4EcommerceTracking,
     adsenseEnabled, adsensePublisherId, adsenseAutoAds, adsenseHeadCode,
+    adsenseAccounts, adsenseMultiHeadCode,
     adxEnabled, adxNetworkCode, adxHeadCode,
     pagePrivacyPolicyEnabled, pageTermsConditionsEnabled, pageRefundPolicyEnabled,
     pageDisclaimerEnabled, pageCookiePolicyEnabled, pageAboutEnabled, pageContactEnabled,
@@ -55,11 +56,13 @@ app.get('/public', async (c) => {
     getSetting<boolean>(c.env.DB, 'ga4_enabled', true),
     getSetting<string>(c.env.DB, 'ga4_measurement_id', ''),
     getSetting<boolean>(c.env.DB, 'ga4_ecommerce_tracking', true),
-    // Google AdSense
+    // Google AdSense (Single & Multi-Account Verification Support)
     getSetting<boolean>(c.env.DB, 'adsense_enabled', false),
     getSetting<string>(c.env.DB, 'adsense_publisher_id', ''),
     getSetting<boolean>(c.env.DB, 'adsense_auto_ads', true),
     getSetting<string>(c.env.DB, 'adsense_head_code', ''),
+    getSetting<string>(c.env.DB, 'adsense_accounts', '[]'),
+    getSetting<string>(c.env.DB, 'adsense_multi_head_code', ''),
     // Google AdX (Google Ad Manager)
     getSetting<boolean>(c.env.DB, 'adx_enabled', false),
     getSetting<string>(c.env.DB, 'adx_network_code', ''),
@@ -126,6 +129,14 @@ app.get('/public', async (c) => {
     adsense_publisher_id: adsensePublisherId ?? '',
     adsense_auto_ads: adsenseAutoAds ?? true,
     adsense_head_code: adsenseHeadCode ?? '',
+    adsense_accounts: (() => {
+      try {
+        return typeof adsenseAccounts === 'string' ? JSON.parse(adsenseAccounts || '[]') : (adsenseAccounts || [])
+      } catch {
+        return []
+      }
+    })(),
+    adsense_multi_head_code: adsenseMultiHeadCode ?? '',
     adx_enabled: adxEnabled ?? false,
     adx_network_code: adxNetworkCode ?? '',
     adx_head_code: adxHeadCode ?? '',

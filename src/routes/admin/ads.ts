@@ -709,7 +709,7 @@ app.put('/ads-txt', async (c) => {
 app.get('/global-settings', async (c) => {
   await ensureAdsTables(c.env.DB)
   const rows = await c.env.DB.prepare(
-    `SELECT key, value FROM website_settings WHERE key IN ('adsense_enabled', 'adsense_publisher_id', 'adsense_head_code', 'adx_enabled', 'adx_head_code')`
+    `SELECT key, value FROM website_settings WHERE key IN ('adsense_enabled', 'adsense_publisher_id', 'adsense_head_code', 'adsense_accounts', 'adsense_multi_head_code', 'adx_enabled', 'adx_head_code')`
   ).all()
 
   const settings: Record<string, any> = {}
@@ -725,11 +725,22 @@ app.get('/global-settings', async (c) => {
     rules[r.key] = r.value
   }
 
+  let parsedAccounts: any[] = []
+  try {
+    if (Array.isArray(settings.adsense_accounts)) {
+      parsedAccounts = settings.adsense_accounts
+    } else if (typeof settings.adsense_accounts === 'string') {
+      parsedAccounts = JSON.parse(settings.adsense_accounts || '[]')
+    }
+  } catch {}
+
   return c.json({
     settings: {
       adsense_enabled: settings.adsense_enabled !== false && settings.adsense_enabled !== 'false',
       adsense_publisher_id: settings.adsense_publisher_id || 'ca-pub-2291828876695516',
       adsense_head_code: settings.adsense_head_code || '',
+      adsense_accounts: parsedAccounts,
+      adsense_multi_head_code: settings.adsense_multi_head_code || '',
       adx_enabled: Boolean(settings.adx_enabled === true || settings.adx_enabled === 'true'),
       adx_head_code: settings.adx_head_code || '',
       global_header_script: rules.global_header_script || '',
@@ -742,6 +753,16 @@ const globalSettingsSchema = z.object({
   adsense_enabled: z.boolean().optional(),
   adsense_publisher_id: z.string().optional(),
   adsense_head_code: z.string().optional(),
+  adsense_accounts: z.array(z.object({
+    id: z.string(),
+    label: z.string(),
+    publisher_id: z.string(),
+    custom_code: z.string().optional().default(''),
+    status: z.enum(['active', 'pending', 'approved', 'rejected']).default('pending'),
+    auto_ads: z.boolean().default(true),
+    is_primary: z.boolean().default(false),
+  })).optional(),
+  adsense_multi_head_code: z.string().optional(),
   adx_enabled: z.boolean().optional(),
   adx_head_code: z.string().optional(),
   global_header_script: z.string().optional(),
@@ -751,7 +772,7 @@ app.put('/global-settings', async (c) => {
   await ensureAdsTables(c.env.DB)
   const body = await c.req.json()
   const parsed = globalSettingsSchema.safeParse(body)
-  if (!parsed.success) return c.json({ error: 'Validation failed' }, 400)
+  if (!parsed.success) return c.json({ error: 'Validation failed', details: parsed.error.errors }, 400)
 
   const d = parsed.data
 
@@ -759,6 +780,8 @@ app.put('/global-settings', async (c) => {
   if (d.adsense_enabled !== undefined) wsUpdates.push(['adsense_enabled', JSON.stringify(d.adsense_enabled)])
   if (d.adsense_publisher_id !== undefined) wsUpdates.push(['adsense_publisher_id', JSON.stringify(d.adsense_publisher_id.trim())])
   if (d.adsense_head_code !== undefined) wsUpdates.push(['adsense_head_code', JSON.stringify(d.adsense_head_code.trim())])
+  if (d.adsense_accounts !== undefined) wsUpdates.push(['adsense_accounts', JSON.stringify(d.adsense_accounts)])
+  if (d.adsense_multi_head_code !== undefined) wsUpdates.push(['adsense_multi_head_code', JSON.stringify(d.adsense_multi_head_code.trim())])
   if (d.adx_enabled !== undefined) wsUpdates.push(['adx_enabled', JSON.stringify(d.adx_enabled)])
   if (d.adx_head_code !== undefined) wsUpdates.push(['adx_head_code', JSON.stringify(d.adx_head_code.trim())])
 
