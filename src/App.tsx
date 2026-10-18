@@ -254,6 +254,7 @@ export default function App() {
               <Route path="downloads" element={<AdminDownloads />} />
               <Route path="settings" element={<AdminSettings />} />
               <Route path="adsmanager" element={<AdminAdsManager />} />
+              <Route path="ads" element={<AdminAdsManager />} />
               <Route path="payment-gateways" element={<AdminPaymentGateways />} />
               <Route path="gateways" element={<AdminExternalGateways />} />
               <Route path="audit-logs" element={<AdminAuditLogs />} />
