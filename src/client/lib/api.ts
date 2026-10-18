@@ -822,6 +822,46 @@ export const adminApi = {
         }),
       delete: (token: string, id: number) =>
         adminReq<{ success: boolean }>(`/admin/ads/placements/${id}`, token, { method: 'DELETE' }),
+      seedStandard: (token: string) =>
+        adminReq<{ success: boolean; seeded_count: number }>('/admin/ads/seed-standard-placements', token, {
+          method: 'POST',
+        }),
+    },
+
+    adsTxt: {
+      get: (token: string) =>
+        adminReq<{ content: string; is_custom: boolean; line_count: number; live_url: string }>('/admin/ads/ads-txt', token),
+      update: (token: string, content: string) =>
+        adminReq<{ success: boolean; message: string; line_count: number }>('/admin/ads/ads-txt', token, {
+          method: 'PUT',
+          body: JSON.stringify({ content }),
+        }),
+    },
+
+    globalSettings: {
+      get: (token: string) =>
+        adminReq<{
+          settings: {
+            adsense_enabled: boolean
+            adsense_publisher_id: string
+            adsense_head_code: string
+            adx_enabled: boolean
+            adx_head_code: string
+            global_header_script: string
+          }
+        }>('/admin/ads/global-settings', token),
+      update: (token: string, data: {
+        adsense_enabled?: boolean
+        adsense_publisher_id?: string
+        adsense_head_code?: string
+        adx_enabled?: boolean
+        adx_head_code?: string
+        global_header_script?: string
+      }) =>
+        adminReq<{ success: boolean; message: string }>('/admin/ads/global-settings', token, {
+          method: 'PUT',
+          body: JSON.stringify(data),
+        }),
     },
 
     campaigns: {
@@ -1404,6 +1444,8 @@ export interface AdPlacement {
   suppress_on_checkout: number | boolean
   frequency_cap_session: number
   custom_code?: string | null
+  target_page?: string
+  device_visibility?: 'all' | 'desktop' | 'mobile'
   created_at: string
 }
 
@@ -1432,6 +1474,7 @@ export interface AdRules {
   non_buyer_frequency_minutes?: string
   global_header_script?: string
   product_page_back_button_ad?: string
+  ads_txt_content?: string
 }
 
 export interface ActiveAdsResponse {
@@ -1452,6 +1495,8 @@ export interface ActiveAdsResponse {
     suppress_on_checkout: number | boolean
     frequency_cap_session: number
     custom_code?: string | null
+    target_page?: string
+    device_visibility?: 'all' | 'desktop' | 'mobile'
     network_name?: string | null
     network_provider?: string | null
   }>

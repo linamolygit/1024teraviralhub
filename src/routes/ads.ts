@@ -25,6 +25,7 @@ app.get('/active', async (c) => {
     SELECT p.id, p.name, p.placement_key, p.network_id, p.ad_type,
            p.suppress_on_high_intent, p.suppress_on_checkout,
            p.frequency_cap_session, p.custom_code,
+           p.target_page, p.device_visibility,
            n.name as network_name, n.provider_type as network_provider
     FROM ad_placements p
     LEFT JOIN ad_networks n ON p.network_id = n.id

@@ -8,9 +8,216 @@ const app = new Hono<{ Bindings: Env; Variables: AdminVars }>()
 app.use('*', adminAuthMiddleware)
 
 // Helper to auto-create ads tables if not exists (migrated in 002_ads_system.sql)
-async function ensureAdsTables(_db: D1Database) {
-  // Tables exist permanently in D1 database
+async function ensureAdsTables(db: D1Database) {
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS ad_networks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      provider_type TEXT NOT NULL,
+      status TEXT DEFAULT 'active',
+      integration_type TEXT DEFAULT 'banner',
+      config TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run().catch(() => {})
+
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS ad_placements (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      placement_key TEXT NOT NULL UNIQUE,
+      network_id INTEGER,
+      ad_type TEXT DEFAULT 'banner',
+      status TEXT DEFAULT 'active',
+      suppress_on_high_intent INTEGER DEFAULT 1,
+      suppress_on_checkout INTEGER DEFAULT 1,
+      frequency_cap_session INTEGER DEFAULT 3,
+      custom_code TEXT,
+      target_page TEXT DEFAULT 'all',
+      device_visibility TEXT DEFAULT 'all',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run().catch(() => {})
+
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS ad_campaigns (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      network_id INTEGER,
+      placement_id INTEGER,
+      status TEXT DEFAULT 'active',
+      target_rule TEXT DEFAULT 'low_intent',
+      max_impressions_day INTEGER DEFAULT 1000,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run().catch(() => {})
+
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS ad_rules (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      key TEXT NOT NULL UNIQUE,
+      value TEXT NOT NULL,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run().catch(() => {})
+
+  // Safe migration of columns if table already existed without them
+  try {
+    await db.prepare(`ALTER TABLE ad_placements ADD COLUMN target_page TEXT DEFAULT 'all'`).run()
+  } catch {}
+  try {
+    await db.prepare(`ALTER TABLE ad_placements ADD COLUMN device_visibility TEXT DEFAULT 'all'`).run()
+  } catch {}
 }
+
+const STANDARD_PLACEMENTS = [
+  // Homepage
+  {
+    name: 'Homepage - Top Leaderboard Banner (Above Fold)',
+    placement_key: 'home_top_banner',
+    ad_type: 'responsive',
+    target_page: 'home',
+    device_visibility: 'all',
+    suppress_on_high_intent: false,
+    suppress_on_checkout: true,
+    frequency_cap_session: 10,
+  },
+  {
+    name: 'Homepage - Mid Content Banner',
+    placement_key: 'home_banner_mid',
+    ad_type: 'responsive',
+    target_page: 'home',
+    device_visibility: 'all',
+    suppress_on_high_intent: false,
+    suppress_on_checkout: true,
+    frequency_cap_session: 10,
+  },
+  {
+    name: 'Homepage - Bottom Banner (Above Footer)',
+    placement_key: 'home_bottom_banner',
+    ad_type: 'responsive',
+    target_page: 'home',
+    device_visibility: 'all',
+    suppress_on_high_intent: false,
+    suppress_on_checkout: true,
+    frequency_cap_session: 10,
+  },
+  // Product Page
+  {
+    name: 'Product Details - Below Image & Title',
+    placement_key: 'product_below_image',
+    ad_type: 'responsive',
+    target_page: 'product',
+    device_visibility: 'all',
+    suppress_on_high_intent: true,
+    suppress_on_checkout: true,
+    frequency_cap_session: 5,
+  },
+  {
+    name: 'Product Details - Below Buy Box & Urgency Unit',
+    placement_key: 'product_details_banner',
+    ad_type: 'responsive',
+    target_page: 'product',
+    device_visibility: 'all',
+    suppress_on_high_intent: true,
+    suppress_on_checkout: true,
+    frequency_cap_session: 5,
+  },
+  {
+    name: 'Product Details - Below Guarantee & Highlights',
+    placement_key: 'product_below_buy',
+    ad_type: 'responsive',
+    target_page: 'product',
+    device_visibility: 'all',
+    suppress_on_high_intent: true,
+    suppress_on_checkout: true,
+    frequency_cap_session: 5,
+  },
+  {
+    name: 'Product Details - Above Customer Reviews',
+    placement_key: 'product_bottom_banner',
+    ad_type: 'responsive',
+    target_page: 'product',
+    device_visibility: 'all',
+    suppress_on_high_intent: false,
+    suppress_on_checkout: true,
+    frequency_cap_session: 5,
+  },
+  // Shop & Catalog
+  {
+    name: 'Shop Catalog - Top Leaderboard',
+    placement_key: 'category_top_banner',
+    ad_type: 'responsive',
+    target_page: 'products',
+    device_visibility: 'all',
+    suppress_on_high_intent: false,
+    suppress_on_checkout: true,
+    frequency_cap_session: 10,
+  },
+  {
+    name: 'Shop Catalog - Bottom Banner',
+    placement_key: 'category_bottom_banner',
+    ad_type: 'responsive',
+    target_page: 'products',
+    device_visibility: 'all',
+    suppress_on_high_intent: false,
+    suppress_on_checkout: true,
+    frequency_cap_session: 10,
+  },
+  // Blog Post
+  {
+    name: 'Blog Post - Above Article Title',
+    placement_key: 'blog_top_banner',
+    ad_type: 'responsive',
+    target_page: 'blog',
+    device_visibility: 'all',
+    suppress_on_high_intent: false,
+    suppress_on_checkout: true,
+    frequency_cap_session: 10,
+  },
+  {
+    name: 'Blog Post - In-Article Mid Paragraph',
+    placement_key: 'blog_mid_article',
+    ad_type: 'responsive',
+    target_page: 'blog',
+    device_visibility: 'all',
+    suppress_on_high_intent: false,
+    suppress_on_checkout: true,
+    frequency_cap_session: 10,
+  },
+  {
+    name: 'Blog Post - End of Post Banner',
+    placement_key: 'blog_bottom_banner',
+    ad_type: 'responsive',
+    target_page: 'blog',
+    device_visibility: 'all',
+    suppress_on_high_intent: false,
+    suppress_on_checkout: true,
+    frequency_cap_session: 10,
+  },
+  // Utilities
+  {
+    name: 'Order Lookup - Status Page Banner',
+    placement_key: 'order_lookup_banner',
+    ad_type: 'responsive',
+    target_page: 'order-lookup',
+    device_visibility: 'all',
+    suppress_on_high_intent: false,
+    suppress_on_checkout: true,
+    frequency_cap_session: 5,
+  },
+  {
+    name: 'Delivery Download - Post Download Banner',
+    placement_key: 'download_page_banner',
+    ad_type: 'responsive',
+    target_page: 'download',
+    device_visibility: 'all',
+    suppress_on_high_intent: false,
+    suppress_on_checkout: false,
+    frequency_cap_session: 5,
+  },
+]
 
 // GET /api/admin/ads/overview
 app.get('/overview', async (c) => {
@@ -138,6 +345,8 @@ const placementSchema = z.object({
   suppress_on_checkout: z.boolean().default(true),
   frequency_cap_session: z.number().default(3),
   custom_code: z.string().optional(),
+  target_page: z.string().default('all').optional(),
+  device_visibility: z.enum(['all', 'desktop', 'mobile']).default('all').optional(),
 })
 
 app.post('/placements', async (c) => {
@@ -151,8 +360,9 @@ app.post('/placements', async (c) => {
     const res = await c.env.DB.prepare(`
       INSERT INTO ad_placements (
         name, placement_key, network_id, ad_type, status,
-        suppress_on_high_intent, suppress_on_checkout, frequency_cap_session, custom_code
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        suppress_on_high_intent, suppress_on_checkout, frequency_cap_session,
+        custom_code, target_page, device_visibility
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       d.name,
       d.placement_key,
@@ -162,7 +372,9 @@ app.post('/placements', async (c) => {
       d.suppress_on_high_intent ? 1 : 0,
       d.suppress_on_checkout ? 1 : 0,
       d.frequency_cap_session,
-      d.custom_code ?? null
+      d.custom_code ?? null,
+      d.target_page ?? 'all',
+      d.device_visibility ?? 'all'
     ).run()
 
     return c.json({ success: true, id: res.meta.last_row_id })
@@ -195,6 +407,8 @@ app.put('/placements/:id', async (c) => {
   if (d.suppress_on_checkout !== undefined) { fields.push('suppress_on_checkout = ?'); values.push(d.suppress_on_checkout ? 1 : 0) }
   if (d.frequency_cap_session !== undefined) { fields.push('frequency_cap_session = ?'); values.push(d.frequency_cap_session) }
   if (d.custom_code !== undefined) { fields.push('custom_code = ?'); values.push(d.custom_code) }
+  if (d.target_page !== undefined) { fields.push('target_page = ?'); values.push(d.target_page) }
+  if (d.device_visibility !== undefined) { fields.push('device_visibility = ?'); values.push(d.device_visibility) }
 
   if (!fields.length) return c.json({ error: 'No fields provided' }, 400)
   values.push(id)
@@ -318,6 +532,153 @@ app.put('/rules', async (c) => {
     `).bind(key, String(val)).run()
   }
   return c.json({ success: true })
+})
+
+// POST /api/admin/ads/seed-standard-placements — Auto-create high-performing standard slots
+app.post('/seed-standard-placements', async (c) => {
+  await ensureAdsTables(c.env.DB)
+  let count = 0
+  for (const p of STANDARD_PLACEMENTS) {
+    try {
+      const res = await c.env.DB.prepare(`
+        INSERT INTO ad_placements (
+          name, placement_key, ad_type, status,
+          suppress_on_high_intent, suppress_on_checkout,
+          frequency_cap_session, target_page, device_visibility
+        ) VALUES (?, ?, ?, 'active', ?, ?, ?, ?, ?)
+        ON CONFLICT(placement_key) DO NOTHING
+      `).bind(
+        p.name,
+        p.placement_key,
+        p.ad_type,
+        p.suppress_on_high_intent ? 1 : 0,
+        p.suppress_on_checkout ? 1 : 0,
+        p.frequency_cap_session,
+        p.target_page,
+        p.device_visibility
+      ).run()
+      if (res.meta?.changes && res.meta.changes > 0) count++
+    } catch {}
+  }
+  return c.json({ success: true, seeded_count: count })
+})
+
+// GET /api/admin/ads/ads-txt — Fetch live ads.txt content
+app.get('/ads-txt', async (c) => {
+  await ensureAdsTables(c.env.DB)
+  const defaultAdsTxt = `google.com, pub-2291828876695516, DIRECT, f08c47fec0942fa0\n`
+  try {
+    const row = await c.env.DB.prepare(`SELECT value FROM ad_rules WHERE key = 'ads_txt_content'`).first<{ value: string }>()
+    const content = (row?.value && row.value.trim().length > 0) ? row.value : defaultAdsTxt
+    const lines = content.split('\n').filter(l => l.trim().length > 0 && !l.trim().startsWith('#'))
+    return c.json({
+      content,
+      is_custom: Boolean(row?.value && row.value.trim().length > 0),
+      line_count: lines.length,
+      live_url: 'https://1024teraviralhub.com/ads.txt'
+    })
+  } catch (err: any) {
+    return c.json({ content: defaultAdsTxt, is_custom: false, line_count: 1, error: err?.message }, 500)
+  }
+})
+
+// PUT /api/admin/ads/ads-txt — Update live ads.txt content
+const adsTxtSchema = z.object({
+  content: z.string(),
+})
+
+app.put('/ads-txt', async (c) => {
+  await ensureAdsTables(c.env.DB)
+  const body = await c.req.json()
+  const parsed = adsTxtSchema.safeParse(body)
+  if (!parsed.success) return c.json({ error: 'Validation failed', details: parsed.error.errors }, 400)
+
+  const content = parsed.data.content.trim()
+  await c.env.DB.prepare(`
+    INSERT INTO ad_rules (key, value) VALUES ('ads_txt_content', ?)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')
+  `).bind(content).run()
+
+  const lines = content.split('\n').filter(l => l.trim().length > 0 && !l.trim().startsWith('#'))
+  return c.json({
+    success: true,
+    message: 'ads.txt updated successfully and is now active at /ads.txt',
+    line_count: lines.length
+  })
+})
+
+// GET /api/admin/ads/global-settings — Fetch AdSense Auto-Ads, Head Scripts, GAM/AdX
+app.get('/global-settings', async (c) => {
+  await ensureAdsTables(c.env.DB)
+  const rows = await c.env.DB.prepare(
+    `SELECT key, value FROM website_settings WHERE key IN ('adsense_enabled', 'adsense_publisher_id', 'adsense_head_code', 'adx_enabled', 'adx_head_code')`
+  ).all()
+
+  const settings: Record<string, any> = {}
+  for (const r of (rows.results || []) as { key: string; value: string }[]) {
+    try { settings[r.key] = JSON.parse(r.value) } catch { settings[r.key] = r.value }
+  }
+
+  const ruleRows = await c.env.DB.prepare(
+    `SELECT key, value FROM ad_rules WHERE key IN ('global_header_script', 'ads_txt_content')`
+  ).all()
+  const rules: Record<string, string> = {}
+  for (const r of (ruleRows.results || []) as { key: string; value: string }[]) {
+    rules[r.key] = r.value
+  }
+
+  return c.json({
+    settings: {
+      adsense_enabled: settings.adsense_enabled !== false && settings.adsense_enabled !== 'false',
+      adsense_publisher_id: settings.adsense_publisher_id || 'ca-pub-2291828876695516',
+      adsense_head_code: settings.adsense_head_code || '',
+      adx_enabled: Boolean(settings.adx_enabled === true || settings.adx_enabled === 'true'),
+      adx_head_code: settings.adx_head_code || '',
+      global_header_script: rules.global_header_script || '',
+    }
+  })
+})
+
+// PUT /api/admin/ads/global-settings — Update AdSense, AdX, and Global Head Script
+const globalSettingsSchema = z.object({
+  adsense_enabled: z.boolean().optional(),
+  adsense_publisher_id: z.string().optional(),
+  adsense_head_code: z.string().optional(),
+  adx_enabled: z.boolean().optional(),
+  adx_head_code: z.string().optional(),
+  global_header_script: z.string().optional(),
+})
+
+app.put('/global-settings', async (c) => {
+  await ensureAdsTables(c.env.DB)
+  const body = await c.req.json()
+  const parsed = globalSettingsSchema.safeParse(body)
+  if (!parsed.success) return c.json({ error: 'Validation failed' }, 400)
+
+  const d = parsed.data
+
+  const wsUpdates: Array<[string, string]> = []
+  if (d.adsense_enabled !== undefined) wsUpdates.push(['adsense_enabled', JSON.stringify(d.adsense_enabled)])
+  if (d.adsense_publisher_id !== undefined) wsUpdates.push(['adsense_publisher_id', JSON.stringify(d.adsense_publisher_id.trim())])
+  if (d.adsense_head_code !== undefined) wsUpdates.push(['adsense_head_code', JSON.stringify(d.adsense_head_code.trim())])
+  if (d.adx_enabled !== undefined) wsUpdates.push(['adx_enabled', JSON.stringify(d.adx_enabled)])
+  if (d.adx_head_code !== undefined) wsUpdates.push(['adx_head_code', JSON.stringify(d.adx_head_code.trim())])
+
+  for (const [k, v] of wsUpdates) {
+    await c.env.DB.prepare(`
+      INSERT INTO website_settings (key, value, updated_at) VALUES (?, ?, datetime('now'))
+      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')
+    `).bind(k, v).run()
+  }
+
+  if (d.global_header_script !== undefined) {
+    await c.env.DB.prepare(`
+      INSERT INTO ad_rules (key, value) VALUES ('global_header_script', ?)
+      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')
+    `).bind(d.global_header_script.trim()).run()
+  }
+
+  return c.json({ success: true, message: 'Global AdSense, AdX & Header Scripts saved successfully.' })
 })
 
 export default app

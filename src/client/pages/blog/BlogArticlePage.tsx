@@ -12,6 +12,7 @@ import ArticleCard from '../../components/blog/ArticleCard'
 import { useSiteConfig } from '../../lib/site-config'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
 import OptimizedImage from '../../components/ui/OptimizedImage'
+import AdPlacement from '../../components/ads/AdPlacement'
 
 export default function BlogArticlePage() {
   const { slug } = useParams<{ slug: string }>()
@@ -210,6 +211,9 @@ export default function BlogArticlePage() {
           </div>
         </header>
 
+        {/* Ad Placement: Blog Top Leaderboard Banner */}
+        <AdPlacement placementKey="blog_top_banner" />
+
         {/* ── 3. Featured Image ── */}
         {imageUrl && (
           <div
@@ -246,6 +250,9 @@ export default function BlogArticlePage() {
         >
           {post.content}
         </div>
+
+        {/* Ad Placement: Blog Post End Banner */}
+        <AdPlacement placementKey="blog_bottom_banner" />
 
         {/* ── 5. Contextual Catalog CTA ── */}
         <div

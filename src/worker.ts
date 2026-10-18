@@ -661,12 +661,20 @@ app.get('/robots.txt', (c) => {
 })
 
 // ─── Google AdSense: ads.txt ─────────────────
-app.get('/ads.txt', () => {
-  const adsTxt = `google.com, pub-2291828876695516, DIRECT, f08c47fec0942fa0\n`
+app.get('/ads.txt', async (c) => {
+  let adsTxt = `google.com, pub-2291828876695516, DIRECT, f08c47fec0942fa0\n`
+  try {
+    const row = await c.env.DB.prepare(`SELECT value FROM ad_rules WHERE key = 'ads_txt_content'`).first<{ value: string }>()
+    if (row?.value && row.value.trim().length > 0) {
+      adsTxt = row.value.trim() + '\n'
+    }
+  } catch (err) {
+    console.error('Error fetching dynamic ads.txt:', err)
+  }
   return new Response(adsTxt, {
     headers: {
       'Content-Type': 'text/plain; charset=utf-8',
-      'Cache-Control': 'public, max-age=86400',
+      'Cache-Control': 'public, max-age=1800, s-maxage=1800',
     },
   })
 })
@@ -823,22 +831,34 @@ async function injectGoogleSuite(html: string, db: D1Database): Promise<string> 
     }
 
     // 3. Google AdSense Auto-Ads Tag
-    const adsensePub = String(settings.adsense_publisher_id || 'ca-pub-2291828876695516').trim()
-    let pubId = adsensePub.startsWith('pub-') && !adsensePub.startsWith('ca-pub-') ? `ca-${adsensePub}` : adsensePub
-    if (pubId && !html.includes(pubId)) {
-      headTags += `\n    <!-- Google AdSense -->\n    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${pubId}" crossorigin="anonymous"></script>`
-    }
-    if (settings.adsense_head_code && !html.includes(settings.adsense_head_code)) {
-      headTags += `\n    ${settings.adsense_head_code}`
+    const isAdsenseEnabled = settings.adsense_enabled !== false && settings.adsense_enabled !== 'false'
+    if (isAdsenseEnabled) {
+      const adsensePub = String(settings.adsense_publisher_id || 'ca-pub-2291828876695516').trim()
+      let pubId = adsensePub.startsWith('pub-') && !adsensePub.startsWith('ca-pub-') ? `ca-${adsensePub}` : adsensePub
+      if (pubId && !html.includes(pubId)) {
+        headTags += `\n    <!-- Google AdSense Auto-Ads -->\n    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${pubId}" crossorigin="anonymous"></script>`
+      }
+      if (settings.adsense_head_code && !html.includes(settings.adsense_head_code)) {
+        headTags += `\n    ${settings.adsense_head_code}`
+      }
     }
 
     // 4. Google Ad Manager / AdX Tag
-    if (settings.adx_enabled) {
+    const isAdxEnabled = settings.adx_enabled === true || settings.adx_enabled === 'true'
+    if (isAdxEnabled) {
       headTags += `\n    <!-- Google Ad Manager / AdX -->\n    <script async src="https://securepubads.g.doubleclick.net/tag/js/gpt.js" crossorigin="anonymous"></script>`
-      if (settings.adx_head_code) {
+      if (settings.adx_head_code && !html.includes(settings.adx_head_code)) {
         headTags += `\n    ${settings.adx_head_code}`
       }
     }
+
+    // 5. Global Custom Header Script (from ad_rules)
+    try {
+      const customHeadRow = await db.prepare(`SELECT value FROM ad_rules WHERE key = 'global_header_script'`).first<{ value: string }>()
+      if (customHeadRow?.value && customHeadRow.value.trim().length > 0 && !html.includes(customHeadRow.value.trim())) {
+        headTags += `\n    <!-- Custom Global Ads Header Script -->\n    ${customHeadRow.value.trim()}`
+      }
+    } catch {}
 
     // 5. Meta Pixel (Facebook Pixel) SSR Tag
     if (settings.meta_pixel_enabled !== false && settings.meta_pixel_id) {

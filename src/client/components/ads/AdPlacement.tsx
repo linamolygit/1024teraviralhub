@@ -86,15 +86,21 @@ export default function AdPlacement({ placementKey, className = '', style }: AdP
     }
   }, [placement?.custom_code])
 
+  const deviceClass =
+    placement.device_visibility === 'desktop'
+      ? 'hidden md:flex'
+      : placement.device_visibility === 'mobile'
+      ? 'flex md:hidden'
+      : 'flex'
+
   return (
     <div
-      className={`ad-placement-slot ${className}`}
+      className={`ad-placement-slot ${deviceClass} ${className}`}
       data-placement={placementKey}
       style={{
         margin: '20px auto',
         width: '100%',
         maxWidth: '728px',
-        display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
@@ -124,7 +130,7 @@ export default function AdPlacement({ placementKey, className = '', style }: AdP
           justifyContent: 'center',
           overflow: 'hidden',
           borderRadius: 8,
-          background: 'rgba(0, 0, 0, 0.05)',
+          background: 'rgba(0, 0, 0, 0.03)',
         }}
       />
     </div>

@@ -44,6 +44,9 @@ export default function HomePage() {
       {/* 2. Trust Indicators Strip */}
       <TrustBar />
 
+      {/* Ad Placement: Top Homepage Leaderboard Banner */}
+      <AdPlacement placementKey="home_top_banner" />
+
       {/* 3. Trending Right Now (Product Cards Grid) */}
       <TrendingSection products={products} isLoading={isProductsLoading} />
 
@@ -64,6 +67,9 @@ export default function HomePage() {
 
       {/* 8. From the Hub (3 Editorial Blog Cards) */}
       <BlogPreviewSection />
+
+      {/* Ad Placement: Bottom Homepage Banner */}
+      <AdPlacement placementKey="home_bottom_banner" />
 
       {/* 9. Final CTA (Find Something Worth Downloading) */}
       <FinalCtaSection />

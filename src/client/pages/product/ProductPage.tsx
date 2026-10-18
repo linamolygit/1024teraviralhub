@@ -1353,6 +1353,9 @@ export default function ProductPage() {
               />
             </div>
           </details>
+
+          {/* Ad Placement: Below Buy Box Banner */}
+          <AdPlacement placementKey="product_below_buy" />
         </div>
 
 
@@ -1451,6 +1454,9 @@ export default function ProductPage() {
             </div>
           </div>
         )}
+
+        {/* Ad Placement: Bottom Product Page Banner */}
+        <AdPlacement placementKey="product_bottom_banner" />
       </div>
 
       {/* ── Sticky Bottom Purchase Bar (Matching Reference Image 2 on Mobile & Desktop) ── */}

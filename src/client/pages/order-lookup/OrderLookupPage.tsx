@@ -8,6 +8,7 @@ import { formatPrice, formatDate } from '../../lib/utils'
 import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
 import { setVerifiedOrder, PRIVACY_CONFIG } from '../../lib/orderVerification'
 import RefundRequestModal from '../../components/order/RefundRequestModal'
+import AdPlacement from '../../components/ads/AdPlacement'
 
 export default function OrderLookupPage() {
   const { name: gatewayName } = usePaymentGatewayInfo()
@@ -381,6 +382,9 @@ export default function OrderLookupPage() {
               </div>
             </motion.div>
           )}
+
+          {/* Ad Placement: Order Lookup Banner */}
+          <AdPlacement placementKey="order_lookup_banner" />
         </div>
 
         <div style={{ textAlign: 'center', marginTop: 28, color: 'var(--text-muted)', fontSize: '0.875rem' }}>

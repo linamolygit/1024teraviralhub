@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { api, type Product, type Category } from '../../lib/api'
 import ProductCard from '../../components/product/ProductCard'
+import AdPlacement from '../../components/ads/AdPlacement'
 import { useSiteConfig } from '../../lib/site-config'
 
 const PAGE_SIZE = 12
@@ -402,6 +403,9 @@ export default function ProductsPage() {
           )}
         </div>
 
+        {/* Ad Placement: Products Catalog Top Leaderboard */}
+        <AdPlacement placementKey="category_top_banner" />
+
         {/* ─── 4. Results Info Header ─── */}
         <div
           style={{
@@ -565,6 +569,9 @@ export default function ProductsPage() {
             </button>
           </div>
         )}
+
+        {/* Ad Placement: Products Catalog Bottom Banner */}
+        <AdPlacement placementKey="category_bottom_banner" />
       </div>
 
       {/* ─── 6. Mobile Filter Drawer / Bottom Sheet ─── */}
