@@ -99,12 +99,6 @@ export default function AdminLayout() {
       style={{
         display: 'flex',
         flexDirection: 'column',
-        width: 260,
-        background: 'var(--bg-surface)',
-        borderRight: '1px solid var(--bg-border)',
-        height: '100vh',
-        position: 'sticky',
-        top: 0,
         zIndex: 50,
       }}
     >
