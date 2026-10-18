@@ -14,6 +14,9 @@ import GoogleServicesHead from './client/components/GoogleServicesHead'
 import ThemeProvider from './client/components/ThemeProvider'
 import ErrorBoundary from './client/components/ErrorBoundary'
 import NonBuyerAdTrigger from './client/components/ads/NonBuyerAdTrigger'
+import AnchorAd from './client/components/ads/AnchorAd'
+import SliderAd from './client/components/ads/SliderAd'
+import VignetteAd from './client/components/ads/VignetteAd'
 import ShutdownScreen from './client/components/ShutdownScreen'
 import { lazyWithRetry } from './client/lib/lazyWithRetry'
 import { initAnalyticsListeners, trackPageView } from './client/lib/analytics-tracker'
@@ -161,6 +164,9 @@ export default function App() {
         <MetaPixel />
         <GoogleServicesHead />
         <ScrollToTop />
+        <AnchorAd />
+        <SliderAd />
+        <VignetteAd />
         <Suspense fallback={<LoadingSpinner fullPage />}>
           <Routes>
             {/* ─── Public Routes (Shared PublicLayout keeps Header/Footer persistent across navigations) ─── */}

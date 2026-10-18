@@ -15,6 +15,7 @@ import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
 import { saveOrderSession, getSavedOrders } from '../../lib/orderSession'
 import { trackPageView, trackUserClick } from '../../lib/analytics-tracker'
 import { getProductSpecifications, getProductRatingData } from '../../lib/product-specs'
+import AdPlacement from '../../components/ads/AdPlacement'
 
 interface ShippingAddress {
   name: string
@@ -925,6 +926,9 @@ export default function FlipkartCheckoutPage() {
 
       {/* ─── Main Content Container ─── */}
       <main style={{ maxWidth: 540, margin: '0 auto', padding: '12px 14px' }}>
+        {/* Checkout Top Ad Banner */}
+        <AdPlacement placementKey="checkout_top_banner" style={{ margin: '4px auto 14px', maxWidth: '540px' }} />
+
         {/* ========================================================
             STEP 2: CONFIRM DETAILS
            ======================================================== */}
@@ -1417,6 +1421,9 @@ export default function FlipkartCheckoutPage() {
               <Building size={24} color="#717478" />
             </div>
 
+            {/* Checkout Inline / Sidebar 300x250 Banner */}
+            <AdPlacement placementKey="checkout_sidebar_banner" style={{ margin: '14px auto', maxWidth: '540px' }} />
+
             {/* Legal Terms Footnote */}
             <div style={{
               fontSize: '0.74rem', color: '#9E9E9E', lineHeight: 1.4, textAlign: 'center',
@@ -1732,6 +1739,9 @@ export default function FlipkartCheckoutPage() {
             </section>
           </div>
         )}
+
+        {/* Checkout Bottom Banner */}
+        <AdPlacement placementKey="checkout_bottom_banner" style={{ margin: '16px auto 8px', maxWidth: '540px' }} />
       </main>
 
       {/* ─── Sticky Bottom Bar for Step 2 (Confirm Details) ─── */}

@@ -14,11 +14,14 @@ export default function AdPlacement({ placementKey, className = '', style }: AdP
   const location = useLocation()
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // 1. Strict suppression on checkout & payment & admin paths
+  // 1. Strict suppression on admin paths
+  if (location.pathname.startsWith('/admin')) {
+    return null
+  }
+
   const isCheckoutOrPayment =
     location.pathname.startsWith('/checkout') ||
-    location.pathname.startsWith('/payment') ||
-    location.pathname.startsWith('/admin')
+    location.pathname.startsWith('/payment')
 
   // 2. Fetch active ad placements configuration from public API
   const { data } = useQuery({
@@ -28,10 +31,11 @@ export default function AdPlacement({ placementKey, className = '', style }: AdP
   })
 
   const placement = data?.placements?.[placementKey]
-  const shouldSuppressCheckout = placement ? Boolean(placement.suppress_on_checkout) : true
+  const isCheckoutSpecific = placementKey.startsWith('checkout')
+  const shouldSuppressCheckout = placement ? Boolean(placement.suppress_on_checkout) : !isCheckoutSpecific
 
-  // If checkout suppression is active or slot not found/inactive, render nothing
-  if (isCheckoutOrPayment && shouldSuppressCheckout) {
+  // If on checkout or payment AND this slot has suppress_on_checkout enabled (and is not an explicitly enabled checkout slot)
+  if (isCheckoutOrPayment && shouldSuppressCheckout && !isCheckoutSpecific) {
     return null
   }
 

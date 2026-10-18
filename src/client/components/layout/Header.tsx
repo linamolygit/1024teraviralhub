@@ -9,6 +9,7 @@ import {
 import { useSiteConfig } from '../../lib/site-config'
 import { useWishlistStore } from '../../lib/wishlist-store'
 import { useSavedOrders } from '../../lib/orderSession'
+import AdPlacement from '../ads/AdPlacement'
 
 const navLinks = [
   { to: '/', label: 'Home', end: true },
@@ -160,10 +161,11 @@ export default function Header() {
   }
 
   return (
-    <header
-      className={`header ${menuOpen ? 'header-menu-open' : ''} ${isNavHidden && !menuOpen && !searchOpen ? 'header-hidden-mobile' : 'header-visible-mobile'}`}
-      style={{ zIndex: 100, background: '#FFFFFF', borderBottom: '1px solid #E0E0E0', boxShadow: '0 1px 4px rgba(0, 0, 0, 0.05)' }}
-    >
+    <>
+      <header
+        className={`header ${menuOpen ? 'header-menu-open' : ''} ${isNavHidden && !menuOpen && !searchOpen ? 'header-hidden-mobile' : 'header-visible-mobile'}`}
+        style={{ zIndex: 100, background: '#FFFFFF', borderBottom: '1px solid #E0E0E0', boxShadow: '0 1px 4px rgba(0, 0, 0, 0.05)' }}
+      >
       <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '64px' }}>
         {/* Left: Brand Logo */}
         <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
@@ -791,5 +793,10 @@ export default function Header() {
         </nav>
       )}
     </header>
+      <AdPlacement
+        placementKey="header_global_banner"
+        style={{ margin: '8px auto 16px', maxWidth: '970px', padding: '0 12px' }}
+      />
+    </>
   )
 }

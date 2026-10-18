@@ -72,7 +72,49 @@ async function ensureAdsTables(db: D1Database) {
 }
 
 const STANDARD_PLACEMENTS = [
-  // Homepage
+  // ─── Global High-Impact Units ───
+  {
+    name: 'Global Header - Leaderboard Banner (Under Nav)',
+    placement_key: 'header_global_banner',
+    ad_type: 'responsive',
+    target_page: 'all',
+    device_visibility: 'all',
+    suppress_on_high_intent: false,
+    suppress_on_checkout: true,
+    frequency_cap_session: 10,
+  },
+  {
+    name: 'Global Anchor Ad - High-CPM Sticky Bottom Banner',
+    placement_key: 'global_anchor_ad',
+    ad_type: 'sticky_anchor',
+    target_page: 'all',
+    device_visibility: 'all',
+    suppress_on_high_intent: false,
+    suppress_on_checkout: true,
+    frequency_cap_session: 10,
+  },
+  {
+    name: 'Global Slider Ad - Floating Corner 300x250 Unit',
+    placement_key: 'global_slider_ad',
+    ad_type: 'slider',
+    target_page: 'all',
+    device_visibility: 'all',
+    suppress_on_high_intent: false,
+    suppress_on_checkout: true,
+    frequency_cap_session: 5,
+  },
+  {
+    name: 'Global Vignette Ad - Interstitial Page Transition',
+    placement_key: 'global_vignette_ad',
+    ad_type: 'interstitial',
+    target_page: 'all',
+    device_visibility: 'all',
+    suppress_on_high_intent: true,
+    suppress_on_checkout: true,
+    frequency_cap_session: 2,
+  },
+
+  // ─── Homepage ───
   {
     name: 'Homepage - Top Leaderboard Banner (Above Fold)',
     placement_key: 'home_top_banner',
@@ -103,7 +145,18 @@ const STANDARD_PLACEMENTS = [
     suppress_on_checkout: true,
     frequency_cap_session: 10,
   },
-  // Product Page
+
+  // ─── Product Page ───
+  {
+    name: 'Product Details - Top Header Leaderboard Banner',
+    placement_key: 'product_header_banner',
+    ad_type: 'responsive',
+    target_page: 'product',
+    device_visibility: 'all',
+    suppress_on_high_intent: false,
+    suppress_on_checkout: true,
+    frequency_cap_session: 10,
+  },
   {
     name: 'Product Details - Below Image & Title',
     placement_key: 'product_below_image',
@@ -135,6 +188,16 @@ const STANDARD_PLACEMENTS = [
     frequency_cap_session: 5,
   },
   {
+    name: 'Product Details - 300x250 Medium Rectangle Box',
+    placement_key: 'product_300x250_box',
+    ad_type: 'banner_300x250',
+    target_page: 'product',
+    device_visibility: 'all',
+    suppress_on_high_intent: true,
+    suppress_on_checkout: true,
+    frequency_cap_session: 5,
+  },
+  {
     name: 'Product Details - Above Customer Reviews',
     placement_key: 'product_bottom_banner',
     ad_type: 'responsive',
@@ -144,7 +207,40 @@ const STANDARD_PLACEMENTS = [
     suppress_on_checkout: true,
     frequency_cap_session: 5,
   },
-  // Shop & Catalog
+
+  // ─── Checkout Page (Specially Requested) ───
+  {
+    name: 'Checkout Page - Top Leaderboard Ad Banner',
+    placement_key: 'checkout_top_banner',
+    ad_type: 'responsive',
+    target_page: 'checkout',
+    device_visibility: 'all',
+    suppress_on_high_intent: false,
+    suppress_on_checkout: false,
+    frequency_cap_session: 5,
+  },
+  {
+    name: 'Checkout Page - 300x250 Sidebar Order Ad',
+    placement_key: 'checkout_sidebar_banner',
+    ad_type: 'banner_300x250',
+    target_page: 'checkout',
+    device_visibility: 'all',
+    suppress_on_high_intent: false,
+    suppress_on_checkout: false,
+    frequency_cap_session: 5,
+  },
+  {
+    name: 'Checkout Page - Bottom Guarantee Ad Banner',
+    placement_key: 'checkout_bottom_banner',
+    ad_type: 'responsive',
+    target_page: 'checkout',
+    device_visibility: 'all',
+    suppress_on_high_intent: false,
+    suppress_on_checkout: false,
+    frequency_cap_session: 5,
+  },
+
+  // ─── Shop & Catalog ───
   {
     name: 'Shop Catalog - Top Leaderboard',
     placement_key: 'category_top_banner',
@@ -165,7 +261,8 @@ const STANDARD_PLACEMENTS = [
     suppress_on_checkout: true,
     frequency_cap_session: 10,
   },
-  // Blog Post
+
+  // ─── Blog Post ───
   {
     name: 'Blog Post - Above Article Title',
     placement_key: 'blog_top_banner',
@@ -196,7 +293,8 @@ const STANDARD_PLACEMENTS = [
     suppress_on_checkout: true,
     frequency_cap_session: 10,
   },
-  // Utilities
+
+  // ─── Utilities ───
   {
     name: 'Order Lookup - Status Page Banner',
     placement_key: 'order_lookup_banner',

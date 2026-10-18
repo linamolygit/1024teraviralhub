@@ -15,6 +15,7 @@ import { detectInAppBrowser, triggerChromeBreakout } from '../../lib/inAppBrowse
 import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
 import GatewayBadge from '../../components/ui/GatewayBadge'
 import { saveOrderSession } from '../../lib/orderSession'
+import AdPlacement from '../../components/ads/AdPlacement'
 
 declare global {
   interface Window {
@@ -762,6 +763,9 @@ export default function CheckoutPage() {
           <span style={{ color: 'var(--text-muted)' }}>03 Instant Download</span>
         </div>
 
+        {/* Checkout Top Ad Banner */}
+        <AdPlacement placementKey="checkout_top_banner" style={{ margin: '0 auto 24px', maxWidth: '728px' }} />
+
         {/* ── 3. Main Checkout Layout (2 Columns Desktop, Stacked Mobile) ── */}
         <div
           style={{
@@ -1211,8 +1215,14 @@ export default function CheckoutPage() {
                 <span>Up to 3 high-speed download attempts included</span>
               </div>
             </div>
+
+            {/* Checkout Sidebar 300x250 Banner */}
+            <AdPlacement placementKey="checkout_sidebar_banner" style={{ margin: '18px 0 0', maxWidth: '336px' }} />
           </div>
         </div>
+
+        {/* Checkout Bottom Banner */}
+        <AdPlacement placementKey="checkout_bottom_banner" style={{ margin: '32px auto 0', maxWidth: '728px' }} />
       </div>
 
       {/* ── 4. Minimal Checkout Footer ── */}

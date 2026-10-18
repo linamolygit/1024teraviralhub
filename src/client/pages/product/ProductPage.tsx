@@ -859,6 +859,9 @@ export default function ProductPage() {
       />
 
       <div className="container" style={{ paddingTop: '12px', maxWidth: '740px' }}>
+        {/* Ad Placement: Product Page Top Leaderboard Banner */}
+        <AdPlacement placementKey="product_header_banner" style={{ margin: '0 auto 16px', maxWidth: '728px' }} />
+
         {/* ── Product Hero Layout (Matching Reference Images 1 & 2 on Mobile & Desktop) ── */}
         <div style={{ marginBottom: '36px' }}>
           {/* Visual Media Gallery with Floating Wishlist, Share, Rating, and Black Slider Bar */}
@@ -1362,6 +1365,8 @@ export default function ProductPage() {
         {/* ── 3. What's Included Section ── */}
         <ProductWhatIncluded product={product} />
 
+        {/* Ad Placement: High-CPM 300x250 Medium Rectangle Box */}
+        <AdPlacement placementKey="product_300x250_box" style={{ margin: '24px auto', maxWidth: '300px' }} />
 
         {/* ── 5. Technical Specifications Table ── */}
         <ProductSpecsTable product={product} />

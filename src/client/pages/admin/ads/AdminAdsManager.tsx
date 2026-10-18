@@ -28,6 +28,7 @@ const TARGET_PAGES = [
   { id: 'all', name: 'All Pages (Global)', icon: '🌐' },
   { id: 'home', name: 'Homepage (/)', icon: '🏠' },
   { id: 'product', name: 'Product Details (/product/:slug)', icon: '📦' },
+  { id: 'checkout', name: 'Checkout Page (/checkout)', icon: '💳' },
   { id: 'products', name: 'Shop Catalog (/products)', icon: '🛍️' },
   { id: 'blog', name: 'Blog Article & List (/blog)', icon: '📝' },
   { id: 'order-lookup', name: 'Order Lookup (/order-lookup)', icon: '🔍' },
@@ -89,6 +90,50 @@ export default function AdminAdsManager() {
     adx_head_code: string
     global_header_script: string
   } | null>(null)
+
+  // Local state for AdSense / AdX Code Generator & Upgrade Roadmap
+  const [generatorFormat, setGeneratorFormat] = useState<'anchor' | 'slider' | 'vignette' | 'box_300x250' | 'header_banner' | 'checkout_banner'>('anchor')
+  const [generatorNetwork, setGeneratorNetwork] = useState<'adsense' | 'adx'>('adsense')
+  const [generatorCopied, setGeneratorCopied] = useState(false)
+
+  const getGeneratorSnippet = (format: string, network: 'adsense' | 'adx') => {
+    const pub = globalForm?.adsense_publisher_id?.trim() || 'ca-pub-2291828876695516'
+    if (network === 'adsense') {
+      switch (format) {
+        case 'anchor':
+          return `<!-- Google AdSense Responsive Sticky Anchor Ad -->\n<ins class="adsbygoogle"\n     style="display:block; min-width:320px; max-width:100%; height:90px;"\n     data-ad-client="${pub}"\n     data-ad-slot="1234567890"\n     data-ad-format="horizontal"\n     data-full-width-responsive="true"></ins>\n<script>\n     (adsbygoogle = window.adsbygoogle || []).push({});\n</script>`
+        case 'slider':
+          return `<!-- Google AdSense 300x250 Corner Slider Unit -->\n<ins class="adsbygoogle"\n     style="display:inline-block;width:300px;height:250px"\n     data-ad-client="${pub}"\n     data-ad-slot="1234567890"></ins>\n<script>\n     (adsbygoogle = window.adsbygoogle || []).push({});\n</script>`
+        case 'vignette':
+          return `<!-- Google AdSense Vignette / Interstitial Unit -->\n<ins class="adsbygoogle"\n     style="display:block; min-width:300px; max-width:640px; min-height:350px;"\n     data-ad-client="${pub}"\n     data-ad-slot="1234567890"\n     data-ad-format="rectangle"\n     data-full-width-responsive="true"></ins>\n<script>\n     (adsbygoogle = window.adsbygoogle || []).push({});\n</script>`
+        case 'box_300x250':
+          return `<!-- Google AdSense High-CPM 300x250 Medium Rectangle -->\n<ins class="adsbygoogle"\n     style="display:inline-block;width:300px;height:250px"\n     data-ad-client="${pub}"\n     data-ad-slot="1234567890"></ins>\n<script>\n     (adsbygoogle = window.adsbygoogle || []).push({});\n</script>`
+        case 'header_banner':
+          return `<!-- Google AdSense Header Leaderboard Banner -->\n<ins class="adsbygoogle"\n     style="display:block"\n     data-ad-client="${pub}"\n     data-ad-slot="1234567890"\n     data-ad-format="auto"\n     data-full-width-responsive="true"></ins>\n<script>\n     (adsbygoogle = window.adsbygoogle || []).push({});\n</script>`
+        case 'checkout_banner':
+          return `<!-- Google AdSense Checkout Page Banner -->\n<ins class="adsbygoogle"\n     style="display:block"\n     data-ad-client="${pub}"\n     data-ad-slot="1234567890"\n     data-ad-format="horizontal"\n     data-full-width-responsive="true"></ins>\n<script>\n     (adsbygoogle = window.adsbygoogle || []).push({});\n</script>`
+        default:
+          return ''
+      }
+    } else {
+      switch (format) {
+        case 'anchor':
+          return `<!-- Google Ad Manager (AdX) Sticky Anchor Tag -->\n<div id="div-gpt-ad-anchor">\n  <script>\n    googletag.cmd.push(function() {\n      googletag.defineSlot('/1234567/tvh_anchor_ad', [[320, 50], [728, 90], [970, 90]], 'div-gpt-ad-anchor')\n               .addService(googletag.pubads());\n      googletag.display('div-gpt-ad-anchor');\n    });\n  </script>\n</div>`
+        case 'slider':
+          return `<!-- Google Ad Manager (AdX) Corner Slider 300x250 Unit -->\n<div id="div-gpt-ad-slider-300x250">\n  <script>\n    googletag.cmd.push(function() {\n      googletag.defineSlot('/1234567/tvh_slider_ad', [300, 250], 'div-gpt-ad-slider-300x250')\n               .addService(googletag.pubads());\n      googletag.display('div-gpt-ad-slider-300x250');\n    });\n  </script>\n</div>`
+        case 'vignette':
+          return `<!-- Google Ad Manager (AdX) Web Interstitial (Vignette) Tag -->\n<script>\n  window.googletag = window.googletag || {cmd: []};\n  googletag.cmd.push(function() {\n    var interstitialSlot = googletag.defineOutOfPageSlot(\n      '/1234567/tvh_web_interstitial',\n      googletag.enums.OutOfPageFormat.INTERSTITIAL\n    );\n    if (interstitialSlot) {\n      interstitialSlot.addService(googletag.pubads());\n    }\n    googletag.display(interstitialSlot);\n  });\n</script>`
+        case 'box_300x250':
+          return `<!-- Google Ad Manager (AdX) High-CPM 300x250 Box -->\n<div id="div-gpt-ad-box-300x250">\n  <script>\n    googletag.cmd.push(function() {\n      googletag.defineSlot('/1234567/tvh_box_300x250', [300, 250], 'div-gpt-ad-box-300x250')\n               .addService(googletag.pubads());\n      googletag.display('div-gpt-ad-box-300x250');\n    });\n  </script>\n</div>`
+        case 'header_banner':
+          return `<!-- Google Ad Manager (AdX) Header Leaderboard -->\n<div id="div-gpt-ad-header-banner">\n  <script>\n    googletag.cmd.push(function() {\n      googletag.defineSlot('/1234567/tvh_header_banner', [[728, 90], [970, 90], [320, 50]], 'div-gpt-ad-header-banner')\n               .addService(googletag.pubads());\n      googletag.display('div-gpt-ad-header-banner');\n    });\n  </script>\n</div>`
+        case 'checkout_banner':
+          return `<!-- Google Ad Manager (AdX) Checkout Page Banner -->\n<div id="div-gpt-ad-checkout-banner">\n  <script>\n    googletag.cmd.push(function() {\n      googletag.defineSlot('/1234567/tvh_checkout_banner', [[728, 90], [320, 50], [300, 250]], 'div-gpt-ad-checkout-banner')\n               .addService(googletag.pubads());\n      googletag.display('div-gpt-ad-checkout-banner');\n    });\n  </script>\n</div>`
+        default:
+          return ''
+      }
+    }
+  }
 
   // Local state for Non-buyer rules
   const [nonBuyerForm, setNonBuyerForm] = useState<{
@@ -863,6 +908,207 @@ export default function AdminAdsManager() {
                   When enabled, <code>gpt.js</code> loads automatically into &lt;head&gt;. Paste any partner targeting code or Prebid wrappers here.
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Section 2.5: AdSense to AdX Upgrade Roadmap & 1-Click Code Generator (User's Exact Request) */}
+          <div className="glass-card" style={{ padding: '26px', borderRadius: 16, border: '1.5px solid rgba(255, 210, 0, 0.35)', background: 'linear-gradient(180deg, rgba(255, 210, 0, 0.04) 0%, rgba(26, 115, 232, 0.04) 100%)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 14, marginBottom: 20 }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <span style={{ fontSize: '1.3rem' }}>🚀</span>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 900, margin: 0, color: 'var(--text-primary)' }}>
+                    AdSense ➔ AdX Upgrade Roadmap & 1-Click Code Generator
+                  </h3>
+                </div>
+                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                  First run Google AdSense for site approval, then seamlessly upgrade to Google AdX (GAM) high-CPM demand. Generate and copy ready-to-paste snippets for Anchor, Slider, Vignette, 300x250 Box, Header, and Checkout ads.
+                </p>
+              </div>
+
+              {/* Network Toggle */}
+              <div style={{ display: 'flex', background: 'var(--bg-elevated)', borderRadius: 10, padding: 3, border: '1px solid var(--bg-border)' }}>
+                <button
+                  type="button"
+                  onClick={() => setGeneratorNetwork('adsense')}
+                  style={{
+                    padding: '7px 16px',
+                    borderRadius: 8,
+                    fontSize: '0.8rem',
+                    fontWeight: 800,
+                    border: 'none',
+                    cursor: 'pointer',
+                    background: generatorNetwork === 'adsense' ? '#FFD200' : 'transparent',
+                    color: generatorNetwork === 'adsense' ? '#000000' : 'var(--text-muted)',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  Phase 1: Google AdSense
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGeneratorNetwork('adx')}
+                  style={{
+                    padding: '7px 16px',
+                    borderRadius: 8,
+                    fontSize: '0.8rem',
+                    fontWeight: 800,
+                    border: 'none',
+                    cursor: 'pointer',
+                    background: generatorNetwork === 'adx' ? '#1A73E8' : 'transparent',
+                    color: generatorNetwork === 'adx' ? '#FFFFFF' : 'var(--text-muted)',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  Phase 2: Google AdX (GAM)
+                </button>
+              </div>
+            </div>
+
+            {/* Stepper Guide */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14, marginBottom: 22 }}>
+              <div style={{ padding: '14px 16px', borderRadius: 12, background: generatorNetwork === 'adsense' ? 'rgba(255, 210, 0, 0.12)' : 'var(--bg-surface)', border: `1px solid ${generatorNetwork === 'adsense' ? 'rgba(255, 210, 0, 0.5)' : 'var(--bg-border)'}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 800, fontSize: '0.875rem', color: generatorNetwork === 'adsense' ? '#B45309' : 'var(--text-primary)', marginBottom: 4 }}>
+                  <span>1️⃣</span> <span>Stage 1: Google AdSense Approval</span>
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                  • Verify site ownership via Publisher ID in &lt;head&gt;.<br />
+                  • Ensure <code>/ads.txt</code> has your DIRECT AdSense line.<br />
+                  • Use responsive display banners on Home, Product, and Blog pages.
+                </div>
+              </div>
+
+              <div style={{ padding: '14px 16px', borderRadius: 12, background: generatorNetwork === 'adx' ? 'rgba(26, 115, 232, 0.12)' : 'var(--bg-surface)', border: `1px solid ${generatorNetwork === 'adx' ? 'rgba(26, 115, 232, 0.5)' : 'var(--bg-border)'}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 800, fontSize: '0.875rem', color: generatorNetwork === 'adx' ? '#1A73E8' : 'var(--text-primary)', marginBottom: 4 }}>
+                  <span>2️⃣</span> <span>Stage 2: Upgrade to Google AdX (GAM)</span>
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                  • Add MCM partner RESELLER line into <code>/ads.txt</code>.<br />
+                  • Enable AdX GPT script in &lt;head&gt; above.<br />
+                  • Paste AdX GPT slot code into existing slot keys — layout remains 100% intact!
+                </div>
+              </div>
+            </div>
+
+            {/* Format Selector Pills */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-secondary)', marginBottom: 8 }}>
+                Select Ad Unit Format to Generate:
+              </label>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {[
+                  { id: 'anchor', label: '📌 Sticky Anchor Ad', slot: 'global_anchor_ad' },
+                  { id: 'slider', label: '🪟 Slider 300x250 Ad', slot: 'global_slider_ad' },
+                  { id: 'vignette', label: '⚡ Vignette / Interstitial', slot: 'global_vignette_ad' },
+                  { id: 'box_300x250', label: '📦 300x250 Medium Rectangle', slot: 'product_300x250_box' },
+                  { id: 'header_banner', label: '🔝 Header Global Banner', slot: 'header_global_banner' },
+                  { id: 'checkout_banner', label: '💳 Checkout Page Banners', slot: 'checkout_top_banner' },
+                ].map((fmt) => (
+                  <button
+                    key={fmt.id}
+                    type="button"
+                    onClick={() => setGeneratorFormat(fmt.id as any)}
+                    style={{
+                      padding: '8px 14px',
+                      borderRadius: 20,
+                      fontSize: '0.78rem',
+                      fontWeight: generatorFormat === fmt.id ? 800 : 600,
+                      border: '1px solid',
+                      borderColor: generatorFormat === fmt.id ? (generatorNetwork === 'adsense' ? '#FFD200' : '#1A73E8') : 'var(--bg-border)',
+                      background: generatorFormat === fmt.id ? (generatorNetwork === 'adsense' ? 'rgba(255, 210, 0, 0.15)' : 'rgba(26, 115, 232, 0.15)') : 'var(--bg-surface)',
+                      color: generatorFormat === fmt.id ? (generatorNetwork === 'adsense' ? '#92400E' : '#1A73E8') : 'var(--text-muted)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    {fmt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Code Output Box */}
+            <div style={{ position: 'relative', marginTop: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#1E293B', padding: '8px 14px', borderTopLeftRadius: 10, borderTopRightRadius: 10 }}>
+                <span style={{ fontSize: '0.75rem', fontFamily: 'monospace', color: '#94A3B8' }}>
+                  Target Slot: <strong>
+                    {generatorFormat === 'anchor' ? 'global_anchor_ad' :
+                     generatorFormat === 'slider' ? 'global_slider_ad' :
+                     generatorFormat === 'vignette' ? 'global_vignette_ad' :
+                     generatorFormat === 'box_300x250' ? 'product_300x250_box or checkout_sidebar_banner' :
+                     generatorFormat === 'header_banner' ? 'header_global_banner' : 'checkout_top_banner / checkout_bottom_banner'}
+                  </strong> · {generatorNetwork === 'adsense' ? 'Google AdSense' : 'Google Ad Manager (AdX)'}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const snippet = getGeneratorSnippet(generatorFormat, generatorNetwork)
+                    navigator.clipboard.writeText(snippet)
+                    setGeneratorCopied(true)
+                    adminToast.success('Snippet Copied', 'Paste this code into the corresponding placement slot in Tab 3.')
+                    setTimeout(() => setGeneratorCopied(false), 2500)
+                  }}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: 6,
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    background: generatorCopied ? '#10B981' : 'rgba(255, 255, 255, 0.15)',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                  }}
+                >
+                  {generatorCopied ? <Check size={12} /> : <Copy size={12} />}
+                  <span>{generatorCopied ? 'Copied to Clipboard!' : 'Copy Code Snippet'}</span>
+                </button>
+              </div>
+
+              <pre
+                style={{
+                  margin: 0,
+                  padding: '16px',
+                  background: '#0F172A',
+                  color: '#38BDF8',
+                  fontSize: '0.8rem',
+                  fontFamily: 'monospace',
+                  lineHeight: 1.5,
+                  overflowX: 'auto',
+                  borderBottomLeftRadius: 10,
+                  borderBottomRightRadius: 10,
+                  border: '1px solid #334155',
+                  borderTop: 'none',
+                }}
+              >
+                <code>{getGeneratorSnippet(generatorFormat, generatorNetwork)}</code>
+              </pre>
+            </div>
+
+            <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                💡 Tip: Go to <strong>"Page-Wise Ad Units"</strong> tab &rarr; find the placement &rarr; click <strong>Edit</strong> &rarr; paste this code snippet.
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('page_placements')
+                  if (generatorFormat === 'anchor' || generatorFormat === 'slider' || generatorFormat === 'vignette' || generatorFormat === 'header_banner') {
+                    setPageFilter('all')
+                  } else if (generatorFormat === 'box_300x250') {
+                    setPageFilter('product')
+                  } else if (generatorFormat === 'checkout_banner') {
+                    setPageFilter('checkout')
+                  }
+                }}
+                className="btn-ghost"
+                style={{ fontSize: '0.78rem', padding: '6px 14px', color: 'var(--brand-purple-light)', fontWeight: 700 }}
+              >
+                Open Page-Wise Ad Units Tab &rarr;
+              </button>
             </div>
           </div>
 
@@ -1691,8 +1937,11 @@ export default function AdminAdsManager() {
                     onChange={(e) => setPlacementForm({ ...placementForm, ad_type: e.target.value })}
                   >
                     <option value="responsive">Responsive Display Unit (Auto Width)</option>
+                    <option value="sticky_anchor">Sticky Bottom Anchor Ad (Mobile & Desktop)</option>
+                    <option value="slider">Floating Corner Slider Ad (300x250 Drawer)</option>
+                    <option value="interstitial">Vignette / Interstitial Page Transition</option>
+                    <option value="banner_300x250">Medium Rectangle Box (300x250)</option>
                     <option value="leaderboard">Leaderboard Banner (728x90)</option>
-                    <option value="medium_rectangle">Medium Rectangle (300x250)</option>
                     <option value="half_page">Half Page Banner (300x600)</option>
                     <option value="mobile_banner">Mobile Banner (320x50)</option>
                     <option value="custom_script">Custom HTML / JS Code</option>
@@ -1708,7 +1957,7 @@ export default function AdminAdsManager() {
                   </label>
 
                   {/* 1-Click Templates */}
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     <button
                       type="button"
                       onClick={() => {
@@ -1720,7 +1969,32 @@ export default function AdminAdsManager() {
                       className="btn-ghost"
                       style={{ fontSize: '0.72rem', padding: '3px 8px', color: '#FFD200' }}
                     >
-                      + Insert AdSense Responsive Code
+                      + AdSense Responsive
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const pub = globalForm?.adsense_publisher_id || 'ca-pub-2291828876695516'
+                        const template = `<ins class="adsbygoogle"\n     style="display:inline-block;width:300px;height:250px"\n     data-ad-client="${pub}"\n     data-ad-slot="1234567890"></ins>\n<script>\n     (adsbygoogle = window.adsbygoogle || []).push({});\n</script>`
+                        setPlacementForm({ ...placementForm, custom_code: template })
+                        adminToast.success('Template Inserted', '300x250 Medium Rectangle snippet inserted.')
+                      }}
+                      className="btn-ghost"
+                      style={{ fontSize: '0.72rem', padding: '3px 8px', color: '#10B981' }}
+                    >
+                      + 300x250 Box
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const template = `<div id="div-gpt-ad-slot">\n  <script>\n    googletag.cmd.push(function() {\n      googletag.defineSlot('/1234567/ad_unit', [[300, 250], [728, 90]], 'div-gpt-ad-slot')\n               .addService(googletag.pubads());\n      googletag.display('div-gpt-ad-slot');\n    });\n  </script>\n</div>`
+                        setPlacementForm({ ...placementForm, custom_code: template })
+                        adminToast.success('Template Inserted', 'Google Ad Manager (AdX) GPT tag inserted.')
+                      }}
+                      className="btn-ghost"
+                      style={{ fontSize: '0.72rem', padding: '3px 8px', color: '#1A73E8' }}
+                    >
+                      + AdX (GAM) Tag
                     </button>
                     {placementForm.custom_code && (
                       <button
@@ -1728,7 +2002,7 @@ export default function AdminAdsManager() {
                         onClick={() => setPlacementForm({ ...placementForm, custom_code: '' })}
                         style={{ background: 'none', border: 'none', color: '#EF4444', fontSize: '0.72rem', cursor: 'pointer' }}
                       >
-                        Clear Code
+                        Clear
                       </button>
                     )}
                   </div>
