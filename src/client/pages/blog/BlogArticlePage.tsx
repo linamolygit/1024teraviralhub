@@ -13,6 +13,7 @@ import { useSiteConfig } from '../../lib/site-config'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
 import OptimizedImage from '../../components/ui/OptimizedImage'
 import AdPlacement from '../../components/ads/AdPlacement'
+import ArticleContentRenderer from '../../components/blog/ArticleContentRenderer'
 
 export default function BlogArticlePage() {
   const { slug } = useParams<{ slug: string }>()
@@ -238,17 +239,8 @@ export default function BlogArticlePage() {
         )}
 
         {/* ── 4. Main Article Content ── */}
-        <div
-          className="article-content"
-          style={{
-            color: 'var(--text-primary)',
-            lineHeight: 1.85,
-            fontSize: '1.05rem',
-            whiteSpace: 'pre-wrap',
-            marginBottom: '48px',
-          }}
-        >
-          {post.content}
+        <div className="article-content" style={{ marginBottom: '48px' }}>
+          <ArticleContentRenderer content={post.content} />
         </div>
 
         {/* Ad Placement: Blog Post End Banner */}
