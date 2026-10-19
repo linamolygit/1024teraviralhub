@@ -660,21 +660,22 @@ app.get('/robots.txt', (c) => {
   })
 })
 
-// ─── Google AdSense: ads.txt ─────────────────
+// ─── Google AdSense: ads.txt (Dynamic Edge Delivery from D1) ───
 app.get('/ads.txt', async (c) => {
-  let adsTxt = `google.com, pub-2291828876695516, DIRECT, f08c47fec0942fa0\n`
+  let adsTxt = `google.com, pub-2291828876695516, DIRECT, f08c47fec0942fa0\ngoogle.com, pub-4725437594491361, DIRECT, f08c47fec0942fa0\n`
   try {
     const row = await c.env.DB.prepare(`SELECT value FROM ad_rules WHERE key = 'ads_txt_content'`).first<{ value: string }>()
     if (row?.value && row.value.trim().length > 0) {
       adsTxt = row.value.trim() + '\n'
     }
   } catch (err) {
-    console.error('Error fetching dynamic ads.txt:', err)
+    console.error('Error fetching dynamic ads.txt from D1:', err)
   }
   return new Response(adsTxt, {
     headers: {
       'Content-Type': 'text/plain; charset=utf-8',
-      'Cache-Control': 'public, max-age=1800, s-maxage=1800',
+      'Cache-Control': 'public, max-age=60, s-maxage=60, must-revalidate',
+      'X-Ads-Txt-Source': 'D1-Dynamic',
     },
   })
 })
