@@ -651,12 +651,35 @@ app.get('/sitemap.xml', async (c) => {
   })
 })
 
-// ─── SEO: Robots.txt ─────────────────────────
+// ─── SEO: Robots.txt (Full Crawler & Google AdSense Bot Support) ─
 app.get('/robots.txt', (c) => {
   const siteUrl = c.env.SITE_URL || `${new URL(c.req.url).origin}`
-  const robots = `User-agent: *\nAllow: /\nDisallow: /admin/\nDisallow: /download/\nDisallow: /payment/\n\nSitemap: ${siteUrl}/sitemap.xml\n`
+  const robots = [
+    'User-agent: Mediapartners-Google',
+    'Allow: /',
+    '',
+    'User-agent: AdsBot-Google',
+    'Allow: /',
+    '',
+    'User-agent: Googlebot',
+    'Allow: /',
+    '',
+    'User-agent: *',
+    'Allow: /',
+    'Disallow: /admin/',
+    'Disallow: /download/',
+    'Disallow: /payment/',
+    'Disallow: /checkout',
+    'Disallow: /api/',
+    '',
+    `Sitemap: ${siteUrl}/sitemap.xml`,
+    '',
+  ].join('\n')
   return new Response(robots, {
-    headers: { 'Content-Type': 'text/plain' }
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Cache-Control': 'public, max-age=3600',
+    }
   })
 })
 
@@ -831,16 +854,47 @@ async function injectGoogleSuite(html: string, db: D1Database): Promise<string> 
       }
     }
 
-    // 3. Google AdSense Auto-Ads Tag
+    // 3. Google AdSense Multi-Account Verification & Auto-Ads Tags
     const isAdsenseEnabled = settings.adsense_enabled !== false && settings.adsense_enabled !== 'false'
     if (isAdsenseEnabled) {
-      const adsensePub = String(settings.adsense_publisher_id || 'ca-pub-2291828876695516').trim()
-      let pubId = adsensePub.startsWith('pub-') && !adsensePub.startsWith('ca-pub-') ? `ca-${adsensePub}` : adsensePub
-      if (pubId && !html.includes(pubId)) {
-        headTags += `\n    <!-- Google AdSense Auto-Ads -->\n    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${pubId}" crossorigin="anonymous"></script>`
+      // Collect all publisher IDs (primary + multi-accounts)
+      const accountsList: Array<{ publisher_id: string; custom_code?: string; auto_ads?: boolean }> = []
+      
+      if (Array.isArray(settings.adsense_accounts) && settings.adsense_accounts.length > 0) {
+        settings.adsense_accounts.forEach((acc: any) => {
+          if (acc?.publisher_id?.trim()) accountsList.push(acc)
+        })
       }
+      
+      // Fallback defaults if no accounts array configured
+      if (accountsList.length === 0) {
+        accountsList.push({ publisher_id: String(settings.adsense_publisher_id || 'ca-pub-2291828876695516').trim(), auto_ads: true })
+        accountsList.push({ publisher_id: 'ca-pub-4725437594491361', auto_ads: true })
+      }
+
+      accountsList.forEach((acc) => {
+        let rawPub = String(acc.publisher_id).trim()
+        let pubId = rawPub.startsWith('pub-') && !rawPub.startsWith('ca-pub-') ? `ca-${rawPub}` : rawPub
+        if (pubId) {
+          // Ownership verification meta tag
+          if (!html.includes(`content="${pubId}"`)) {
+            headTags += `\n    <meta name="google-adsense-account" content="${pubId}" />`
+          }
+          // Auto-Ads tag
+          if (acc.auto_ads !== false && !html.includes(`client=${pubId}`)) {
+            headTags += `\n    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${pubId}" crossorigin="anonymous"></script>`
+          }
+          if (acc.custom_code && !html.includes(acc.custom_code.trim())) {
+            headTags += `\n    ${acc.custom_code.trim()}`
+          }
+        }
+      })
+
       if (settings.adsense_head_code && !html.includes(settings.adsense_head_code)) {
         headTags += `\n    ${settings.adsense_head_code}`
+      }
+      if (settings.adsense_multi_head_code && !html.includes(settings.adsense_multi_head_code)) {
+        headTags += `\n    ${settings.adsense_multi_head_code}`
       }
     }
 

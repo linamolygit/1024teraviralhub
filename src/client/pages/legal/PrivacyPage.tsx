@@ -102,7 +102,36 @@ export default function PrivacyPage() {
 
           <section>
             <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 8 }}>
-              6. Grievance Officer & Redressal
+              6. Third-Party Advertising & Google AdSense Disclosure
+            </h2>
+            <p>
+              We partner with third-party advertising networks, including <strong>Google AdSense</strong> and <strong>Google Ad Manager (DoubleClick)</strong>, to display non-intrusive advertisements across eligible areas of our website. Please review the following mandatory disclosures regarding third-party ad serving:
+            </p>
+            <ul style={{ paddingLeft: 20, marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <li>
+                <strong>Third-Party Cookies & Web Beacons:</strong> Third-party vendors, including Google, use cookies to serve ads based on a user's prior visits to this website or other websites across the Internet.
+              </li>
+              <li>
+                <strong>Google DoubleClick DART Cookies:</strong> Google's use of advertising cookies enables it and its certified partners to serve relevant ads to our visitors based on their visit to <em>1024teraviralhub.com</em> and/or other sites on the Internet.
+              </li>
+              <li>
+                <strong>Personalized Advertising Opt-Out:</strong> Users may opt out of personalized advertising by visiting Google's official Ads Settings at{' '}
+                <a href="https://www.google.com/settings/ads" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--brand-purple-light)', textDecoration: 'underline' }}>
+                  https://www.google.com/settings/ads
+                </a>. Alternatively, visitors may opt out of third-party vendor cookies for personalized advertising by visiting{' '}
+                <a href="https://www.aboutads.info/choices/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--brand-purple-light)', textDecoration: 'underline' }}>
+                  www.aboutads.info/choices/
+                </a>.
+              </li>
+              <li>
+                <strong>Checkout & Buyer Protection:</strong> We strictly protect user privacy during the checkout process. Advertising scripts and behavioral tracking cookies are 100% suppressed on checkout pages, payment confirmation screens, and paid customer download vaults.
+              </li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 8 }}>
+              7. Grievance Officer & Redressal
             </h2>
             <p>
               In accordance with the Information Technology Act, 2000 and Digital Personal Data Protection Act, the details of our designated Grievance Officer are provided below:

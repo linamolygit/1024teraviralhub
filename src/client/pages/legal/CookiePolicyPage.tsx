@@ -16,7 +16,8 @@ export default function CookiePolicyPage() {
             <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>2. Cookies We Use</h2>
             <ul style={{ paddingLeft: 20, marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
               <li><strong>Essential Session Storage:</strong> Stores temporary transaction identifiers and UTM attribution across checkout steps.</li>
-              <li><strong>Analytics Cookies:</strong> Meta Pixel & performance cookies that assist in measuring marketing effectiveness.</li>
+              <li><strong>Advertising & Monetization Cookies (Google AdSense):</strong> Third-party advertising cookies, such as Google DoubleClick DART cookies, that serve relevant ads based on prior visits and prevent fraudulent ad impressions.</li>
+              <li><strong>Analytics Cookies:</strong> Google Analytics 4 (GA4) and Meta Pixel performance cookies that assist in measuring traffic and platform performance.</li>
               <li><strong>Security & Authentication:</strong> Firebase token verification for administrative access protection.</li>
             </ul>
           </section>

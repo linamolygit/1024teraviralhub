@@ -20,6 +20,7 @@ const productLinks = [
   { to: '/category/wallpapers', label: 'Wallpapers' },
   { to: '/category/creative-packs', label: 'Creative Packs' },
   { to: '/category/trending-collections', label: 'Trending Collections' },
+  { to: '/blog', label: 'Blog & Articles' },
 ]
 
 const supportLinks = [
