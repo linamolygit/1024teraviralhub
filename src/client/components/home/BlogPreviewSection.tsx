@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, BookOpen } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { api, type BlogPost } from '../../lib/api'
-import { formatDate } from '../../lib/utils'
+import { formatDate, getArticleImageUrl } from '../../lib/utils'
 import OptimizedImage from '../ui/OptimizedImage'
 
 export default function BlogPreviewSection() {
@@ -20,12 +20,7 @@ export default function BlogPreviewSection() {
   }
 
   const getArticleImage = (thumbnailKey?: string | null) => {
-    if (!thumbnailKey) {
-      return 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80'
-    }
-    return thumbnailKey.startsWith('http')
-      ? thumbnailKey
-      : `/api/images/${encodeURIComponent(thumbnailKey)}`
+    return getArticleImageUrl(thumbnailKey) || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80'
   }
 
   return (

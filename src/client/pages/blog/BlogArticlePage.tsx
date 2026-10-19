@@ -5,7 +5,7 @@ import { useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Calendar, User, Eye, BookOpen, AlertCircle, RefreshCw, Sparkles, Package } from 'lucide-react'
 import { api, type BlogPost } from '../../lib/api'
-import { formatDate } from '../../lib/utils'
+import { formatDate, getArticleImageUrl } from '../../lib/utils'
 import ArticleBreadcrumb from '../../components/blog/ArticleBreadcrumb'
 import ArticleShareBar from '../../components/blog/ArticleShareBar'
 import ArticleCard from '../../components/blog/ArticleCard'
@@ -88,11 +88,7 @@ export default function BlogArticlePage() {
     )
   }
 
-  const imageUrl = post.thumbnail_key
-    ? post.thumbnail_key.startsWith('http')
-      ? post.thumbnail_key
-      : `/api/images/${encodeURIComponent(post.thumbnail_key)}`
-    : null
+  const imageUrl = getArticleImageUrl(post.thumbnail_key)
 
   return (
     <div className="section" style={{ minHeight: '85vh', paddingTop: '28px', paddingBottom: '80px' }}>

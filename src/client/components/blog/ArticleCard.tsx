@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Calendar, User, ArrowRight, BookOpen } from 'lucide-react'
 import type { BlogPost } from '../../lib/api'
-import { formatDate } from '../../lib/utils'
+import { formatDate, getArticleImageUrl } from '../../lib/utils'
 import OptimizedImage from '../ui/OptimizedImage'
 
 interface Props {
@@ -11,11 +11,7 @@ interface Props {
 }
 
 export default function ArticleCard({ post }: Props) {
-  const imageUrl = post.thumbnail_key
-    ? post.thumbnail_key.startsWith('http')
-      ? post.thumbnail_key
-      : `/api/images/${encodeURIComponent(post.thumbnail_key)}`
-    : null
+  const imageUrl = getArticleImageUrl(post.thumbnail_key)
 
   return (
     <motion.article

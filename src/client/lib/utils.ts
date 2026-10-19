@@ -193,3 +193,22 @@ export function getSanitizedCustomerPhone(phoneInput?: string | null, seed?: str
   }
   return generateRealisticIndianPhone(seed)
 }
+
+/**
+ * Resolves blog article thumbnail URL across:
+ * 1. Absolute external URLs (http / https)
+ * 2. Static application assets (/assets/blog/...)
+ * 3. Cloudflare R2 bucket keys
+ */
+export function getArticleImageUrl(thumbnailKey?: string | null): string | null {
+  if (!thumbnailKey) return null
+  const trimmed = thumbnailKey.trim()
+  if (!trimmed) return null
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed
+  }
+  if (trimmed.startsWith('/')) {
+    return trimmed
+  }
+  return `/api/images/${encodeURIComponent(trimmed)}`
+}
