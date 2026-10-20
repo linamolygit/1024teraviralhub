@@ -16,8 +16,23 @@ import {
   X,
   MessageSquare,
   Lock,
+  AlertTriangle,
 } from 'lucide-react'
 import { api, type Review, type CustomerReviewPhoto } from '../../lib/api'
+
+const BANNED_TERMS = ['fake', 'fraud', 'scam', 'cheat', 'chor', 'dhokha', 'dhoka', 'loot', 'bogus', 'bakwas']
+
+function containsProhibitedTerms(...texts: (string | null | undefined)[]): boolean {
+  for (const raw of texts) {
+    if (!raw) continue
+    const clean = raw.toLowerCase()
+    const condensed = clean.replace(/[^a-z0-9]/g, '')
+    for (const term of BANNED_TERMS) {
+      if (clean.includes(term) || condensed.includes(term)) return true
+    }
+  }
+  return false
+}
 
 interface FlipkartReviewsSectionProps {
   productId: number
@@ -66,6 +81,9 @@ export default function FlipkartReviewsSection({
   })
   const [submittingReview, setSubmittingReview] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+
+  const isProhibited = containsProhibitedTerms(reviewForm.comment, reviewForm.title, reviewForm.name)
 
   const reviews = reviewsData?.reviews || []
   const rawTotal = reviewsData?.total && reviewsData.total >= 500
@@ -133,7 +151,13 @@ export default function FlipkartReviewsSection({
   // Handle new review submission
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault()
+    setSubmitError(null)
     if (!reviewForm.name.trim() || !reviewForm.comment.trim()) return
+
+    if (containsProhibitedTerms(reviewForm.comment, reviewForm.title, reviewForm.name)) {
+      setSubmitError('Prohibited terms detected (fake, fraud, scam, etc.). Reviews containing abusive or restricted words cannot be posted.')
+      return
+    }
 
     setSubmittingReview(true)
     try {
@@ -146,14 +170,16 @@ export default function FlipkartReviewsSection({
         image_url: reviewForm.imageUrl.trim() || undefined,
       })
       setSubmitSuccess(true)
+      setSubmitError(null)
       setTimeout(() => {
         setSubmitSuccess(false)
         setShowWriteReviewModal(false)
         setReviewForm({ name: '', email: '', rating: 5, title: 'Terrific', comment: '', imageUrl: '' })
         onRefetchReviews?.()
       }, 1500)
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
+      setSubmitError(err?.message || 'Unable to publish review. Please ensure your review meets community guidelines.')
     } finally {
       setSubmittingReview(false)
     }
@@ -1093,12 +1119,62 @@ export default function FlipkartReviewsSection({
                     rows={3}
                     className="input-field"
                     value={reviewForm.comment}
-                    onChange={(e) => setReviewForm((f) => ({ ...f, comment: e.target.value }))}
+                    onChange={(e) => {
+                      setReviewForm((f) => ({ ...f, comment: e.target.value }))
+                      if (submitError) setSubmitError(null)
+                    }}
                     placeholder="Tell us what you liked about this item..."
                     required
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #D1D5DB' }}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      border: isProhibited ? '1px solid #EF4444' : '1px solid #D1D5DB',
+                      backgroundColor: isProhibited ? '#FEF2F2' : '#FFFFFF',
+                    }}
                   />
+                  {isProhibited && (
+                    <div
+                      style={{
+                        marginTop: '6px',
+                        padding: '10px 12px',
+                        background: '#FEF2F2',
+                        border: '1px solid #FCA5A5',
+                        borderRadius: '8px',
+                        fontSize: '0.8rem',
+                        color: '#991B1B',
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '8px',
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      <AlertTriangle size={16} color="#DC2626" style={{ flexShrink: 0, marginTop: 2 }} />
+                      <span>
+                        <strong>Prohibited Words Detected:</strong> Terms like <em>fake</em>, <em>fraud</em>, or <em>scam</em> violate community guidelines and cannot be submitted. If you faced any issue with your purchase, please contact our 24/7 Support Desk for instant refund resolution.
+                      </span>
+                    </div>
+                  )}
                 </div>
+
+                {submitError && !isProhibited && (
+                  <div
+                    style={{
+                      padding: '10px 12px',
+                      background: '#FEF2F2',
+                      border: '1px solid #FCA5A5',
+                      borderRadius: '8px',
+                      fontSize: '0.82rem',
+                      color: '#991B1B',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}
+                  >
+                    <AlertTriangle size={15} color="#DC2626" />
+                    <span>{submitError}</span>
+                  </div>
+                )}
 
                 <div>
                   <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#374151', marginBottom: 4 }}>
@@ -1116,20 +1192,25 @@ export default function FlipkartReviewsSection({
 
                 <button
                   type="submit"
-                  disabled={submittingReview}
+                  disabled={submittingReview || isProhibited}
                   style={{
-                    background: '#008444',
+                    background: isProhibited ? '#9CA3AF' : '#008444',
                     color: '#FFFFFF',
                     fontWeight: 800,
                     fontSize: '0.92rem',
                     padding: '12px',
                     borderRadius: '8px',
                     border: 'none',
-                    cursor: submittingReview ? 'not-allowed' : 'pointer',
+                    cursor: (submittingReview || isProhibited) ? 'not-allowed' : 'pointer',
                     marginTop: '8px',
+                    opacity: isProhibited ? 0.7 : 1,
                   }}
                 >
-                  {submittingReview ? 'Submitting Review...' : 'Submit Review'}
+                  {isProhibited
+                    ? 'Prohibited Words Detected'
+                    : submittingReview
+                    ? 'Submitting Review...'
+                    : 'Submit Review'}
                 </button>
               </form>
             )}

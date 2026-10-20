@@ -4,6 +4,7 @@ import { z } from 'zod'
 import type { Env, AdminVars } from '../../worker'
 import { logAdminAudit } from '../../lib/db'
 import { syncProductReviewImagesFromGoogle, searchGoogleImages } from '../../lib/googleImageSearch'
+import { isAbusiveOrSpamReview } from '../reviews'
 
 const app = new Hono<{ Bindings: Env; Variables: AdminVars }>()
 
@@ -50,6 +51,10 @@ app.post('/', async (c) => {
   }
 
   const d = parsed.data
+  if (isAbusiveOrSpamReview(d.comment, d.title, d.customer_name)) {
+    return c.json({ error: 'Review contains prohibited terms (fake, fraud, scam, etc.) and cannot be saved.' }, 400)
+  }
+
   const title = d.title?.trim() || (d.rating === 5 ? 'Terrific' : d.rating === 4 ? 'Very Good' : 'Good')
   const helpfulCount = d.helpful_count ?? (d.rating >= 4 ? Math.floor(Math.random() * 5) + 1 : 0)
   const isVerified = d.is_verified_purchase ?? 1
@@ -88,6 +93,38 @@ app.post('/', async (c) => {
   return c.json({ success: true, id: newId })
 })
 
+// POST /api/admin/reviews/auto-clean-spam — Auto purge all fake/fraud/scam reviews
+app.post('/auto-clean-spam', async (c) => {
+  const result = await c.env.DB.prepare(`
+    DELETE FROM product_reviews 
+    WHERE LOWER(comment) LIKE '%fake%' 
+       OR LOWER(comment) LIKE '%fraud%' 
+       OR LOWER(comment) LIKE '%scam%'
+       OR LOWER(comment) LIKE '%cheat%'
+       OR LOWER(comment) LIKE '%dhokh%'
+       OR LOWER(comment) LIKE '%chor%'
+       OR LOWER(title) LIKE '%fake%' 
+       OR LOWER(title) LIKE '%fraud%' 
+       OR LOWER(title) LIKE '%scam%'
+  `).run()
+
+  const deletedCount = result.meta.changes || 0
+
+  await logAdminAudit(c.env.DB, {
+    admin_uid: c.get('adminUid'),
+    action: 'DELETE',
+    resource_type: 'review',
+    resource_id: 'spam_purge',
+    details: { message: `Auto-cleaned ${deletedCount} spam/abusive reviews` },
+  })
+
+  return c.json({
+    success: true,
+    deleted_count: deletedCount,
+    message: `Successfully purged ${deletedCount} prohibited/spam reviews.`,
+  })
+})
+
 // PUT /api/admin/reviews/:id — Update existing review
 app.put('/:id', async (c) => {
   const id = parseInt(c.req.param('id'))
@@ -106,6 +143,10 @@ app.put('/:id', async (c) => {
   }
 
   const d = parsed.data
+  if (isAbusiveOrSpamReview(d.comment, d.title, d.customer_name)) {
+    return c.json({ error: 'Review contains prohibited terms (fake, fraud, scam, etc.) and cannot be saved.' }, 400)
+  }
+
   const existing = await c.env.DB.prepare(`SELECT * FROM product_reviews WHERE id = ?`).bind(id).first<any>()
   if (!existing) return c.json({ error: 'Review not found' }, 404)
 

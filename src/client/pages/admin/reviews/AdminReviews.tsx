@@ -288,6 +288,28 @@ export default function AdminReviews() {
     }
   }
 
+  const [isCleaningSpam, setIsCleaningSpam] = useState(false)
+
+  // 1-Click Clean Spam & Toxic Reviews (Fake, Fraud, Scam, etc.)
+  const handleCleanSpam = async () => {
+    if (!confirm('Scan and permanently purge any reviews containing prohibited terms (fake, fraud, scam, cheat, chor, dhokha, etc.)?')) return
+    setIsCleaningSpam(true)
+    try {
+      const token = await getToken()
+      const res = await adminApi.reviews.cleanSpam(token!)
+      qc.invalidateQueries({ queryKey: ['admin-reviews'] })
+      if (res.deleted_count > 0) {
+        adminToast.success('Toxic Reviews Cleaned', `Permanently deleted ${res.deleted_count} spam/fraud/fake reviews!`)
+      } else {
+        adminToast.info('Clean & Secure', 'No prohibited reviews found in database. All clean!')
+      }
+    } catch (err: any) {
+      adminToast.error('Clean Failed', err?.message || 'Failed to auto-clean reviews')
+    } finally {
+      setIsCleaningSpam(false)
+    }
+  }
+
   const handleSaveGalleryPhotos = () => {
     if (!galleryProductId) return
     const urls = galleryImagesText
@@ -328,6 +350,27 @@ export default function AdminReviews() {
         </div>
 
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <button
+            onClick={handleCleanSpam}
+            disabled={isCleaningSpam}
+            className="btn-secondary"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '10px 16px',
+              fontSize: '0.875rem',
+              fontWeight: 700,
+              background: 'rgba(239, 68, 68, 0.1)',
+              borderColor: 'rgba(239, 68, 68, 0.3)',
+              color: '#DC2626',
+            }}
+            title="Scan & immediately delete any reviews mentioning fake, fraud, scam, cheat, etc."
+          >
+            {isCleaningSpam ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
+            {isCleaningSpam ? 'Purging Spam...' : '🛡️ Purge Fake/Fraud/Scam'}
+          </button>
+
           <button
             onClick={handleSyncAllProductsGoogle}
             disabled={isBatchSyncing}

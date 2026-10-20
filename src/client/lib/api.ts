@@ -700,6 +700,10 @@ export const adminApi = {
       adminReq<{ success: boolean }>(`/admin/reviews/${id}/approve`, token, { method: 'PUT' }),
     delete: (token: string, id: number) =>
       adminReq<{ success: boolean }>(`/admin/reviews/${id}`, token, { method: 'DELETE' }),
+    cleanSpam: (token: string) =>
+      adminReq<{ success: boolean; deleted_count: number; message: string }>('/admin/reviews/auto-clean-spam', token, {
+        method: 'POST',
+      }),
     getProductImages: (token: string, productId: number) =>
       adminReq<{
         product_id: number

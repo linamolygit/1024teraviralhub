@@ -18,6 +18,67 @@ const reviewSubmitSchema = z.object({
   order_number: z.string().optional(),
 })
 
+// Prohibited words and abuse patterns (fake, fraud, scam, cheat, chor, dhokha, etc.)
+export const BANNED_REVIEW_TERMS = [
+  'fake',
+  'fraud',
+  'scam',
+  'scammer',
+  'scammed',
+  'scamming',
+  'cheat',
+  'cheater',
+  'cheating',
+  'chor',
+  'chori',
+  'dhokha',
+  'dhoka',
+  'loot',
+  'looted',
+  'looting',
+  'bogus',
+  'bakwas',
+  'bekar',
+  'bewakoof',
+  'chutiya',
+  'ganda',
+  'ghatiya',
+  'illegal',
+]
+
+export function isAbusiveOrSpamReview(...texts: (string | null | undefined)[]): boolean {
+  for (const raw of texts) {
+    if (!raw) continue
+    const clean = raw.toLowerCase()
+    // Normalize leetspeak and common obscuring tricks
+    const normalized = clean
+      .replace(/[@4]/g, 'a')
+      .replace(/[3€]/g, 'e')
+      .replace(/[1!|]/g, 'i')
+      .replace(/[0]/g, 'o')
+      .replace(/[\$5]/g, 's')
+
+    // Check direct words, sub-words, or condensed text (e.g. f a k e or f-a-k-e)
+    const condensed = clean.replace(/[^a-z0-9]/g, '')
+    const condensedNorm = normalized.replace(/[^a-z0-9]/g, '')
+
+    for (const term of BANNED_REVIEW_TERMS) {
+      const termRegex = new RegExp(`\\b${term}`, 'i')
+      if (
+        termRegex.test(clean) ||
+        termRegex.test(normalized) ||
+        clean.includes(term) ||
+        normalized.includes(term) ||
+        condensed.includes(term) ||
+        condensedNorm.includes(term)
+      ) {
+        return true
+      }
+    }
+  }
+  return false
+}
+
 // GET /api/reviews/product/:productId
 app.get('/product/:productId', async (c) => {
   const productId = parseInt(c.req.param('productId'))
@@ -58,6 +119,15 @@ app.get('/product/:productId', async (c) => {
       SELECT ${selectCols}
       FROM product_reviews
       WHERE product_id = ? AND is_approved = 1 AND is_seed = 0
+        AND LOWER(comment) NOT LIKE '%fake%'
+        AND LOWER(comment) NOT LIKE '%fraud%'
+        AND LOWER(comment) NOT LIKE '%scam%'
+        AND LOWER(comment) NOT LIKE '%cheat%'
+        AND LOWER(comment) NOT LIKE '%dhokh%'
+        AND LOWER(comment) NOT LIKE '%chor%'
+        AND LOWER(title) NOT LIKE '%fake%'
+        AND LOWER(title) NOT LIKE '%fraud%'
+        AND LOWER(title) NOT LIKE '%scam%'
       ORDER BY (CASE WHEN image_url IS NOT NULL AND image_url != '' THEN 0 ELSE 1 END), created_at DESC
       LIMIT 60
     `).bind(productId).all()
@@ -66,10 +136,19 @@ app.get('/product/:productId', async (c) => {
       SELECT COUNT(*) as total_reviews, AVG(rating) as avg_rating
       FROM product_reviews
       WHERE product_id = ? AND is_approved = 1 AND is_seed = 0
+        AND LOWER(comment) NOT LIKE '%fake%'
+        AND LOWER(comment) NOT LIKE '%fraud%'
+        AND LOWER(comment) NOT LIKE '%scam%'
+        AND LOWER(comment) NOT LIKE '%cheat%'
+        AND LOWER(comment) NOT LIKE '%dhokh%'
+        AND LOWER(comment) NOT LIKE '%chor%'
+        AND LOWER(title) NOT LIKE '%fake%'
+        AND LOWER(title) NOT LIKE '%fraud%'
+        AND LOWER(title) NOT LIKE '%scam%'
     `).bind(productId).first() as { total_reviews: number; avg_rating: number | null }
 
-    reviewsList = reviewsRes.results || []
-    total = stats?.total_reviews ?? 0
+    reviewsList = (reviewsRes.results || []).filter((r: any) => !isAbusiveOrSpamReview(r.comment, r.title, r.customer_name))
+    total = stats?.total_reviews ?? reviewsList.length
     avgRating = stats?.avg_rating ? parseFloat(stats.avg_rating.toFixed(1)) : null
   } else {
     // Seed reviews + real reviews
@@ -77,6 +156,15 @@ app.get('/product/:productId', async (c) => {
       SELECT COUNT(*) as total_reviews, AVG(rating) as avg_rating
       FROM product_reviews
       WHERE product_id = ? AND is_approved = 1
+        AND LOWER(comment) NOT LIKE '%fake%'
+        AND LOWER(comment) NOT LIKE '%fraud%'
+        AND LOWER(comment) NOT LIKE '%scam%'
+        AND LOWER(comment) NOT LIKE '%cheat%'
+        AND LOWER(comment) NOT LIKE '%dhokh%'
+        AND LOWER(comment) NOT LIKE '%chor%'
+        AND LOWER(title) NOT LIKE '%fake%'
+        AND LOWER(title) NOT LIKE '%fraud%'
+        AND LOWER(title) NOT LIKE '%scam%'
     `).bind(productId).first() as { total_reviews: number; avg_rating: number | null }
 
     if (!stats || stats.total_reviews < 15) {
@@ -85,6 +173,15 @@ app.get('/product/:productId', async (c) => {
         SELECT COUNT(*) as total_reviews, AVG(rating) as avg_rating
         FROM product_reviews
         WHERE product_id = ? AND is_approved = 1
+          AND LOWER(comment) NOT LIKE '%fake%'
+          AND LOWER(comment) NOT LIKE '%fraud%'
+          AND LOWER(comment) NOT LIKE '%scam%'
+          AND LOWER(comment) NOT LIKE '%cheat%'
+          AND LOWER(comment) NOT LIKE '%dhokh%'
+          AND LOWER(comment) NOT LIKE '%chor%'
+          AND LOWER(title) NOT LIKE '%fake%'
+          AND LOWER(title) NOT LIKE '%fraud%'
+          AND LOWER(title) NOT LIKE '%scam%'
       `).bind(productId).first() as { total_reviews: number; avg_rating: number | null }
     }
 
@@ -92,11 +189,20 @@ app.get('/product/:productId', async (c) => {
       SELECT ${selectCols}
       FROM product_reviews
       WHERE product_id = ? AND is_approved = 1
+        AND LOWER(comment) NOT LIKE '%fake%'
+        AND LOWER(comment) NOT LIKE '%fraud%'
+        AND LOWER(comment) NOT LIKE '%scam%'
+        AND LOWER(comment) NOT LIKE '%cheat%'
+        AND LOWER(comment) NOT LIKE '%dhokh%'
+        AND LOWER(comment) NOT LIKE '%chor%'
+        AND LOWER(title) NOT LIKE '%fake%'
+        AND LOWER(title) NOT LIKE '%fraud%'
+        AND LOWER(title) NOT LIKE '%scam%'
       ORDER BY (CASE WHEN image_url IS NOT NULL AND image_url != '' THEN 0 ELSE 1 END), created_at DESC
       LIMIT 60
     `).bind(productId).all()
 
-    reviewsList = reviewsRes.results || []
+    reviewsList = (reviewsRes.results || []).filter((r: any) => !isAbusiveOrSpamReview(r.comment, r.title, r.customer_name))
     // Realistic ratings count around 1500
     const realistic1500Count = 1450 + ((productId * 17 + 11) % 65)
     total = stats?.total_reviews && stats.total_reviews >= 1000 ? stats.total_reviews : realistic1500Count
@@ -225,6 +331,35 @@ app.post('/', async (c) => {
   }
 
   const d = parsed.data
+
+  // 1. Instant Auto-Block & Delete Filter: Reject reviews containing 'fake', 'fraud', 'scam', etc.
+  if (isAbusiveOrSpamReview(d.comment, d.title, d.customer_name)) {
+    return c.json(
+      {
+        success: false,
+        error: 'Your review contains prohibited terms (such as fake, fraud, scam) and could not be posted. If you faced any issue with your purchase, please contact our 24/7 Support Desk or visit the Refund Request portal for instant resolution.',
+        code: 'PROHIBITED_TERMS',
+      },
+      400
+    )
+  }
+
+  // 2. Trigger automatic background purge of any toxic/spam reviews
+  c.executionCtx?.waitUntil(
+    c.env.DB.prepare(`
+      DELETE FROM product_reviews 
+      WHERE LOWER(comment) LIKE '%fake%' 
+         OR LOWER(comment) LIKE '%fraud%' 
+         OR LOWER(comment) LIKE '%scam%'
+         OR LOWER(comment) LIKE '%cheat%'
+         OR LOWER(comment) LIKE '%dhokh%'
+         OR LOWER(comment) LIKE '%chor%'
+         OR LOWER(title) LIKE '%fake%' 
+         OR LOWER(title) LIKE '%fraud%' 
+         OR LOWER(title) LIKE '%scam%'
+    `).run().catch(() => {})
+  )
+
   let isVerified = 0
 
   if (d.order_number) {
