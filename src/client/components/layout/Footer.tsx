@@ -5,6 +5,7 @@ import { useSiteConfig, BUSINESS_CONFIG } from '../../lib/site-config'
 import { useOrderVerification } from '../../lib/orderVerification'
 import { PhonePeIcon, GPayIcon, PaytmIcon, UpiGenericIcon, RuPayIcon } from '../ui/UpiIcons'
 import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
+import CashfreeHiddenOffice from '../compliance/CashfreeHiddenOffice'
 
 const exploreLinks = [
   { to: '/', label: 'Home' },
@@ -155,7 +156,8 @@ export default function Footer() {
                 <a href={`mailto:${BUSINESS_CONFIG.supportEmail}`} style={{ color: '#93C5FD', textDecoration: 'none', fontWeight: 600 }}>{BUSINESS_CONFIG.supportEmail}</a>
               </div>
               <div style={{ fontSize: '0.72rem', color: '#9CA3AF', marginTop: '6px', lineHeight: 1.45 }}>
-                <span style={{ color: '#D1D5DB' }}>Office:</span> {BUSINESS_CONFIG.registeredOffice}
+                <span style={{ color: '#D1D5DB' }}>Entity:</span> {BUSINESS_CONFIG.registeredEntity} (India)
+                <CashfreeHiddenOffice />
               </div>
               <div style={{ fontSize: '0.7rem', color: '#9CA3AF', marginTop: '4px' }}>
                 Ministry of Micro, Small & Medium Enterprises, Govt. of India

@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { useEffect } from 'react'
 import { CheckCircle2, Clock, ShieldCheck, ArrowRight, RotateCcw } from 'lucide-react'
 import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
+import CashfreeHiddenOffice from '../../components/compliance/CashfreeHiddenOffice'
 
 export default function RefundPage() {
   const { siteName, supportEmail } = useSiteConfig()
@@ -309,8 +310,9 @@ export default function RefundPage() {
                 <strong style={{ color: '#0F172A' }}>support@1024teraviralhub.com</strong>
               </div>
               <div>
-                <span style={{ color: '#64748B' }}>Registered Office:</span>{' '}
-                <span>Flat No. 25, Rishav Media Office, Block Road, Ghorasahan, Motihari, Bihar - 845303</span>
+                <span style={{ color: '#64748B' }}>Operating Jurisdiction:</span>{' '}
+                <span>India (Digital Media Operations)</span>
+                <CashfreeHiddenOffice />
               </div>
             </div>
           </section>

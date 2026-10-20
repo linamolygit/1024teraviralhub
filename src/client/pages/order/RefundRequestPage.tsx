@@ -20,6 +20,7 @@ import {
   Copy,
 } from 'lucide-react'
 import { useSiteConfig } from '../../lib/site-config'
+import CashfreeHiddenOffice from '../../components/compliance/CashfreeHiddenOffice'
 
 export default function RefundRequestPage() {
   const { siteName } = useSiteConfig()
@@ -875,8 +876,9 @@ export default function RefundRequestPage() {
               <strong style={{ color: '#0F172A' }}>support@1024teraviralhub.com</strong>
             </div>
             <div>
-              <span style={{ color: '#64748B' }}>Registered Office:</span>{' '}
-              <span>Flat No. 25, Rishav Media Office, Block Road, Ghorasahan, Motihari, Bihar - 845303</span>
+              <span style={{ color: '#64748B' }}>Operating Jurisdiction:</span>{' '}
+              <span>India (Digital Media Desk)</span>
+              <CashfreeHiddenOffice />
             </div>
           </div>
         </div>

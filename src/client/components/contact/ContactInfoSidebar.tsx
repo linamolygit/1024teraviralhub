@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import { useSiteConfig, BUSINESS_CONFIG } from '../../lib/site-config'
 import { useOrderVerification } from '../../lib/orderVerification'
 import OrderVerificationModal from './OrderVerificationModal'
+import CashfreeHiddenOffice from '../compliance/CashfreeHiddenOffice'
 
 export default function ContactInfoSidebar() {
   const { siteName, supportEmail, showMsmeBadge } = useSiteConfig()
@@ -125,10 +126,11 @@ export default function ContactInfoSidebar() {
             </a>
           </div>
           <div>
-            <span style={{ color: 'var(--text-muted)' }}>Physical Office & Support Address:</span>
+            <span style={{ color: 'var(--text-muted)' }}>Operations & Support Desk:</span>
             <div style={{ color: 'var(--text-primary)', fontWeight: 600, marginTop: '3px', lineHeight: 1.5, display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
               <MapPin size={16} color="#EF4444" style={{ flexShrink: 0, marginTop: '2px' }} />
-              <span>{BUSINESS_CONFIG.registeredOffice}</span>
+              <span>Digital Operations Desk, India</span>
+              <CashfreeHiddenOffice />
             </div>
           </div>
           <div>

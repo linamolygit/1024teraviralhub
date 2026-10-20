@@ -2,6 +2,7 @@
 import { MapPin, Building2 } from 'lucide-react'
 import { useSiteConfig, BUSINESS_CONFIG } from '../../lib/site-config'
 import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
+import CashfreeHiddenOffice from '../compliance/CashfreeHiddenOffice'
 
 export default function BrandIntroSection() {
   const { siteName } = useSiteConfig()
@@ -69,12 +70,13 @@ export default function BrandIntroSection() {
             </div>
             <div style={{ fontSize: '0.875rem', lineHeight: 1.55 }}>
               <div style={{ fontWeight: 800, color: 'var(--text-primary)', marginBottom: '2px' }}>
-                Corporate & Registered Office:
+                Operating Entity & Operations Desk:
               </div>
               <div style={{ color: 'var(--text-secondary)' }}>
                 <strong>{BUSINESS_CONFIG.legalName}</strong>
                 <br />
-                {BUSINESS_CONFIG.registeredOffice}
+                <span>Digital Operations Desk, India</span>
+                <CashfreeHiddenOffice />
               </div>
             </div>
           </div>

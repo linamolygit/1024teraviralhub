@@ -5,6 +5,7 @@ import { Zap, Clock, ShieldCheck, Download, Mail, CheckCircle2, HelpCircle } fro
 import { Link } from 'react-router-dom'
 import { useEffect } from 'react'
 import { usePaymentGatewayInfo } from '../../lib/payment-gateway-config'
+import CashfreeHiddenOffice from '../../components/compliance/CashfreeHiddenOffice'
 
 export default function ShippingPolicyPage() {
   const { siteName, supportEmail } = useSiteConfig()
@@ -223,7 +224,10 @@ export default function ShippingPolicyPage() {
                 <div><span style={{ color: '#64748B' }}>MSME / Udyam Reg.:</span> <strong style={{ color: '#D97706', fontFamily: 'monospace' }}>UDYAM-BR-11-0107325</strong></div>
                 <div><span style={{ color: '#64748B' }}>Payment Partner:</span> <strong style={{ color: '#1D4ED8' }}>Cashfree Payments India Pvt. Ltd. (PCI-DSS Level 1)</strong></div>
                 <div><span style={{ color: '#64748B' }}>Electronic Fulfillment:</span> <strong style={{ color: '#15803D' }}>Instant (0–5 minutes via encrypted CDN)</strong></div>
-                <div><span style={{ color: '#64748B' }}>Registered Office:</span> <span>Flat No. 25, Rishav Media Office, Block Road, Ghorasahan, Motihari, Bihar - 845303</span></div>
+                <div>
+                  <span style={{ color: '#64748B' }}>Operating Jurisdiction:</span> <span>India (Digital Media Fulfillment)</span>
+                  <CashfreeHiddenOffice />
+                </div>
               </div>
             </div>
           </section>
