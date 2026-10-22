@@ -181,10 +181,27 @@ export default function FlipkartCheckoutPage() {
   const [showCodModal, setShowCodModal] = useState(false)
   const [codStep, setCodStep] = useState<'offer' | 'token'>('offer')
 
-  // 🎯 Dropout Catcher (When user backs out or cancels UPI without paying)
+  // 🎯 Exit-Intent Auto-Recovery (When user backs out or cancels UPI without paying)
   const [showDropoutModal, setShowDropoutModal] = useState(false)
   const wasPayingRef = useRef(false)
+  const paymentStartTimeRef = useRef(0)
   const hasShownDropoutRef = useRef(false)
+  const [dropoutTimer, setDropoutTimer] = useState(300) // 5 minutes countdown
+
+  // ⏱️ Auto-Recovery Offer 5-Minute Urgency Countdown
+  useEffect(() => {
+    if (!showDropoutModal) return
+    const interval = setInterval(() => {
+      setDropoutTimer((prev) => (prev > 0 ? prev - 1 : 0))
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [showDropoutModal])
+
+  const formatTimer = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  }
 
   // Gateway info
   const { isRazorpay, isBoth, defaultDualGateway, publicSettings } = usePaymentGatewayInfo()
@@ -282,11 +299,32 @@ export default function FlipkartCheckoutPage() {
       await checkActiveOrder()
       setIsProcessingPayment(false)
 
-      // 🎯 DROPOUT CATCHER: If user returned from PhonePe/UPI app without completing ₹49 payment, trigger ₹9 Token recovery modal!
-      if (wasPayingRef.current && !hasShownDropoutRef.current) {
+      // 🎯 EXIT-INTENT DROPOUT RECOVERY:
+      // Track whether user actually clicked UPI, stayed in PhonePe/UPI app for > 2.5 seconds,
+      // and came back to browser WITHOUT completing payment!
+      const launchedAt = paymentStartTimeRef.current || Number(sessionStorage.getItem('tvh_upi_launched_at') || 0)
+      const timeAway = launchedAt > 0 ? (Date.now() - launchedAt) : 0
+
+      if ((wasPayingRef.current || launchedAt > 0) && timeAway >= 2500 && !hasShownDropoutRef.current) {
         wasPayingRef.current = false
         hasShownDropoutRef.current = true
-        setTimeout(() => {
+        paymentStartTimeRef.current = 0
+        try {
+          sessionStorage.removeItem('tvh_upi_launched_at')
+        } catch {}
+
+        // Double check: If active order is already paid, DO NOT show discount modal!
+        setTimeout(async () => {
+          const raw = localStorage.getItem('tvh_active_order') || sessionStorage.getItem('tvh_active_order')
+          if (raw) {
+            try {
+              const active = JSON.parse(raw)
+              if (active?.order_number) {
+                const res = await api.checkout.verify(active.order_number)
+                if (res?.success && res.status === 'PAID') return
+              }
+            } catch {}
+          }
           setShowDropoutModal(true)
         }, 500)
       }
@@ -334,6 +372,18 @@ export default function FlipkartCheckoutPage() {
   const totalDiscount = mrpDiscount + couponDiscount
   const discountPercent = mrp > 0 ? Math.round(((mrp - effectivePrice) / mrp) * 100) : 0
   const totalAmount = effectivePrice + (selectedDonation || 0)
+
+  // 🎯 Exit-Intent Auto-Recovery Dynamic Discount:
+  // Strictly calculated for users who went to UPI app / PIN screen and backed out
+  const recoveryDiscount = useMemo(() => {
+    if (totalAmount <= 29) return 5
+    if (totalAmount <= 49) return 10
+    if (totalAmount <= 99) return 15
+    if (totalAmount <= 199) return 25
+    return 40
+  }, [totalAmount])
+
+  const recoveryAmount = Math.max(totalAmount - recoveryDiscount, 19)
 
   // Open Address Modal with Generic fields
   const openAddressModal = () => {
@@ -431,6 +481,10 @@ export default function FlipkartCheckoutPage() {
     setPaymentError('')
     if (!isCodToken) {
       wasPayingRef.current = true
+      paymentStartTimeRef.current = Date.now()
+      try {
+        sessionStorage.setItem('tvh_upi_launched_at', String(Date.now()))
+      } catch {}
     }
 
     const validOverride = typeof overrideAmount === 'number' ? overrideAmount : undefined

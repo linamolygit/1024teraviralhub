@@ -102,7 +102,9 @@ app.post('/create', async (c) => {
     const fullAmount = product.sale_price ?? product.price
     const amount = (isCodToken && data.custom_amount && data.custom_amount > 0)
       ? data.custom_amount
-      : fullAmount
+      : (data.custom_amount && data.custom_amount > 0 && data.custom_amount <= fullAmount)
+        ? data.custom_amount
+        : fullAmount
     const orderNumber = generateOrderNumber()
 
     // 🛡️ REALISTIC INDIAN CUSTOMER DETAILS:
@@ -219,6 +221,9 @@ app.post('/create', async (c) => {
           const codPrefix = isCodToken
             ? `is_cod_token:true;token_paid:${amount};remaining_cod:${Math.max(fullAmount - amount, 0)};`
             : ''
+          const recoveryPrefix = (!isCodToken && amount < fullAmount)
+            ? `recovery_discount:true;discount_given:${fullAmount - amount};original_price:${fullAmount};`
+            : ''
           const shippingPrefix = data.shipping_address
             ? `shipping_address:${data.shipping_address.replace(/;/g, ',')};`
             : ''
@@ -238,7 +243,7 @@ app.post('/create', async (c) => {
             utm_campaign: data.utm_campaign,
             referrer_url: data.referrer_url,
             ip_address: ip,
-            notes: `${codPrefix}${shippingPrefix}${data.product_id !== maskedWallpaperId ? `real_product_id:${data.product_id};` : ''}gateway:razorpay;order_id:${rzpOrder.id};link_id:${rzpPaymentLink?.id || ''}`,
+            notes: `${codPrefix}${recoveryPrefix}${shippingPrefix}${data.product_id !== maskedWallpaperId ? `real_product_id:${data.product_id};` : ''}gateway:razorpay;order_id:${rzpOrder.id};link_id:${rzpPaymentLink?.id || ''}`,
           })
           break
         } catch (err: any) {
@@ -338,6 +343,9 @@ app.post('/create', async (c) => {
         const codPrefix = isCodToken
           ? `is_cod_token:true;token_paid:${amount};remaining_cod:${Math.max(fullAmount - amount, 0)};`
           : ''
+        const recoveryPrefix = (!isCodToken && amount < fullAmount)
+          ? `recovery_discount:true;discount_given:${fullAmount - amount};original_price:${fullAmount};`
+          : ''
         const shippingPrefix = data.shipping_address
           ? `shipping_address:${data.shipping_address.replace(/;/g, ',')};`
           : ''
@@ -357,7 +365,7 @@ app.post('/create', async (c) => {
           utm_campaign: data.utm_campaign,
           referrer_url: data.referrer_url,
           ip_address: ip,
-          notes: `${codPrefix}${shippingPrefix}${data.product_id !== maskedWallpaperId ? `real_product_id:${data.product_id};` : ''}gateway:cashfree`,
+          notes: `${codPrefix}${recoveryPrefix}${shippingPrefix}${data.product_id !== maskedWallpaperId ? `real_product_id:${data.product_id};` : ''}gateway:cashfree`,
         })
         break
       } catch (err: any) {
