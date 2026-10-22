@@ -5,7 +5,8 @@ import {
   Save, Check, Zap, Smartphone, Shield, Globe, Moon, Sun, Palette,
   CheckCircle2, Sparkles, Key, AlertCircle, Loader2, Bot, Star, Copy, RefreshCw, ExternalLink,
   Eye, EyeOff, Scale, FileText, ShieldCheck, RotateCcw, Cookie, Info, Phone, Award,
-  Flame, Users, Clock, Search, Power, ShieldAlert, AlertTriangle
+  Flame, Users, Clock, Search, Power, ShieldAlert, AlertTriangle,
+  CheckCheck, ArrowRight
 } from 'lucide-react'
 import { adminApi } from '../../lib/api'
 import { useAuthStore } from '../../lib/auth-store'
@@ -94,6 +95,18 @@ export default function AdminSettings() {
   })
 
   const [sitemapCopied, setSitemapCopied] = useState(false)
+  const [copiedMigrationItem, setCopiedMigrationItem] = useState<string | null>(null)
+  const [previewDomainInput, setPreviewDomainInput] = useState('')
+
+  const handleCopyMigrationItem = (text: string, key: string) => {
+    navigator.clipboard.writeText(text)
+    setCopiedMigrationItem(key)
+    setTimeout(() => setCopiedMigrationItem(null), 2500)
+    adminToast.success('Copied to Clipboard', text)
+  }
+
+  const configuredDomain = ((settings as any).site_url || (typeof window !== 'undefined' ? window.location.origin : 'https://1024teraviralhub.com')).replace(/\/+$/, '')
+  const targetDomain = (previewDomainInput.trim() ? previewDomainInput.trim().replace(/\/+$/, '') : configuredDomain)
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-settings'],
@@ -2748,6 +2761,649 @@ export default function AdminSettings() {
               </a>
             </div>
           </div>
+        </div>
+
+        {/* ── Domain Change & Zero-Downtime Migration Playbook ── */}
+        <div
+          style={{
+            background: 'var(--bg-surface)',
+            border: '1px solid rgba(59, 130, 246, 0.3)',
+            borderRadius: 'var(--radius-lg)',
+            padding: 24,
+            boxShadow: '0 4px 24px rgba(59, 130, 246, 0.08)',
+            position: 'relative',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Top Rainbow Accent Strip */}
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 4,
+              background: 'linear-gradient(90deg, #3B82F6, #10B981, #F59E0B, #8B5CF6)',
+            }}
+          />
+
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div
+                style={{
+                  width: 46,
+                  height: 46,
+                  borderRadius: 'var(--radius-md)',
+                  background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(16, 185, 129, 0.2))',
+                  border: '1px solid rgba(59, 130, 246, 0.35)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#3B82F6',
+                  flexShrink: 0,
+                }}
+              >
+                <Globe size={24} />
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <h3 style={{ fontWeight: 800, fontSize: '1.15rem', margin: 0, color: 'var(--text-primary)' }}>
+                    Domain Change & Zero-Downtime Migration Playbook
+                  </h3>
+                  <span
+                    style={{
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      padding: '3px 10px',
+                      borderRadius: 20,
+                      background: 'rgba(16, 185, 129, 0.15)',
+                      color: '#10B981',
+                      border: '1px solid rgba(16, 185, 129, 0.3)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}
+                  >
+                    <ShieldCheck size={12} /> 100% Safe • Zero Data Loss
+                  </span>
+                </div>
+                <p style={{ margin: '4px 0 0', fontSize: '0.825rem', color: 'var(--text-muted)' }}>
+                  A complete, beginner-friendly technical master checklist to change, rename, or migrate your website domain smoothly without losing customers, orders, or payment links.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Core Assurance Card */}
+          <div
+            style={{
+              background: 'rgba(16, 185, 129, 0.08)',
+              border: '1px solid rgba(16, 185, 129, 0.25)',
+              borderRadius: 'var(--radius-md)',
+              padding: '14px 18px',
+              marginBottom: 20,
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 12,
+            }}
+          >
+            <CheckCircle2 size={20} color="#10B981" style={{ flexShrink: 0, marginTop: 2 }} />
+            <div style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+              <strong style={{ color: '#10B981', fontWeight: 700 }}>Architecture Guarantee: </strong>
+              Site ka code Cloudflare Workers aur D1 SQL Database par chalta hai, jo 100% dynamic origin detection use karta hai. 
+              Domain change karne par <strong>aapke products, users, orders, access keys aur backend code me koi kharabi nahi aayegi</strong>. 
+              Sirf neeche diye gaye 5 third-party platforms (Cloudflare, Payment Gateways, AdSense, Auth, SEO) par naya domain 5-10 minute me map karna hota hai.
+            </div>
+          </div>
+
+          {/* Interactive Domain Simulator / Live Webhook Previewer */}
+          <div
+            style={{
+              background: 'var(--bg-surface-elevated, rgba(255, 255, 255, 0.03))',
+              border: '1px solid var(--bg-border)',
+              borderRadius: 'var(--radius-md)',
+              padding: '16px 18px',
+              marginBottom: 24,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
+              <div>
+                <label style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span>🎯 Target Domain Simulator & Instant Webhook Generator</span>
+                </label>
+                <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                  Apna naya domain enter karein — neeche diye gaye sabhi Webhook URLs aur configuration links instantly live update ho jayenge:
+                </p>
+              </div>
+              {previewDomainInput && (
+                <button
+                  type="button"
+                  onClick={() => setPreviewDomainInput('')}
+                  style={{
+                    fontSize: '0.75rem',
+                    background: 'transparent',
+                    border: '1px solid var(--bg-border)',
+                    color: 'var(--text-muted)',
+                    padding: '4px 10px',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Reset to Current ({configuredDomain.replace(/^https?:\/\//, '')})
+                </button>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ flex: '1 1 300px' }}>
+                <input
+                  className="input-field"
+                  placeholder={`e.g. https://yournewdomain.com (Default: ${configuredDomain})`}
+                  value={previewDomainInput}
+                  onChange={(e) => setPreviewDomainInput(e.target.value)}
+                  style={{ fontSize: '0.875rem' }}
+                />
+              </div>
+              <div style={{ fontSize: '0.8rem', color: '#10B981', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Check size={14} /> Active Target: <code style={{ color: '#60A5FA', background: 'rgba(96, 165, 250, 0.1)', padding: '2px 6px', borderRadius: 4 }}>{targetDomain}</code>
+              </div>
+            </div>
+          </div>
+
+          {/* 6 Step-by-Step Interactive Cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, marginBottom: 24 }}>
+
+            {/* STEP 1 */}
+            <div
+              style={{
+                background: 'var(--bg-surface-elevated, rgba(255, 255, 255, 0.02))',
+                border: '1px solid var(--bg-border)',
+                borderRadius: 'var(--radius-md)',
+                padding: '18px 20px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#3B82F6', background: 'rgba(59, 130, 246, 0.15)', padding: '3px 8px', borderRadius: 6 }}>
+                    STEP 1 • CLOUDFLARE
+                  </span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>⏱ ~2 Minutes</span>
+                </div>
+                <h4 style={{ margin: '0 0 8px', fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  Add Custom Domain to Worker
+                </h4>
+                <p style={{ margin: '0 0 12px', fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                  Naya domain Cloudflare me add karein. Cloudflare automatically Free Universal SSL Certificate generate karega aur traffic is worker par direct kar dega.
+                </p>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', background: 'var(--bg-surface)', padding: '10px 12px', borderRadius: 6, border: '1px solid var(--bg-border)' }}>
+                  <strong>Path: </strong>Cloudflare Dash → <code>Workers & Pages</code> → <code>1024teraviralhub</code> → <code>Settings</code> → <code>Domains & Routes</code> → Click <strong>Add Custom Domain</strong>.
+                </div>
+              </div>
+              <div style={{ marginTop: 14 }}>
+                <a
+                  href="https://dash.cloudflare.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-secondary"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontSize: '0.78rem',
+                    padding: '6px 12px',
+                    textDecoration: 'none',
+                    width: '100%',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <span>Open Cloudflare Dashboard</span>
+                  <ExternalLink size={12} />
+                </a>
+              </div>
+            </div>
+
+            {/* STEP 2 */}
+            <div
+              style={{
+                background: 'var(--bg-surface-elevated, rgba(255, 255, 255, 0.02))',
+                border: '1px solid var(--bg-border)',
+                borderRadius: 'var(--radius-md)',
+                padding: '18px 20px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#10B981', background: 'rgba(16, 185, 129, 0.15)', padding: '3px 8px', borderRadius: 6 }}>
+                    STEP 2 • SITE SETTINGS
+                  </span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>⏱ ~1 Minute</span>
+                </div>
+                <h4 style={{ margin: '0 0 8px', fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  Update Production Site URL
+                </h4>
+                <p style={{ margin: '0 0 12px', fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                  Store URL ko naye domain par update karein taaki sitemap, canonical links, customer purchase emails aur UPI deep-links naye domain se generate hon.
+                </p>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', background: 'var(--bg-surface)', padding: '10px 12px', borderRadius: 6, border: '1px solid var(--bg-border)' }}>
+                  <strong>Admin Action: </strong>Page ke upar <strong>White-Label Store Configuration</strong> me <strong>Production Site URL</strong> me <code>{targetDomain}</code> likhkar Save karein. Project ke <code>wrangler.toml</code> me <code>SITE_URL</code> update karein.
+                </div>
+              </div>
+              <div style={{ marginTop: 14 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSettings((s: any) => ({ ...s, site_url: targetDomain }))
+                    window.scrollTo({ top: 900, behavior: 'smooth' })
+                    adminToast.success('Updated Form Input', `Production Site URL set to ${targetDomain}. Scroll down and click Save Settings.`)
+                  }}
+                  className="btn btn-secondary"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontSize: '0.78rem',
+                    padding: '6px 12px',
+                    width: '100%',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span>Apply {targetDomain.replace(/^https?:\/\//, '')} to URL Input</span>
+                  <ArrowRight size={12} />
+                </button>
+              </div>
+            </div>
+
+            {/* STEP 3 */}
+            <div
+              style={{
+                background: 'var(--bg-surface-elevated, rgba(255, 255, 255, 0.02))',
+                border: '1px solid var(--bg-border)',
+                borderRadius: 'var(--radius-md)',
+                padding: '18px 20px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#F59E0B', background: 'rgba(245, 158, 11, 0.15)', padding: '3px 8px', borderRadius: 6 }}>
+                    STEP 3 • PAYMENT GATEWAYS
+                  </span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>CRITICAL</span>
+                </div>
+                <h4 style={{ margin: '0 0 8px', fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  Cashfree & Razorpay Webhooks
+                </h4>
+                <p style={{ margin: '0 0 12px', fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                  Payment gateway dashboards me naye domain ka webhook aur allowed domain whitelist karein taaki payments bina rukawat process ho sakein.
+                </p>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', background: 'var(--bg-surface)', padding: '10px 12px', borderRadius: 6, border: '1px solid var(--bg-border)' }}>
+                  <div><strong>1. Cashfree Allowed Domains: </strong>Cashfree Portal → Developers → Whitelist Domain me <code>{targetDomain}</code> add karein.</div>
+                  <div style={{ marginTop: 4 }}><strong>2. Webhook: </strong><code>{targetDomain}/api/checkout/webhook/cashfree</code> update karein.</div>
+                </div>
+              </div>
+              <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => handleCopyMigrationItem(`${targetDomain}/api/checkout/webhook/cashfree`, 'step3_cf')}
+                  className="btn btn-secondary"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontSize: '0.78rem',
+                    padding: '6px 10px',
+                    flex: 1,
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {copiedMigrationItem === 'step3_cf' ? <CheckCheck size={12} color="#10B981" /> : <Copy size={12} />}
+                  <span>Copy Cashfree Webhook</span>
+                </button>
+                <a
+                  href="https://merchant.cashfree.com/merchants/login"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-secondary"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    fontSize: '0.78rem',
+                    padding: '6px 10px',
+                    textDecoration: 'none',
+                  }}
+                >
+                  <ExternalLink size={12} />
+                </a>
+              </div>
+            </div>
+
+            {/* STEP 4 */}
+            <div
+              style={{
+                background: 'var(--bg-surface-elevated, rgba(255, 255, 255, 0.02))',
+                border: '1px solid var(--bg-border)',
+                borderRadius: 'var(--radius-md)',
+                padding: '18px 20px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#8B5CF6', background: 'rgba(139, 92, 246, 0.15)', padding: '3px 8px', borderRadius: 6 }}>
+                    STEP 4 • ADSENSE & ADS.TXT
+                  </span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>⏱ 24-48h Review</span>
+                </div>
+                <h4 style={{ margin: '0 0 8px', fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  AdSense Domain Approval & Ads.txt
+                </h4>
+                <p style={{ margin: '0 0 12px', fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                  Google AdSense approvals domain-specific hote hain. Naye domain ko AdSense console me <code>Sites → Add site</code> karke submit karna zaroori hai.
+                </p>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', background: 'var(--bg-surface)', padding: '10px 12px', borderRadius: 6, border: '1px solid var(--bg-border)' }}>
+                  <strong>Admin Tool: </strong><code>/admin/ads</code> me <strong>Multi-AdSense Account Verification Manager</strong> me Publisher ID add karein aur <strong>Auto-Add to ads.txt</strong> click karein.
+                </div>
+              </div>
+              <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
+                <a
+                  href="/admin/ads"
+                  className="btn btn-secondary"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontSize: '0.78rem',
+                    padding: '6px 10px',
+                    flex: 1,
+                    justifyContent: 'center',
+                    textDecoration: 'none',
+                  }}
+                >
+                  <span>Open AdSense Suite</span>
+                  <ArrowRight size={12} />
+                </a>
+                <a
+                  href={`${targetDomain}/ads.txt`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-secondary"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    fontSize: '0.78rem',
+                    padding: '6px 10px',
+                    textDecoration: 'none',
+                  }}
+                  title="Test ads.txt live"
+                >
+                  <span>Check ads.txt</span>
+                  <ExternalLink size={12} />
+                </a>
+              </div>
+            </div>
+
+            {/* STEP 5 */}
+            <div
+              style={{
+                background: 'var(--bg-surface-elevated, rgba(255, 255, 255, 0.02))',
+                border: '1px solid var(--bg-border)',
+                borderRadius: 'var(--radius-md)',
+                padding: '18px 20px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#EC4899', background: 'rgba(236, 72, 153, 0.15)', padding: '3px 8px', borderRadius: 6 }}>
+                    STEP 5 • GOOGLE AUTH / FIREBASE
+                  </span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>⏱ ~1 Minute</span>
+                </div>
+                <h4 style={{ margin: '0 0 8px', fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  Authorize Domain for Google Sign-In
+                </h4>
+                <p style={{ margin: '0 0 12px', fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                  Agar Firebase ya Google 1-Tap Login use ho raha hai, to naya domain Firebase Console me authorized domains me add karein taaki popup block na ho.
+                </p>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', background: 'var(--bg-surface)', padding: '10px 12px', borderRadius: 6, border: '1px solid var(--bg-border)' }}>
+                  <strong>Path: </strong>Firebase Console → Project Overview → <code>Authentication</code> → <code>Settings</code> → <code>Authorized domains</code> → Add <code>{targetDomain.replace(/^https?:\/\//, '')}</code>.
+                </div>
+              </div>
+              <div style={{ marginTop: 14 }}>
+                <a
+                  href="https://console.firebase.google.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-secondary"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontSize: '0.78rem',
+                    padding: '6px 12px',
+                    textDecoration: 'none',
+                    width: '100%',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <span>Open Firebase Console</span>
+                  <ExternalLink size={12} />
+                </a>
+              </div>
+            </div>
+
+            {/* STEP 6 */}
+            <div
+              style={{
+                background: 'var(--bg-surface-elevated, rgba(255, 255, 255, 0.02))',
+                border: '1px solid var(--bg-border)',
+                borderRadius: 'var(--radius-md)',
+                padding: '18px 20px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#38BDF8', background: 'rgba(56, 189, 248, 0.15)', padding: '3px 8px', borderRadius: 6 }}>
+                    STEP 6 • SEARCH CONSOLE & SEO
+                  </span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>RANKING PROTECTION</span>
+                </div>
+                <h4 style={{ margin: '0 0 8px', fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  Submit Sitemap & 301 Redirect
+                </h4>
+                <p style={{ margin: '0 0 12px', fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                  Google Search Console me naya property add karein aur XML Sitemap submit karein. Purane domain se naye domain par 301 Redirect set karke traffic preserve karein.
+                </p>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', background: 'var(--bg-surface)', padding: '10px 12px', borderRadius: 6, border: '1px solid var(--bg-border)' }}>
+                  <strong>Sitemap URL: </strong><code>{targetDomain}/sitemap.xml</code>
+                  <div style={{ marginTop: 4 }}>Cloudflare Page Rules me <code>olddomain.com/*</code> → <code>https://{targetDomain.replace(/^https?:\/\//, '')}/$1</code> (301 Permanent Redirect) lagayein.</div>
+                </div>
+              </div>
+              <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => handleCopyMigrationItem(`${targetDomain}/sitemap.xml`, 'step6_sitemap')}
+                  className="btn btn-secondary"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontSize: '0.78rem',
+                    padding: '6px 10px',
+                    flex: 1,
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {copiedMigrationItem === 'step6_sitemap' ? <CheckCheck size={12} color="#10B981" /> : <Copy size={12} />}
+                  <span>Copy Sitemap URL</span>
+                </button>
+                <a
+                  href="https://search.google.com/search-console"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-secondary"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    fontSize: '0.78rem',
+                    padding: '6px 10px',
+                    textDecoration: 'none',
+                  }}
+                >
+                  <ExternalLink size={12} />
+                </a>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Master 1-Click Copy Endpoints Hub */}
+          <div
+            style={{
+              background: 'var(--bg-surface-elevated, rgba(255, 255, 255, 0.02))',
+              border: '1px solid var(--bg-border)',
+              borderRadius: 'var(--radius-md)',
+              padding: '18px 20px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+              <div>
+                <h4 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  📋 Ready-to-Copy Dynamic Endpoints for ({targetDomain})
+                </h4>
+                <p style={{ margin: '2px 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Instant copy-paste strings tailored for payment gateways, verification bots, and crawlers.
+                </p>
+              </div>
+              <span style={{ fontSize: '0.72rem', color: '#10B981', fontWeight: 700, background: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: 4 }}>
+                Real-Time Synchronized
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {[
+                {
+                  id: 'ep_cf_webhook',
+                  label: 'Cashfree Payment Webhook',
+                  service: 'Cashfree Developers Portal',
+                  url: `${targetDomain}/api/checkout/webhook/cashfree`,
+                  note: 'Set in Cashfree Merchant Dashboard → Developers → Webhooks'
+                },
+                {
+                  id: 'ep_rzp_webhook',
+                  label: 'Razorpay Payment Webhook',
+                  service: 'Razorpay Dashboard',
+                  url: `${targetDomain}/api/checkout/webhook/razorpay`,
+                  note: 'Events: payment.captured, order.paid'
+                },
+                {
+                  id: 'ep_adstxt',
+                  label: 'Google ads.txt Verification Endpoint',
+                  service: 'Google AdSense / AdX Crawler',
+                  url: `${targetDomain}/ads.txt`,
+                  note: 'Publicly readable and cached on Cloudflare Edge with 200 OK'
+                },
+                {
+                  id: 'ep_sitemap',
+                  label: 'Dynamic XML Sitemap Index',
+                  service: 'Google Search Console',
+                  url: `${targetDomain}/sitemap.xml`,
+                  note: 'Contains all active products, landing pages, and legal pages'
+                },
+                {
+                  id: 'ep_health',
+                  label: 'Public Store Health & Settings API',
+                  service: 'External Monitor / Health Check',
+                  url: `${targetDomain}/api/settings/public`,
+                  note: 'Returns store metadata, multi-adsense tags, and gateway status'
+                },
+              ].map((item) => (
+                <div
+                  key={item.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: 10,
+                    padding: '8px 12px',
+                    borderRadius: 6,
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--bg-border)',
+                  }}
+                >
+                  <div style={{ flex: '1 1 260px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--text-primary)' }}>{item.label}</span>
+                      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', background: 'var(--bg-surface-elevated, rgba(255, 255, 255, 0.05))', padding: '1px 6px', borderRadius: 4 }}>
+                        {item.service}
+                      </span>
+                    </div>
+                    <code style={{ fontSize: '0.75rem', color: '#60A5FA', wordBreak: 'break-all' }}>{item.url}</code>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyMigrationItem(item.url, item.id)}
+                      className="btn btn-secondary"
+                      style={{
+                        padding: '4px 10px',
+                        fontSize: '0.75rem',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {copiedMigrationItem === item.id ? <CheckCheck size={12} color="#10B981" /> : <Copy size={12} />}
+                      <span>{copiedMigrationItem === item.id ? 'Copied' : 'Copy'}</span>
+                    </button>
+                    {item.url.startsWith('http') && (
+                      <a
+                        href={item.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-secondary"
+                        style={{
+                          padding: '4px 8px',
+                          fontSize: '0.75rem',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          textDecoration: 'none',
+                        }}
+                        title="Open in new tab"
+                      >
+                        <ExternalLink size={12} />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
         </div>
 
         {/* ── Bottom Save Action Bar ── */}
