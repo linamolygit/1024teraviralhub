@@ -24,8 +24,16 @@ export default function ProductFaqAccordion({ productTitle = 'this product', acc
       a: `Your download access link remains valid for ${accessHours} hours from completion of payment with up to 3 download attempts. We recommend downloading and backing up your files to your device or cloud immediately.`,
     },
     {
+      q: 'Is Cash on Delivery (COD) available?',
+      a: 'Cash on Delivery is NOT available because this is an instant digital product. Physical courier delivery takes 4 to 7 days and adds an extra ₹60 to ₹70 shipping charge. By paying securely via UPI (PhonePe, Google Pay, Paytm), the download button unlocks directly on your phone or computer in just 10 seconds at ₹0 delivery fee!',
+    },
+    {
+      q: 'What is the benefit of paying with UPI (PhonePe, GPay, Paytm)?',
+      a: 'Paying with UPI is 100% instant, safe, and saves you money. There are zero convenience fees, you get instant access to your files within seconds, direct 1-click app launch without typing card numbers, and 7-day money-back guarantee protection backed by Cashfree Payments.',
+    },
+    {
       q: 'What payment methods are available?',
-      a: 'We support all major Indian & international payment options including Instant UPI (PhonePe, Google Pay, Paytm, BHIM), Debit & Credit Cards, and Net Banking with 100% bank-grade encryption.',
+      a: 'We support all major Indian & international payment options including Instant UPI (PhonePe, Google Pay, Paytm, BHIM, Cred), Debit & Credit Cards, and Net Banking with 100% bank-grade encryption.',
     },
     {
       q: 'What should I do if I have a problem downloading?',

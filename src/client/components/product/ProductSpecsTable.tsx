@@ -12,7 +12,9 @@ export default function ProductSpecsTable({ product }: Props) {
     { label: 'File Count', value: `${product.file_count} File${product.file_count > 1 ? 's' : ''}` },
     { label: 'Total File Size', value: product.total_file_size ? formatFileSize(product.total_file_size) : null },
     { label: 'License Type', value: product.license_type === 'commercial' ? 'Commercial & Personal Use' : 'Personal Use Only' },
-    { label: 'Delivery Method', value: 'Instant Secure Link (Cloudflare Edge)' },
+    { label: 'Delivery Method', value: 'Instant Secure Download (Delivered in 10-60s)' },
+    { label: 'Cash on Delivery', value: 'Not Available (Digital Instant Unlock)' },
+    { label: 'Payment Method', value: 'Instant UPI (PhonePe, GPay, Paytm) · 100% Safe' },
     { label: 'Access Validity', value: `${product.access_duration_hours} Hours` },
     { label: 'Download Attempts', value: `${product.download_limit} Max Downloads` },
   ].filter((s) => s.value !== null)
