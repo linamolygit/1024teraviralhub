@@ -3,7 +3,7 @@
 // ============================================
 
 import { initializeApp } from 'firebase/app'
-import { getAuth } from 'firebase/auth'
+import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth'
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -16,4 +16,12 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig)
 export const auth = getAuth(app)
+
+// Enforce browser local persistence so sessions survive tab closures, page reloads, and browser restarts
+if (typeof window !== 'undefined') {
+  setPersistence(auth, browserLocalPersistence).catch((err) => {
+    console.warn('[Firebase Auth] Failed to configure browserLocalPersistence:', err)
+  })
+}
+
 export default app

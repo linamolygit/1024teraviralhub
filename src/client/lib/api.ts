@@ -21,15 +21,38 @@ async function req<T>(url: string, opts?: RequestInit): Promise<T> {
   return res.json() as Promise<T>
 }
 
-// Authed admin request
+// Authed admin request with seamless 401 token refresh recovery
 async function adminReq<T>(url: string, token: string, opts?: RequestInit): Promise<T> {
-  return req<T>(url, {
-    ...opts,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      ...opts?.headers,
-    },
-  })
+  try {
+    return await req<T>(url, {
+      ...opts,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ...opts?.headers,
+      },
+    })
+  } catch (err: any) {
+    const errorMsg = String(err?.message || '')
+    // If token expired (after 1 hour) or unauthorized, try fetching fresh token from STS and retry once
+    if (errorMsg.includes('401') || errorMsg.includes('Unauthorized') || errorMsg.includes('Token expired')) {
+      try {
+        const { useAuthStore } = await import('./auth-store')
+        const freshToken = await useAuthStore.getState().getToken(true)
+        if (freshToken && freshToken !== token) {
+          return await req<T>(url, {
+            ...opts,
+            headers: {
+              Authorization: `Bearer ${freshToken}`,
+              ...opts?.headers,
+            },
+          })
+        }
+      } catch {
+        // Fall through to re-throw original error
+      }
+    }
+    throw err
+  }
 }
 
 // ─── Public API ──────────────────────────
