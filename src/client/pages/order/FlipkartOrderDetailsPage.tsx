@@ -432,26 +432,41 @@ export default function FlipkartOrderDetailsPage() {
   const deliveryFullStr = `${daysShort[deliveryExpectedDate.getDay()]} ${months[deliveryExpectedDate.getMonth()]} ${deliveryExpectedDate.getDate()} by 11 PM`
   const deliveryShortStr = `${months[deliveryExpectedDate.getMonth()]} ${String(deliveryExpectedDate.getDate()).padStart(2, '0')}`
 
-  // Next-Day Order Cancellation Detection (UI Simulation Matching Screenshot 1 & 2)
-  const isCancelled = useMemo(() => {
-    const statusParam = searchParams.get('status')?.toLowerCase()
-    const testCancel =
-      searchParams.get('test_cancel') === '1' ||
-      searchParams.get('cancelled') === '1' ||
-      searchParams.get('next_day') === '1'
-    if (testCancel || statusParam === 'cancelled') return true
-    if (orderData?.status === 'CANCELLED') return true
+  // 3-Stage Order Lifecycle Calculation:
+  // Day 1 (Confirmed) -> Day 2 (Shipped ✅) -> Day 3 (Cancelled 🔴)
+  const calendarDayDiff = useMemo(() => {
+    if (!orderData?.created_at) return 0
+    const oDate = parseOrderDate(orderData.created_at)
+    const nowD = new Date()
+    const utc1 = Date.UTC(oDate.getFullYear(), oDate.getMonth(), oDate.getDate())
+    const utc2 = Date.UTC(nowD.getFullYear(), nowD.getMonth(), nowD.getDate())
+    return Math.floor((utc2 - utc1) / (1000 * 60 * 60 * 24))
+  }, [orderData?.created_at])
 
-    // Next day detection: order placed on an earlier calendar day or >= 12 hours ago
-    if (orderData?.created_at) {
-      const oDate = parseOrderDate(orderData.created_at)
-      const nowD = new Date()
-      const diffHours = (nowD.getTime() - oDate.getTime()) / (1000 * 60 * 60)
-      const isDifferentDay = nowD.toDateString() !== oDate.toDateString()
-      if (isDifferentDay || diffHours >= 12) {
-        return true
-      }
-    }
+  const hoursDiff = useMemo(() => {
+    if (!orderData?.created_at) return 0
+    const oDate = parseOrderDate(orderData.created_at)
+    return (Date.now() - oDate.getTime()) / (1000 * 60 * 60)
+  }, [orderData?.created_at])
+
+  // Explicit URL Overrides for easy testing:
+  // ?day1=1 or ?confirmed=1 -> Day 1 (Confirmed)
+  // ?day2=1 or ?shipped=1   -> Day 2 (Shipped)
+  // ?day3=1 or ?cancelled=1 -> Day 3 (Cancelled)
+  const isForcedDay1 = searchParams.get('day1') === '1' || searchParams.get('test_confirmed') === '1'
+  const isForcedDay2 = searchParams.get('day2') === '1' || searchParams.get('test_shipped') === '1' || searchParams.get('shipped') === '1'
+  const isForcedDay3 =
+    searchParams.get('day3') === '1' ||
+    searchParams.get('test_cancel') === '1' ||
+    searchParams.get('cancelled') === '1' ||
+    searchParams.get('next_day') === '1' ||
+    searchParams.get('status')?.toLowerCase() === 'cancelled'
+
+  // Stage 3: Order Cancelled on Day 3 (2+ calendar days after order placement or >= 44 hours)
+  const isCancelled = useMemo(() => {
+    if (isForcedDay1 || isForcedDay2) return false
+    if (isForcedDay3) return true
+    if (orderData?.status === 'CANCELLED') return true
 
     const ordNum = orderData?.order_number || orderParam
     if (ordNum && typeof window !== 'undefined') {
@@ -462,21 +477,53 @@ export default function FlipkartOrderDetailsPage() {
       } catch { }
     }
 
-    return false
-  }, [searchParams, orderData?.status, orderData?.created_at, orderData?.order_number, orderParam])
-
-  // Realistic cancellation timestamp
-  const cancelDate = useMemo(() => {
-    const nowD = new Date()
-    const diffHours = (nowD.getTime() - orderDate.getTime()) / (1000 * 60 * 60)
-    if (diffHours >= 12) {
-      return new Date(Math.min(nowD.getTime(), orderDate.getTime() + 14 * 3600 * 1000))
+    // Day 3 check: 2 or more calendar days after order date, or 44+ hours
+    if (orderData?.created_at) {
+      if (calendarDayDiff >= 2 || hoursDiff >= 44) {
+        return true
+      }
     }
-    // Same day test simulation: 4 minutes after order
+
+    return false
+  }, [isForcedDay1, isForcedDay2, isForcedDay3, orderData?.status, orderData?.created_at, orderData?.order_number, orderParam, calendarDayDiff, hoursDiff])
+
+  // Stage 2: Shipped on Day 2 (1 calendar day after order placement or >= 16 hours, or already in Stage 3)
+  const isShipped = useMemo(() => {
+    if (isForcedDay1) return false
+    if (isForcedDay2 || isForcedDay3 || isCancelled) return true
+
+    // Day 2 check: at least 1 calendar day after order date, or 16+ hours
+    if (orderData?.created_at) {
+      if (calendarDayDiff >= 1 || hoursDiff >= 16) {
+        return true
+      }
+    }
+
+    return false
+  }, [isForcedDay1, isForcedDay2, isForcedDay3, isCancelled, orderData?.created_at, calendarDayDiff, hoursDiff])
+
+  // Realistic Shipped timestamp (Day 2 morning ~10:30 AM or 18 hours after order placement)
+  const shippedActualDate = useMemo(() => {
+    const diffHours = (Date.now() - orderDate.getTime()) / (1000 * 60 * 60)
+    if (diffHours >= 16) {
+      return new Date(Math.min(Date.now(), orderDate.getTime() + 18 * 3600 * 1000))
+    }
+    // Simulation / same-day preview fallback: 2 minutes after order
+    return new Date(orderDate.getTime() + 2 * 60 * 1000)
+  }, [orderDate])
+
+  // Realistic Cancellation timestamp (Day 3 morning ~11:45 AM or 46 hours after order placement)
+  const cancelDate = useMemo(() => {
+    const diffHours = (Date.now() - orderDate.getTime()) / (1000 * 60 * 60)
+    if (diffHours >= 44) {
+      return new Date(Math.min(Date.now(), orderDate.getTime() + 46 * 3600 * 1000))
+    }
+    // Simulation / same-day preview fallback: 4 minutes after order
     return new Date(orderDate.getTime() + 4 * 60 * 1000)
   }, [orderDate])
 
   const step1ShortDate = formatShortDateWithToday(orderDate)
+  const shippedShortDate = formatShortDateWithToday(shippedActualDate)
   const cancelShortDate = formatShortDateWithToday(cancelDate)
 
   // Ekart tracking code: e.g. FMPC5235648370
@@ -879,7 +926,7 @@ export default function FlipkartOrderDetailsPage() {
                       letterSpacing: '-0.02em',
                     }}
                   >
-                    {isCancelled ? 'Order Cancelled' : orderData?.status === 'FAILED' ? 'Payment Failed' : 'Order Confirmed'}
+                    {isCancelled ? 'Order Cancelled' : isShipped ? 'Shipped' : orderData?.status === 'FAILED' ? 'Payment Failed' : 'Order Confirmed'}
                   </h3>
 
                   <button
@@ -930,7 +977,7 @@ export default function FlipkartOrderDetailsPage() {
                         Full refund of ₹{orderData?.amount || 99} will be credited to your original payment mode within 7 business days.
                       </p>
 
-                      {/* Horizontal 2-Node Delivery Tracker (Matching Screenshot 1 EXACTLY) */}
+                      {/* Horizontal 3-Node Delivery Tracker for Cancelled State (Confirmed -> Shipped -> Cancelled) */}
                       <div style={{ position: 'relative', marginBottom: '24px' }}>
                         {/* Step Circles & Connecting Line Row */}
                         <div
@@ -959,7 +1006,7 @@ export default function FlipkartOrderDetailsPage() {
                             <Check size={13} color="#FFFFFF" strokeWidth={3.5} />
                           </div>
 
-                          {/* Solid Green Connecting Line */}
+                          {/* Solid Green Connecting Line 1 */}
                           <div
                             style={{
                               flex: 1,
@@ -969,7 +1016,34 @@ export default function FlipkartOrderDetailsPage() {
                             }}
                           />
 
-                          {/* Step 2 Circle: Cancelled (Red circle with white inner dot) */}
+                          {/* Step 2 Circle: Shipped on Day 2 (Green circle with Checkmark) */}
+                          <div
+                            style={{
+                              width: 22,
+                              height: 22,
+                              borderRadius: '50%',
+                              background: '#26A544',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                              zIndex: 2,
+                            }}
+                          >
+                            <Check size={13} color="#FFFFFF" strokeWidth={3.5} />
+                          </div>
+
+                          {/* Solid Green Connecting Line 2 */}
+                          <div
+                            style={{
+                              flex: 1,
+                              height: '2.5px',
+                              background: '#26A544',
+                              zIndex: 1,
+                            }}
+                          />
+
+                          {/* Step 3 Circle: Cancelled on Day 3 (Red circle with white inner dot) */}
                           <div
                             style={{
                               width: 22,
@@ -994,7 +1068,7 @@ export default function FlipkartOrderDetailsPage() {
                           </div>
                         </div>
 
-                        {/* Labels Row (Order Confirmed on Left, Cancelled on Right) */}
+                        {/* Labels Row (Order Confirmed on Left, Shipped in Center, Cancelled on Right) */}
                         <div
                           style={{
                             display: 'flex',
@@ -1007,7 +1081,7 @@ export default function FlipkartOrderDetailsPage() {
                           <div style={{ textAlign: 'left' }}>
                             <div
                               style={{
-                                fontSize: '0.88rem',
+                                fontSize: '0.86rem',
                                 color: '#374151',
                                 fontWeight: 500,
                               }}
@@ -1025,11 +1099,33 @@ export default function FlipkartOrderDetailsPage() {
                             </div>
                           </div>
 
-                          {/* Step 2 Label (Right aligned) */}
+                          {/* Step 2 Label (Center aligned) */}
+                          <div style={{ textAlign: 'center' }}>
+                            <div
+                              style={{
+                                fontSize: '0.86rem',
+                                color: '#374151',
+                                fontWeight: 500,
+                              }}
+                            >
+                              Shipped
+                            </div>
+                            <div
+                              style={{
+                                fontSize: '0.82rem',
+                                color: '#717478',
+                                marginTop: '2px',
+                              }}
+                            >
+                              {shippedShortDate}
+                            </div>
+                          </div>
+
+                          {/* Step 3 Label (Right aligned) */}
                           <div style={{ textAlign: 'right' }}>
                             <div
                               style={{
-                                fontSize: '0.88rem',
+                                fontSize: '0.86rem',
                                 color: '#374151',
                                 fontWeight: 500,
                               }}
@@ -1095,9 +1191,13 @@ export default function FlipkartOrderDetailsPage() {
                         }}
                       >
                         {orderData?.status === 'PAID'
-                          ? 'Your Order has been placed.'
+                          ? isShipped
+                            ? 'Your item has been shipped.'
+                            : 'Your Order has been placed.'
                           : orderData?.status === 'FAILED'
                           ? 'Payment was declined or cancelled.'
+                          : isShipped
+                          ? 'Your item has been shipped.'
                           : 'Your Order has been placed.'}
                       </p>
 
@@ -1119,7 +1219,7 @@ export default function FlipkartOrderDetailsPage() {
                               width: 22,
                               height: 22,
                               borderRadius: '50%',
-                              background: '#008444',
+                              background: '#26A544',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
@@ -1130,29 +1230,47 @@ export default function FlipkartOrderDetailsPage() {
                             <Check size={13} color="#FFFFFF" strokeWidth={3.5} />
                           </div>
 
-                          {/* Connecting Line 1 */}
+                          {/* Connecting Line 1 (Solid green when Day 2 shipped) */}
                           <div
                             style={{
                               flex: 1,
-                              height: '2px',
-                              background: '#9CA3AF',
+                              height: '2.5px',
+                              background: isShipped ? '#26A544' : '#9CA3AF',
                               zIndex: 1,
                             }}
                           />
 
-                          {/* Step 2 Circle: Shipped (Empty Circle Outline) */}
-                          <div
-                            style={{
-                              width: 22,
-                              height: 22,
-                              borderRadius: '50%',
-                              border: '1.8px solid #9CA3AF',
-                              background: '#FFFFFF',
-                              flexShrink: 0,
-                              zIndex: 2,
-                              boxSizing: 'border-box',
-                            }}
-                          />
+                          {/* Step 2 Circle: Shipped (Green Tick on Day 2, Empty Outline on Day 1) */}
+                          {isShipped ? (
+                            <div
+                              style={{
+                                width: 22,
+                                height: 22,
+                                borderRadius: '50%',
+                                background: '#26A544',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                                zIndex: 2,
+                              }}
+                            >
+                              <Check size={13} color="#FFFFFF" strokeWidth={3.5} />
+                            </div>
+                          ) : (
+                            <div
+                              style={{
+                                width: 22,
+                                height: 22,
+                                borderRadius: '50%',
+                                border: '1.8px solid #9CA3AF',
+                                background: '#FFFFFF',
+                                flexShrink: 0,
+                                zIndex: 2,
+                                boxSizing: 'border-box',
+                              }}
+                            />
+                          )}
 
                           {/* Connecting Line 2 */}
                           <div
@@ -1228,7 +1346,7 @@ export default function FlipkartOrderDetailsPage() {
                                 marginTop: '2px',
                               }}
                             >
-                              {shippedDateStr}
+                              {isShipped ? shippedShortDate : shippedDateStr}
                             </div>
                           </div>
 
@@ -1504,9 +1622,9 @@ export default function FlipkartOrderDetailsPage() {
             {/* Vertical Timeline Container (Exact Screenshot Layout & Typography) */}
             <div style={{ padding: '16px 24px 60px 24px' }}>
               {isCancelled ? (
-                /* ── SCREENSHOT 2: EXACT CANCELLED TIMELINE ── */
+                /* ── SCREENSHOT 2: EXACT CANCELLED TIMELINE (3-NODE: Confirmed -> Shipped -> Cancelled) ── */
                 <div style={{ position: 'relative', paddingLeft: '28px' }}>
-                  {/* Continuous Vertical Green Line from Node 1 dot to Node 2 dot (Matching Screenshot 2) */}
+                  {/* Continuous Vertical Green Line from Node 1 dot to Node 3 dot */}
                   <div
                     style={{
                       position: 'absolute',
@@ -1558,7 +1676,49 @@ export default function FlipkartOrderDetailsPage() {
                     </div>
                   </div>
 
-                  {/* ── Node 2: Cancelled (Solid Red Dot) ── */}
+                  {/* ── Node 2: Shipped on Day 2 (Solid Green Dot) ── */}
+                  <div style={{ position: 'relative', marginBottom: '32px' }}>
+                    {/* Solid Green Dot */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        left: '-28px',
+                        top: '4px',
+                        width: '12px',
+                        height: '12px',
+                        borderRadius: '50%',
+                        background: '#26A544',
+                        zIndex: 2,
+                      }}
+                    />
+
+                    {/* Node 2 Header: Shipped + Date */}
+                    <div
+                      style={{
+                        fontSize: '1rem',
+                        lineHeight: 1.35,
+                        marginBottom: '8px',
+                      }}
+                    >
+                      <span style={{ fontWeight: 600, color: '#111827' }}>Shipped </span>
+                      <span style={{ color: '#717478', fontWeight: 400 }}>{formatFlipkartDate(shippedActualDate)}</span>
+                    </div>
+
+                    {/* Sub-item: Shipped updates */}
+                    <div>
+                      <div style={{ fontSize: '0.94rem', color: '#111827', fontWeight: 400 }}>
+                        Your item has been shipped.
+                      </div>
+                      <div style={{ fontSize: '0.84rem', color: '#717478', marginTop: '3px' }}>
+                        {formatFlipkartDate(shippedActualDate)} - {formatFlipkartTime(shippedActualDate)}
+                      </div>
+                      <div style={{ fontSize: '0.84rem', color: '#717478', marginTop: '4px' }}>
+                        Shipped via Ekart Logistics - {ekartTrackingId}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ── Node 3: Cancelled on Day 3 (Solid Red Dot) ── */}
                   <div style={{ position: 'relative' }}>
                     {/* Solid Red Dot */}
                     <div
@@ -1574,7 +1734,7 @@ export default function FlipkartOrderDetailsPage() {
                       }}
                     />
 
-                    {/* Node 2 Header: Cancelled + Date */}
+                    {/* Node 3 Header: Cancelled + Date */}
                     <div
                       style={{
                         fontSize: '1rem',
@@ -1672,54 +1832,97 @@ export default function FlipkartOrderDetailsPage() {
                     </div>
                   </div>
 
-                  {/* ── Node 2: Shipped Expected (Hollow Grey Dot) ── */}
-                  <div style={{ position: 'relative', marginBottom: '28px' }}>
-                    {/* Hollow Grey Dot */}
-                    <div
-                      style={{
-                        position: 'absolute',
-                        left: '-28px',
-                        top: '4px',
-                        width: '12px',
-                        height: '12px',
-                        borderRadius: '50%',
-                        border: '1.8px solid #CBD5E1',
-                        background: '#FFFFFF',
-                        boxSizing: 'border-box',
-                        zIndex: 2,
-                      }}
-                    />
+                  {/* ── Node 2: Shipped (Solid Green Dot on Day 2, Hollow Grey Dot on Day 1) ── */}
+                  {isShipped ? (
+                    <div style={{ position: 'relative', marginBottom: '28px' }}>
+                      {/* Solid Green Dot */}
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: '-28px',
+                          top: '4px',
+                          width: '12px',
+                          height: '12px',
+                          borderRadius: '50%',
+                          background: '#26A544',
+                          zIndex: 2,
+                        }}
+                      />
 
-                    {/* Node 2 Header */}
-                    <div
-                      style={{
-                        fontSize: '1rem',
-                        fontWeight: 500,
-                        color: '#717478',
-                        marginBottom: '12px',
-                        lineHeight: 1.35,
-                      }}
-                    >
-                      Shipped Expected By {formatDayWithSuffixAndMonth(shippedExpectedDate)}
-                    </div>
-
-                    {/* Sub-item 1 */}
-                    <div style={{ marginBottom: '14px' }}>
-                      <div style={{ fontSize: '0.94rem', color: '#717478', fontWeight: 400 }}>
-                        Item yet to be shipped.
+                      {/* Node 2 Header */}
+                      <div
+                        style={{
+                          fontSize: '1rem',
+                          lineHeight: 1.35,
+                          marginBottom: '8px',
+                        }}
+                      >
+                        <span style={{ fontWeight: 600, color: '#111827' }}>Shipped </span>
+                        <span style={{ color: '#717478', fontWeight: 400 }}>{formatFlipkartDate(shippedActualDate)}</span>
                       </div>
-                      <div style={{ fontSize: '0.84rem', color: '#717478', marginTop: '3px' }}>
-                        Expected by {formatDayWithSuffixAndMonth(shippedExpectedDate, true)}
-                      </div>
-                    </div>
 
-                    {/* Sub-item 2 */}
-                    <div>
-                      <div style={{ fontSize: '0.94rem', color: '#717478', fontWeight: 400 }}>
-                        Item yet to reach hub nearest to you.
+                      {/* Sub-item 1 */}
+                      <div>
+                        <div style={{ fontSize: '0.94rem', color: '#111827', fontWeight: 400 }}>
+                          Your item has been shipped.
+                        </div>
+                        <div style={{ fontSize: '0.84rem', color: '#717478', marginTop: '3px' }}>
+                          {formatFlipkartDate(shippedActualDate)} - {formatFlipkartTime(shippedActualDate)}
+                        </div>
+                        <div style={{ fontSize: '0.84rem', color: '#717478', marginTop: '4px' }}>
+                          Shipped via Ekart Logistics - {ekartTrackingId}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div style={{ position: 'relative', marginBottom: '28px' }}>
+                      {/* Hollow Grey Dot */}
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: '-28px',
+                          top: '4px',
+                          width: '12px',
+                          height: '12px',
+                          borderRadius: '50%',
+                          border: '1.8px solid #CBD5E1',
+                          background: '#FFFFFF',
+                          boxSizing: 'border-box',
+                          zIndex: 2,
+                        }}
+                      />
+
+                      {/* Node 2 Header */}
+                      <div
+                        style={{
+                          fontSize: '1rem',
+                          fontWeight: 500,
+                          color: '#717478',
+                          marginBottom: '12px',
+                          lineHeight: 1.35,
+                        }}
+                      >
+                        Shipped Expected By {formatDayWithSuffixAndMonth(shippedExpectedDate)}
+                      </div>
+
+                      {/* Sub-item 1 */}
+                      <div style={{ marginBottom: '14px' }}>
+                        <div style={{ fontSize: '0.94rem', color: '#717478', fontWeight: 400 }}>
+                          Item yet to be shipped.
+                        </div>
+                        <div style={{ fontSize: '0.84rem', color: '#717478', marginTop: '3px' }}>
+                          Expected by {formatDayWithSuffixAndMonth(shippedExpectedDate, true)}
+                        </div>
+                      </div>
+
+                      {/* Sub-item 2 */}
+                      <div>
+                        <div style={{ fontSize: '0.94rem', color: '#717478', fontWeight: 400 }}>
+                          Item yet to reach hub nearest to you.
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* ── Node 3: Out For Delivery (Hollow Grey Dot) ── */}
                   <div style={{ position: 'relative', marginBottom: '28px' }}>
