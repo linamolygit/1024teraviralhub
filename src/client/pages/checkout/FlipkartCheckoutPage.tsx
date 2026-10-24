@@ -617,7 +617,11 @@ export default function FlipkartCheckoutPage() {
       if (isMobile && isInApp && isAndroid) {
         const breakoutUrl = (orderRes.payment_url && orderRes.payment_url.startsWith('http'))
           ? orderRes.payment_url
-          : (orderRes.upi_intent?.web || window.location.href)
+          : (orderRes.upi_intent?.web && orderRes.upi_intent.web.startsWith('http'))
+          ? orderRes.upi_intent.web
+          : orderRes.payment_session_id
+          ? `https://payments.cashfree.com/order/#${orderRes.payment_session_id}`
+          : window.location.href
         triggerChromeBreakout(breakoutUrl)
         setTimeout(() => setIsProcessingPayment(false), 3000)
         return

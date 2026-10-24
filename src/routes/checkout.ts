@@ -398,8 +398,10 @@ app.post('/create', async (c) => {
     const defaultUpi = upiSession?.data?.payload?.default || phonepeLink || null
     const gpayLink = upiSession?.data?.payload?.gpay || defaultUpi
     const paytmLink = upiSession?.data?.payload?.paytm || defaultUpi
-    const webUpiUrl = upiSession?.data?.payload?.web || null
-    const cfPaymentUrl = webUpiUrl || defaultUpi || defaultHostedUrl
+    const webUpiUrl = (upiSession?.data?.payload?.web && upiSession.data.payload.web.startsWith('http'))
+      ? upiSession.data.payload.web
+      : null
+    const cfPaymentUrl = webUpiUrl || defaultHostedUrl
 
     return c.json({
       success: true,

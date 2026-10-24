@@ -23,7 +23,6 @@ import ProductLootScarcityBanner from '../../components/product/ProductLootScarc
 import RecentPurchasesPopup from '../../components/product/RecentPurchasesPopup'
 import ReviewGateModal from '../../components/product/ReviewGateModal'
 import FlipkartReviewsSection from '../../components/product/FlipkartReviewsSection'
-import FlipkartUpiTrustSection from '../../components/product/FlipkartUpiTrustSection'
 import AdPlacement from '../../components/ads/AdPlacement'
 import { detectInAppBrowser, triggerChromeBreakout } from '../../lib/inAppBrowser'
 import { trackPageView, trackUserClick, sendAnalyticsEvent } from '../../lib/analytics-tracker'
@@ -696,7 +695,11 @@ export default function ProductPage() {
       if (isMobile && isInApp && isAndroid) {
         const breakoutUrl = (orderRes.payment_url && orderRes.payment_url.startsWith('http'))
           ? orderRes.payment_url
-          : (orderRes.upi_intent?.web || window.location.href)
+          : (orderRes.upi_intent?.web && orderRes.upi_intent.web.startsWith('http'))
+          ? orderRes.upi_intent.web
+          : orderRes.payment_session_id
+          ? `https://payments.cashfree.com/order/#${orderRes.payment_session_id}`
+          : window.location.href
         triggerChromeBreakout(breakoutUrl)
         setTimeout(() => {
           setIsProcessing(false)
@@ -1249,15 +1252,6 @@ export default function ProductPage() {
             </div>
           )}
 
-          {/* 🏷️ Flipkart-Style Available Offers, Delivery by Instant & Transparent NO-COD Disclosure */}
-          <FlipkartUpiTrustSection
-            effectivePrice={effectivePrice}
-            originalPrice={originalPrice}
-            discountAmount={discountAmount}
-            preferredApp={preferredApp}
-            accessHours={product.access_duration_hours}
-          />
-
           {/* High Conversion 1-Click Buy Button (PhonePe / UPI / Cashfree) */}
           <motion.button
             onClick={handleInstantBuy}
@@ -1277,7 +1271,7 @@ export default function ProductPage() {
               border: 'none',
               boxShadow: '0 4px 16px rgba(255, 210, 0, 0.45)',
               cursor: isProcessing ? 'not-allowed' : 'pointer',
-              marginBottom: '10px',
+              marginBottom: '12px',
             }}
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.98 }}
@@ -1290,7 +1284,7 @@ export default function ProductPage() {
             ) : (
               <>
                 <span style={{ fontSize: '1.35rem', fontWeight: 900, letterSpacing: '0.02em', lineHeight: 1.15, color: '#000000' }}>
-                  ⚡ PAY VIA UPI · {formatPrice(effectivePrice)}
+                  {mainCtaText} · {formatPrice(effectivePrice)}
                 </span>
                 <span
                   style={{
@@ -1304,39 +1298,12 @@ export default function ProductPage() {
                     marginTop: '2px',
                   }}
                 >
-                  {getUpiAppIcon(preferredApp, 16)}
-                  <span>Instant 1-Click {upiAppName} / GPay / Paytm Unlock</span>
+                  {getUpiAppIcon(preferredApp, 15)}
+                  <span>Via {upiAppName}</span>
                 </span>
               </>
             )}
           </motion.button>
-
-          {/* Micro Trust Strip below button */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '12px',
-              fontSize: '0.74rem',
-              fontWeight: 600,
-              color: '#4B5563',
-              flexWrap: 'wrap',
-              marginBottom: '14px',
-            }}
-          >
-            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#059669' }}>
-              <Check size={12} strokeWidth={3} /> ₹0 Delivery Fee
-            </span>
-            <span>•</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <Zap size={12} color="#D97706" /> 10-Sec Instant Download
-            </span>
-            <span>•</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <Lock size={11} color="#2563EB" /> 100% Secure UPI
-            </span>
-          </div>
 
           {/* Optional Email & Phone Dropdown */}
           <details
@@ -1539,17 +1506,14 @@ export default function ProductPage() {
                 }}
               >
                 <span className="fomo-live-dot" style={{ width: 6, height: 6 }} />
-                <span>⚡ Special UPI Offer</span>
+                <span>⚡ Big Billion Loot Deal</span>
               </div>
             )}
-            <div style={{ fontSize: '0.72rem', color: '#6B7280', textDecoration: 'line-through', fontWeight: 500 }}>
+            <div style={{ fontSize: '0.75rem', color: '#6B7280', textDecoration: 'line-through', fontWeight: 500 }}>
               MRP: {formatPrice(originalPrice)}
             </div>
             <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#111827', lineHeight: 1.2 }}>
-              {formatPrice(effectivePrice)}
-            </div>
-            <div style={{ fontSize: '0.68rem', color: '#059669', fontWeight: 700 }}>
-              ⚡ Free Instant Delivery (No COD)
+              Price: {formatPrice(effectivePrice)}
             </div>
           </div>
 
@@ -1560,9 +1524,9 @@ export default function ProductPage() {
             style={{
               background: '#FFD200',
               color: '#000000',
-              fontWeight: 900,
-              fontSize: '1rem',
-              padding: '12px 28px',
+              fontWeight: 800,
+              fontSize: '1.05rem',
+              padding: '12px 36px',
               borderRadius: '8px',
               border: 'none',
               cursor: isProcessing ? 'not-allowed' : 'pointer',
@@ -1578,13 +1542,10 @@ export default function ProductPage() {
             {isProcessing ? (
               <>
                 <RefreshCw size={16} className="spin" />
-                <span>Opening {upiAppName}...</span>
+                <span>Processing...</span>
               </>
             ) : (
-              <>
-                {getUpiAppIcon(preferredApp, 16)}
-                <span>Pay with UPI</span>
-              </>
+              <span>Buy now</span>
             )}
           </button>
         </div>

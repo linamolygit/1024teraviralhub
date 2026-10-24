@@ -524,7 +524,11 @@ export default function CheckoutPage() {
       if (isMobile && isInApp && isAndroid) {
         const breakoutUrl = (result.payment_url && result.payment_url.startsWith('http'))
           ? result.payment_url
-          : (result.upi_intent?.web || window.location.href)
+          : (result.upi_intent?.web && result.upi_intent.web.startsWith('http'))
+          ? result.upi_intent.web
+          : result.payment_session_id
+          ? `https://payments.cashfree.com/order/#${result.payment_session_id}`
+          : window.location.href
         triggerChromeBreakout(breakoutUrl)
         setTimeout(() => setLoading(false), 3500)
         return
